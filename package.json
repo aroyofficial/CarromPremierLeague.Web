@@ -13,6 +13,7 @@
     "bootstrap": "^5.3.8",
     "element-plus": "^2.13.2",
     "pinia": "^2.3.1",
+    "sass": "^1.97.3",
     "vue": "^3.4.0",
     "vue-router": "^4.6.4"
   },

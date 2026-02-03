@@ -1,6 +1,14 @@
 body {
 	margin: 0;
 	font-family: "Poppins", sans-serif;
+	/* background: url("../images/carrom_bg.jpg");
+	background-size: cover;
+	background-repeat: no-repeat;
+	background-position: center; */
+}
+
+#app {
+	/* background: #000000ba; */
 }
 
 .poppins-thin {
