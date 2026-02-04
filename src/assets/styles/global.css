@@ -118,3 +118,15 @@ body {
 	font-weight: 900;
 	font-style: italic;
 }
+
+table,
+tr,
+td,
+th,
+div,
+p,
+span,
+a,
+button {
+	font-family: "Poppins";
+}
