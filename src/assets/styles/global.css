@@ -130,3 +130,10 @@ a,
 button {
 	font-family: "Poppins";
 }
+
+.team-logo {
+	border-radius: 50%;
+	height: 30px;
+	width: 30px;
+	margin-right: 5px;
+}

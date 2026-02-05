@@ -35,12 +35,12 @@ const stopLoader = () => {
 
 const playAudio = () => {
 	const audioPlayer = document.getElementById("audio-player");
-	// audioPlayer.play();
+	audioPlayer?.play();
 };
 
 const pauseAudio = () => {
 	const audioPlayer = document.getElementById("audio-player");
-	audioPlayer.pause();
+	audioPlayer?.pause();
 };
 
 onMounted(async () => {
@@ -53,6 +53,7 @@ onMounted(async () => {
 			break;
 		default:
 			pauseAudio();
+			teamStore.teams.length === 0 && (await teamStore.fetchTeams());
 			seasonStore.seasons.length === 0 && (await seasonStore.fetchSeasons());
 			break;
 	}
@@ -60,3 +61,5 @@ onMounted(async () => {
 	parentRendered.value = true;
 });
 </script>
+
+<style lang="scss"></style>

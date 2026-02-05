@@ -40,7 +40,7 @@
 						<template #default="{ row }">
 							<img
 								class="team-logo"
-								:src="getTeamLogo(row)"
+								:src="teams.find((t) => t.id === row.team_id)?.logo_url"
 								height="10"
 								width="10"
 							/>
@@ -71,6 +71,7 @@ const seasonStore = useSeasonStore();
 const teamStore = useTeamStore();
 const selectedSeason = ref(null);
 const seasons = ref([]);
+const teams = ref([]);
 const leagueTable = ref([]);
 const loading = ref(false);
 const dropdownPopperOptions = ref({
@@ -82,10 +83,6 @@ const dropdownPopperOptions = ref({
 		},
 	],
 });
-
-const getTeamLogo = (team) => {
-	return `/src/assets/images/${team?.actual_team_name?.toLowerCase()?.replace(" ", "_")}.png`;
-};
 
 const fetchLeagueTable = async () => {
 	try {
@@ -117,6 +114,7 @@ onMounted(async () => {
 	seasons.value = seasonStore.seasons;
 	selectedSeason.value = seasonStore.selectedSeason;
 	leagueTable.value = seasonStore.leagueTable;
+	teams.value = teamStore.teams;
 	fetchLeagueTable();
 });
 </script>
@@ -153,12 +151,5 @@ onMounted(async () => {
 
 .el-table--fit:hover {
 	cursor: pointer;
-}
-
-.team-logo {
-	border-radius: 50%;
-	height: 30px;
-	width: 30px;
-	margin-right: 5px;
 }
 </style>

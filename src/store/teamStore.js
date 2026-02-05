@@ -13,6 +13,9 @@ export const useTeamStore = defineStore("team", {
 			try {
 				const response = await teamService.getAll();
 				this.teams = response.data;
+				this.teams.forEach((team) => {
+					team.logo_url = `src/assets/images/${team.name.toLowerCase().replace(" ", "_")}.png`;
+				});
 			} finally {
 				this.loading = false;
 			}
