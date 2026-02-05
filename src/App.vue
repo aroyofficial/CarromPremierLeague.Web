@@ -17,10 +17,25 @@ const route = useRoute();
 const seasonStore = useSeasonStore();
 const teamStore = useTeamStore();
 const parentRendered = ref(false);
+let loadingInstance = null;
+
+const startLoader = () => {
+	loadingInstance = ElLoading.service({
+		lock: true,
+		text: "Loading...",
+		background: "rgba(0, 0, 0, 0.7)",
+	});
+};
+
+const stopLoader = () => {
+	if (loadingInstance) {
+		loadingInstance.close();
+	}
+};
 
 const playAudio = () => {
 	const audioPlayer = document.getElementById("audio-player");
-	audioPlayer.play();
+	// audioPlayer.play();
 };
 
 const pauseAudio = () => {
@@ -29,6 +44,7 @@ const pauseAudio = () => {
 };
 
 onMounted(async () => {
+	startLoader();
 	switch (window.location.pathname) {
 		case Routes.POINTS_TABLE:
 			document.addEventListener("click", playAudio, { once: true });
@@ -40,6 +56,7 @@ onMounted(async () => {
 			seasonStore.seasons.length === 0 && (await seasonStore.fetchSeasons());
 			break;
 	}
+	stopLoader();
 	parentRendered.value = true;
 });
 </script>

@@ -40,7 +40,7 @@
 						<template #default="{ row }">
 							<img
 								class="team-logo"
-								:src="getTeamLogo(row.team_id)"
+								:src="getTeamLogo(row)"
 								height="10"
 								width="10"
 							/>
@@ -83,8 +83,8 @@ const dropdownPopperOptions = ref({
 	],
 });
 
-const getTeamLogo = (teamId) => {
-	return teamStore.teams.find((team) => team.id === teamId)?.logo_url || "";
+const getTeamLogo = (team) => {
+	return `/src/assets/images/${team?.actual_team_name?.toLowerCase()?.replace(" ", "_")}.png`;
 };
 
 const fetchLeagueTable = async () => {
@@ -98,14 +98,15 @@ const fetchLeagueTable = async () => {
 			leagueTable.value.standings &&
 			leagueTable.value.standings.length > 0
 		) {
+			leagueTable.value.standings.forEach((team, index) => {
+				team.losses = team.matches_played - team.wins;
+				team.actual_team_name = team.team_name;
+			});
 			let winnerIndex = leagueTable.value.standings.findIndex(
 				(st) => st.team_id === leagueTable.value.winner_id,
 			);
 			winnerIndex !== -1 &&
 				(leagueTable.value.standings[winnerIndex].team_name += "  🏆");
-			leagueTable.value.standings.forEach((team, index) => {
-				team.losses = team.matches_played - team.wins;
-			});
 		}
 	} finally {
 		loading.value = false;
@@ -130,8 +131,8 @@ onMounted(async () => {
 	border-bottom: none !important;
 }
 
-.el-select__wrapper.is-focused {
-	box-shadow: none !important;
+::v-deep(.el-select__wrapper.is-focused) {
+	box-shadow: 0 0 0 1px var(--el-border-color) inset;
 }
 
 #points-table-wrapper {
