@@ -80,66 +80,104 @@
 		<el-dialog
 			v-model="showScheduleMatchDialog"
 			title="Schedule New Match"
-			width="800"
+			style="width: max-content"
 			align-center
 		>
 			<div class="dialog-body">
-				<div class="d-flex gap-3">
-					<el-select
-						class="teams-dropdown"
-						v-model="matchObject.team1"
-						placeholder="Select Team 1"
-						style="width: 220px"
-						size="large"
-						:popper-options="dropdownPopperOptions"
-						clearable
-					>
-						<el-option
-							v-for="item in teams"
-							:key="item.id"
-							:label="item.name"
-							:value="item.id"
-							:disabled="item.id === matchObject.team2"
-							class="mb-1"
+				<div class="d-flex gap-3 align-items-center my-3">
+					<div class="d-flex justify-content-start">
+						<el-select
+							class="teams-dropdown"
+							v-model="matchObject.team1"
+							placeholder="Select Team 1"
+							style="width: 220px"
+							size="large"
+							:popper-options="dropdownPopperOptions"
+							clearable
 						>
-							<div class="d-flex gap-2 align-items-center">
-								<img
-									v-if="item.id !== -1"
-									class="team-logo"
-									:src="item.logo_url"
-								/>
-								<div>{{ item.name }}</div>
-							</div>
-						</el-option>
-					</el-select>
-					<div class="px-5"><span>v/s</span></div>
-					<el-select
-						class="teams-dropdown"
-						v-model="matchObject.team2"
-						placeholder="Select Team 2"
-						style="width: 220px"
-						size="large"
-						:popper-options="dropdownPopperOptions"
-						clearable
-					>
-						<el-option
-							v-for="item in teams"
-							:key="item.id"
-							:label="item.name"
-							:value="item.id"
-							:disabled="item.id === matchObject.team1"
-							class="mb-1"
+							<el-option
+								v-for="item in teams"
+								:key="item.id"
+								:label="item.name"
+								:value="item.id"
+								:disabled="item.id === matchObject.team2"
+								class="mb-1"
+							>
+								<div class="d-flex gap-2 align-items-center">
+									<img
+										v-if="item.id !== -1"
+										class="team-logo"
+										:src="item.logo_url"
+									/>
+									<div>{{ item.name }}</div>
+								</div>
+							</el-option>
+						</el-select>
+					</div>
+					<div class="px-3"><span>v/s</span></div>
+					<div class="d-flex justify-content-end">
+						<el-select
+							class="teams-dropdown"
+							v-model="matchObject.team2"
+							placeholder="Select Team 2"
+							style="width: 220px"
+							size="large"
+							:popper-options="dropdownPopperOptions"
+							clearable
 						>
-							<div class="d-flex gap-2 align-items-center">
-								<img
-									v-if="item.id !== -1"
-									class="team-logo"
-									:src="item.logo_url"
-								/>
-								<div>{{ item.name }}</div>
-							</div>
-						</el-option>
-					</el-select>
+							<el-option
+								v-for="item in teams"
+								:key="item.id"
+								:label="item.name"
+								:value="item.id"
+								:disabled="item.id === matchObject.team1"
+								class="mb-1"
+							>
+								<div class="d-flex gap-2 align-items-center">
+									<img
+										v-if="item.id !== -1"
+										class="team-logo"
+										:src="item.logo_url"
+									/>
+									<div>{{ item.name }}</div>
+								</div>
+							</el-option>
+						</el-select>
+					</div>
+				</div>
+				<div class="d-flex align-items-center gap-3 mb-3">
+					<div class="d-flex justify-content-start w-100">
+						<el-select
+							v-model="fixtureFilter.season"
+							placeholder="Select Season"
+							size="large"
+							:popper-options="dropdownPopperOptions"
+							clearable
+						>
+							<el-option
+								v-for="item in seasons"
+								:key="item.id"
+								:label="item.name"
+								:value="item.id"
+							/>
+						</el-select>
+					</div>
+					<div class="d-flex justify-content-end w-100">
+						<el-select
+							v-model="fixtureFilter.category"
+							placeholder="Select Category"
+							size="large"
+							:popper-options="dropdownPopperOptions"
+							clearable
+						>
+							<el-option
+								v-for="item in matchCategories"
+								:key="item.id"
+								:label="item.name"
+								:value="item.id"
+							/>
+						</el-select>
+					</div>
 				</div>
 			</div>
 			<template #footer>
