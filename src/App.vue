@@ -10,12 +10,14 @@ import Navbar from "./components/Navbar.vue";
 import Footer from "./components/Footer.vue";
 import { useSeasonStore } from "./store/seasonStore";
 import { useTeamStore } from "./store/teamStore";
+import { useMatchStore } from "./store/matchStore";
 import { useRoute } from "vue-router";
 import { Routes } from "./utils/constants";
 
 const route = useRoute();
 const seasonStore = useSeasonStore();
 const teamStore = useTeamStore();
+const matchStore = useMatchStore();
 const parentRendered = ref(false);
 let loadingInstance = null;
 
@@ -45,16 +47,11 @@ const pauseAudio = () => {
 
 onMounted(async () => {
 	startLoader();
+	teamStore.teams.length === 0 && (await teamStore.fetchTeams());
+	seasonStore.seasons.length === 0 && (await seasonStore.fetchSeasons());
 	switch (window.location.pathname) {
-		case Routes.POINTS_TABLE:
-			document.addEventListener("click", playAudio, { once: true });
-			teamStore.teams.length === 0 && (await teamStore.fetchTeams());
-			seasonStore.seasons.length === 0 && (await seasonStore.fetchSeasons());
-			break;
-		default:
-			pauseAudio();
-			teamStore.teams.length === 0 && (await teamStore.fetchTeams());
-			seasonStore.seasons.length === 0 && (await seasonStore.fetchSeasons());
+		case Routes.FIXTURES:
+			await matchStore.fetchMatches(seasonStore.selectedSeason);
 			break;
 	}
 	stopLoader();

@@ -2,11 +2,12 @@
 	<div id="fixtures-wrapper" class="d-flex flex-column mt-5">
 		<div id="fixtures-filter" class="d-flex justify-content-end gap-3">
 			<el-select
-				v-model="selectedSeason"
+				v-model="fixtureFilter.season"
 				placeholder="Select Season"
 				style="width: 180px"
 				size="large"
 				:popper-options="dropdownPopperOptions"
+				@change="fetchMatches()"
 			>
 				<el-option
 					v-for="item in seasons"
@@ -17,14 +18,15 @@
 			</el-select>
 			<el-select
 				class="teams-dropdown"
-				v-model="selectedTeam"
+				v-model="fixtureFilter.team"
 				placeholder="Select Team"
 				style="width: 220px"
 				size="large"
 				:popper-options="dropdownPopperOptions"
+				clearable
 			>
 				<el-option
-					v-for="item in getTeams(false)"
+					v-for="item in teams"
 					:key="item.id"
 					:label="item.name"
 					:value="item.id"
@@ -35,6 +37,36 @@
 						<div>{{ item.name }}</div>
 					</div>
 				</el-option>
+			</el-select>
+			<el-select
+				v-model="fixtureFilter.category"
+				placeholder="Select Category"
+				style="width: 180px"
+				size="large"
+				:popper-options="dropdownPopperOptions"
+				clearable
+			>
+				<el-option
+					v-for="item in matchCategories"
+					:key="item.id"
+					:label="item.name"
+					:value="item.id"
+				/>
+			</el-select>
+			<el-select
+				v-model="fixtureFilter.status"
+				placeholder="Select Status"
+				style="width: 160px"
+				size="large"
+				:popper-options="dropdownPopperOptions"
+				clearable
+			>
+				<el-option
+					v-for="item in matchStatuses"
+					:key="item.id"
+					:label="item.name"
+					:value="item.id"
+				/>
 			</el-select>
 			<el-button
 				type="primary"
@@ -60,9 +92,10 @@
 						style="width: 220px"
 						size="large"
 						:popper-options="dropdownPopperOptions"
+						clearable
 					>
 						<el-option
-							v-for="item in getTeams()"
+							v-for="item in teams"
 							:key="item.id"
 							:label="item.name"
 							:value="item.id"
@@ -87,9 +120,10 @@
 						style="width: 220px"
 						size="large"
 						:popper-options="dropdownPopperOptions"
+						clearable
 					>
 						<el-option
-							v-for="item in getTeams()"
+							v-for="item in teams"
 							:key="item.id"
 							:label="item.name"
 							:value="item.id"
@@ -124,16 +158,24 @@
 import { ref, onMounted } from "vue";
 import { useSeasonStore } from "@/store/seasonStore";
 import { useTeamStore } from "@/store/teamStore";
+import { useMatchStore } from "@/store/matchStore";
 import { Plus } from "@element-plus/icons-vue";
 import { MatchCategory, MatchStatus } from "../utils/constants";
 
 const seasonStore = useSeasonStore();
 const teamStore = useTeamStore();
+const matchStore = useMatchStore();
 const seasons = ref([]);
 const teams = ref([]);
-const selectedSeason = ref(null);
-const selectedTeam = ref(null);
 const showScheduleMatchDialog = ref(false);
+const matchCategories = Object.values(MatchCategory);
+const matchStatuses = Object.values(MatchStatus);
+const fixtureFilter = ref({
+	season: null,
+	team: null,
+	category: null,
+	status: null,
+});
 const dropdownPopperOptions = ref({
 	placement: "bottom-start",
 	modifiers: [
@@ -148,17 +190,8 @@ const matchObject = ref({
 	team2: null,
 	season: null,
 	date: null,
+	category: null,
 });
-
-const getTeams = (excludeAll = true) => {
-	return [
-		...new Map(
-			teams.value
-				.filter((item) => !(item.id === -1 && excludeAll))
-				.map((item) => [item.id, item]),
-		).values(),
-	];
-};
 
 const resetScheduleMatchDialog = () => {
 	matchObject.value = {
@@ -170,13 +203,14 @@ const resetScheduleMatchDialog = () => {
 	showScheduleMatchDialog.value = false;
 };
 
+const fetchMatches = async () => {
+	await matchStore.fetchMatches(fixtureFilter.value.season);
+};
+
 onMounted(() => {
 	seasons.value = seasonStore.seasons;
 	teams.value = teamStore.teams;
-	const hasAll = teams.value.includes((t) => t.id === -1);
-	!hasAll && teams.value.unshift({ id: -1, name: "All Teams" });
-	selectedTeam.value = teams.value[0].id;
-	selectedSeason.value = seasonStore.selectedSeason;
+	fixtureFilter.value.season = seasonStore.selectedSeason;
 });
 </script>
 

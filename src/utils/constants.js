@@ -18,10 +18,6 @@ const Routes = Object.freeze({
 
 const MatchStatus = Object.freeze([
 	{
-		id: -1,
-		name: "All Matches",
-	},
-	{
 		id: 1,
 		name: "Scheduled",
 	},
@@ -36,10 +32,6 @@ const MatchStatus = Object.freeze([
 ]);
 
 const MatchCategory = Object.freeze([
-	{
-		id: -1,
-		name: "All Categories",
-	},
 	{
 		id: 1,
 		name: "League",
