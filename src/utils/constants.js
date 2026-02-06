@@ -58,4 +58,19 @@ const MatchCategory = Object.freeze([
 	},
 ]);
 
-export { Pages, Routes, MatchStatus, MatchCategory };
+const MatchObject = Object.freeze([
+	{
+		id: 1,
+		name: "Team 1 Won",
+	},
+	{
+		id: 2,
+		name: "Team 2 Won",
+	},
+	{
+		id: 3,
+		name: "Not Decided",
+	},
+]);
+
+export { Pages, Routes, MatchStatus, MatchCategory, MatchObject };

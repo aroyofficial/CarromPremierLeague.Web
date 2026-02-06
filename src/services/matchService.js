@@ -8,4 +8,8 @@ export const matchService = {
 	async getById(id) {
 		return await api.get(`matches/${id}`);
 	},
+
+	async getNextMatchOrder(seasonId) {
+		return await api.get(`matches/next-order?seasonId=${seasonId}`);
+	},
 };

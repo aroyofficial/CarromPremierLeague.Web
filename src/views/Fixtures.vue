@@ -82,6 +82,7 @@
 			title="Schedule New Match"
 			style="width: max-content"
 			align-center
+			@close="resetScheduleMatchDialog()"
 		>
 			<div class="dialog-body">
 				<div class="d-flex gap-3 align-items-center my-3">
@@ -148,7 +149,7 @@
 				<div class="d-flex align-items-center gap-3 mb-3">
 					<div class="d-flex justify-content-start w-100">
 						<el-select
-							v-model="fixtureFilter.season"
+							v-model="matchObject.season_id"
 							placeholder="Select Season"
 							size="large"
 							:popper-options="dropdownPopperOptions"
@@ -164,7 +165,7 @@
 					</div>
 					<div class="d-flex justify-content-end w-100">
 						<el-select
-							v-model="fixtureFilter.category"
+							v-model="matchObject.category"
 							placeholder="Select Category"
 							size="large"
 							:popper-options="dropdownPopperOptions"
@@ -177,6 +178,32 @@
 								:value="item.id"
 							/>
 						</el-select>
+					</div>
+				</div>
+				<div class="d-flex align-items-center gap-3 mb-3">
+					<div class="d-flex justify-content-start">
+						<el-date-picker
+							v-model="matchObject.scheduled_date"
+							type="date"
+							placeholder="Select Date"
+							size="large"
+							:disabled-date="disabledDate"
+						/>
+					</div>
+					<div class="d-flex justify-content-start">
+						<el-tooltip
+							class="box-item"
+							effect="dark"
+							content="Order of the match in the season schedule"
+							placement="right"
+						>
+							<el-input
+								v-model="matchObject.order"
+								disabled
+								size="large"
+								style="width: 35px"
+							/>
+						</el-tooltip>
 					</div>
 				</div>
 			</div>
@@ -198,7 +225,7 @@ import { useSeasonStore } from "@/store/seasonStore";
 import { useTeamStore } from "@/store/teamStore";
 import { useMatchStore } from "@/store/matchStore";
 import { Plus } from "@element-plus/icons-vue";
-import { MatchCategory, MatchStatus } from "../utils/constants";
+import { MatchCategory, MatchObject, MatchStatus } from "../utils/constants";
 
 const seasonStore = useSeasonStore();
 const teamStore = useTeamStore();
@@ -226,17 +253,32 @@ const dropdownPopperOptions = ref({
 const matchObject = ref({
 	team1: null,
 	team2: null,
-	season: null,
-	date: null,
+	scheduled_date: null,
+	duration: null,
+	extra: null,
+	golden_strike: null,
 	category: null,
+	status: MatchStatus.find((status) => status.name === "Scheduled").id,
+	order: null,
+	season_id: null,
+	net_points: null,
+	outcome: MatchObject.find((outcome) => outcome.name === "Not Decided").id,
 });
 
 const resetScheduleMatchDialog = () => {
 	matchObject.value = {
 		team1: null,
 		team2: null,
-		season: null,
-		date: null,
+		scheduled_date: null,
+		duration: null,
+		extra: null,
+		golden_strike: null,
+		category: null,
+		status: MatchStatus.find((status) => status.name === "Scheduled").id,
+		order: matchStore.nextMatchOrder,
+		season_id: null,
+		net_points: null,
+		outcome: MatchObject.find((outcome) => outcome.name === "Not Decided").id,
 	};
 	showScheduleMatchDialog.value = false;
 };
@@ -245,10 +287,16 @@ const fetchMatches = async () => {
 	await matchStore.fetchMatches(fixtureFilter.value.season);
 };
 
+const disabledDate = (time) => {
+	const oneDay = 24 * 60 * 60 * 1000;
+	return time.getTime() <= Date.now() - oneDay;
+};
+
 onMounted(() => {
 	seasons.value = seasonStore.seasons;
 	teams.value = teamStore.teams;
 	fixtureFilter.value.season = seasonStore.selectedSeason;
+	matchObject.value.order = matchStore.nextMatchOrder;
 });
 </script>
 

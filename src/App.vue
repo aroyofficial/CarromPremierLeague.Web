@@ -52,6 +52,7 @@ onMounted(async () => {
 	switch (window.location.pathname) {
 		case Routes.FIXTURES:
 			await matchStore.fetchMatches(seasonStore.selectedSeason);
+			await matchStore.fetchNextMatchOrder(seasonStore.selectedSeason);
 			break;
 	}
 	stopLoader();
