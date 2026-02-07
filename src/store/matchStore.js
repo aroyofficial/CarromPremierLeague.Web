@@ -27,5 +27,15 @@ export const useMatchStore = defineStore("match", {
 				this.loading = false;
 			}
 		},
+		async scheduleMatch(match) {
+			this.loading = true;
+			try {
+				const response = await matchService.schedule(match);
+				this.matches.push(response.data);
+				await this.fetchNextMatchOrder(match.season_id);
+			} finally {
+				this.loading = false;
+			}
+		},
 	},
 });

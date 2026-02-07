@@ -137,3 +137,7 @@ button {
 	width: 30px;
 	margin-right: 5px;
 }
+
+.col-3-5 {
+	width: 29.1666666% !important;
+}

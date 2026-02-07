@@ -6,6 +6,9 @@ import PointsTable from "@/views/PointsTable.vue";
 import Players from "@/views/Players.vue";
 import NotFound from "@/views/NotFound.vue";
 import { Routes } from "../utils/constants";
+import { useSeasonStore } from "@/store/seasonStore";
+import { useTeamStore } from "@/store/teamStore";
+import { useMatchStore } from "@/store/matchStore";
 
 const routes = [
 	{
@@ -51,6 +54,26 @@ const router = createRouter({
 	scrollBehavior() {
 		return { top: 0 };
 	},
+});
+
+router.beforeEach(async (to, from, next) => {
+	if (to.matched.length === 0) {
+		next({ name: "not-found" });
+	} else {
+		const seasonStore = useSeasonStore();
+		const teamStore = useTeamStore();
+		const matchStore = useMatchStore();
+
+		seasonStore.seasons.length === 0 && (await seasonStore.fetchSeasons());
+		teamStore.teams.length === 0 && (await teamStore.fetchTeams());
+
+		if (to.path === Routes.FIXTURES) {
+			await matchStore.fetchMatches(seasonStore.selectedSeason);
+			await matchStore.fetchNextMatchOrder(seasonStore.selectedSeason);
+		}
+
+		next();
+	}
 });
 
 router.afterEach((to) => {

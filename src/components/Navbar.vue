@@ -80,7 +80,7 @@ onMounted(() => {
 			activeIndex.value = "4";
 			break;
 		default:
-			activeIndex.value = "0";
+			activeIndex.value = null;
 			break;
 	}
 });

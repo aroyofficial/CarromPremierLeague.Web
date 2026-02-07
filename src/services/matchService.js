@@ -12,4 +12,8 @@ export const matchService = {
 	async getNextMatchOrder(seasonId) {
 		return await api.get(`matches/next-order?seasonId=${seasonId}`);
 	},
+
+	async schedule(match) {
+		return await api.post("matches", match);
+	},
 };

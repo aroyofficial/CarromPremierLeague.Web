@@ -16,6 +16,12 @@ const Routes = Object.freeze({
 	PLAYERS: "/players",
 });
 
+const SeasonStatus = Object.freeze({
+	SCHEDULED: 1,
+	IN_PROGRESS: 2,
+	FINISHED: 3,
+});
+
 const MatchStatus = Object.freeze([
 	{
 		id: 1,
@@ -58,19 +64,17 @@ const MatchCategory = Object.freeze([
 	},
 ]);
 
-const MatchObject = Object.freeze([
-	{
-		id: 1,
-		name: "Team 1 Won",
-	},
-	{
-		id: 2,
-		name: "Team 2 Won",
-	},
-	{
-		id: 3,
-		name: "Not Decided",
-	},
-]);
+const MatchOutcome = Object.freeze({
+	Team1Won: 1,
+	Team2Won: 2,
+	NotDecided: 3,
+});
 
-export { Pages, Routes, MatchStatus, MatchCategory, MatchObject };
+export {
+	Pages,
+	Routes,
+	MatchStatus,
+	MatchCategory,
+	MatchOutcome,
+	SeasonStatus,
+};

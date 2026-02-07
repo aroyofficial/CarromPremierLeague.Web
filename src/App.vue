@@ -1,63 +1,15 @@
 <template>
 	<Navbar />
-	<router-view v-if="parentRendered" />
+	<router-view />
 	<Footer />
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from "vue";
+import { ref, onMounted } from "vue";
 import Navbar from "./components/Navbar.vue";
 import Footer from "./components/Footer.vue";
-import { useSeasonStore } from "./store/seasonStore";
-import { useTeamStore } from "./store/teamStore";
-import { useMatchStore } from "./store/matchStore";
-import { useRoute } from "vue-router";
-import { Routes } from "./utils/constants";
 
-const route = useRoute();
-const seasonStore = useSeasonStore();
-const teamStore = useTeamStore();
-const matchStore = useMatchStore();
-const parentRendered = ref(false);
-let loadingInstance = null;
-
-const startLoader = () => {
-	loadingInstance = ElLoading.service({
-		lock: true,
-		text: "Loading...",
-		background: "rgba(0, 0, 0, 0.7)",
-	});
-};
-
-const stopLoader = () => {
-	if (loadingInstance) {
-		loadingInstance.close();
-	}
-};
-
-const playAudio = () => {
-	const audioPlayer = document.getElementById("audio-player");
-	audioPlayer?.play();
-};
-
-const pauseAudio = () => {
-	const audioPlayer = document.getElementById("audio-player");
-	audioPlayer?.pause();
-};
-
-onMounted(async () => {
-	startLoader();
-	teamStore.teams.length === 0 && (await teamStore.fetchTeams());
-	seasonStore.seasons.length === 0 && (await seasonStore.fetchSeasons());
-	switch (window.location.pathname) {
-		case Routes.FIXTURES:
-			await matchStore.fetchMatches(seasonStore.selectedSeason);
-			await matchStore.fetchNextMatchOrder(seasonStore.selectedSeason);
-			break;
-	}
-	stopLoader();
-	parentRendered.value = true;
-});
+onMounted(async () => {});
 </script>
 
 <style lang="scss"></style>
