@@ -46,8 +46,24 @@
 				}"
 			>
 				<div class="row d-flex">
-					<div class="col-4 d-flex justify-content-center">
-						<img :src="getTeam(match.team1).logo_url" class="team-logo" />
+					<div class="col-4 d-flex align-items-center flex-column">
+						<div class="mb-2">
+							<img :src="getTeam(match.team1).logo_url" class="team-logo" />
+						</div>
+						<div
+							class="team-members d-flex flex-column gap-2 border p-3 rounded"
+						>
+							<div
+								class="d-flex align-items-center"
+								v-for="item in getTeamMembers(match.team1)"
+								:key="item.player_id"
+							>
+								<div>
+									<img :src="item.avatar_url" class="player-avatar border" />
+								</div>
+								<div>{{ item.first_name }} {{ item.last_name }}</div>
+							</div>
+						</div>
 					</div>
 					<div
 						class="col-4 d-flex flex-column justify-content-center align-items-center"
@@ -63,8 +79,24 @@
 						<div>Match {{ match.order }}</div>
 						<div>{{ getStatusText() }}</div>
 					</div>
-					<div class="col-4 d-flex justify-content-center">
-						<img :src="getTeam(match.team2).logo_url" class="team-logo" />
+					<div class="col-4 d-flex align-items-center flex-column">
+						<div class="mb-2">
+							<img :src="getTeam(match.team2).logo_url" class="team-logo" />
+						</div>
+						<div
+							class="team-members d-flex flex-column gap-2 border p-3 rounded"
+						>
+							<div
+								class="d-flex align-items-center"
+								v-for="item in getTeamMembers(match.team2)"
+								:key="item.player_id"
+							>
+								<div>
+									<img :src="item.avatar_url" class="player-avatar border" />
+								</div>
+								<div>{{ item.first_name }} {{ item.last_name }}</div>
+							</div>
+						</div>
 					</div>
 				</div>
 			</div>
@@ -166,13 +198,16 @@ const showStartBtn = () => {
 	return isScheduled;
 };
 
+const getTeamMembers = (teamId) => {
+	return teamDetails.value.find((td) => td.team_id === teamId)?.players;
+};
+
 onUpdated(async () => {
 	teamDetails.value = rosterStore.teams
 		.get(props.match.season_id)
 		?.filter(
 			(t) => t.team_id === props.match.team1 || t.team_id === props.match.team2,
 		);
-	console.log(teamDetails.value);
 });
 </script>
 
@@ -217,5 +252,22 @@ onUpdated(async () => {
 		rgba(255, 165, 0, 0.2) 60%,
 		transparent 100%
 	);
+}
+
+.player-avatar {
+	height: 30px;
+	width: 30px;
+	border-radius: 50%;
+	margin-right: 10px;
+}
+
+.team-members {
+	box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+	transition: all 0.25s ease;
+}
+
+.team-members:hover {
+	cursor: pointer;
+	box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.2);
 }
 </style>
