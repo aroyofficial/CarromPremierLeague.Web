@@ -18,6 +18,19 @@
 				class="col-3 d-flex justify-content-center align-items-center flex-column"
 			>
 				<div class="versus-text">Match {{ match.order }}</div>
+				<div
+					class="toss-text"
+					v-if="match.toss_outcome !== TossOutcome.NotDecided"
+				>
+					{{
+						getTeam(
+							match.toss_outcome === TossOutcome.Team1Won
+								? match.team1
+								: match.team2,
+						).name
+					}}
+					won the toss
+				</div>
 				<div class="match-status-text text-center">
 					{{ getStatusText() }}
 				</div>
@@ -77,6 +90,19 @@
 							<b>{{ stats.team1_net_points }} - {{ stats.team2_net_points }}</b>
 						</div>
 						<div>Match {{ match.order }}</div>
+						<div
+							class="border-bottom"
+							v-if="match.toss_outcome !== TossOutcome.NotDecided"
+						>
+							{{
+								getTeam(
+									match.toss_outcome === TossOutcome.Team1Won
+										? match.team1
+										: match.team2,
+								).name
+							}}
+							won the toss
+						</div>
 						<div>{{ getStatusText() }}</div>
 					</div>
 					<div class="col-4 d-flex align-items-center flex-column">
@@ -124,7 +150,12 @@ import { ref, onUpdated, onMounted } from "vue";
 import { useTeamStore } from "@/store/teamStore";
 import { useStatsStore } from "../store/statsStore";
 import { useRosterStore } from "../store/rosterStore";
-import { MatchStatus, MatchOutcome, MatchCategory } from "../utils/constants";
+import {
+	MatchStatus,
+	MatchOutcome,
+	MatchCategory,
+	TossOutcome,
+} from "../utils/constants";
 import dayjs from "@/plugins/dayjs";
 import { ArrowRight } from "@element-plus/icons-vue";
 import { playBgm, pauseBgm } from "@/utils/common";
@@ -230,6 +261,7 @@ onUpdated(async () => {
 }
 
 .versus-text,
+.toss-text,
 .match-status-text {
 	font-size: 12px;
 }

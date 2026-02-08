@@ -70,6 +70,12 @@ const MatchOutcome = Object.freeze({
 	NotDecided: 3,
 });
 
+const TossOutcome = Object.freeze({
+	Team1Won: 1,
+	Team2Won: 2,
+	NotDecided: 3,
+});
+
 export {
 	Pages,
 	Routes,
@@ -77,4 +83,5 @@ export {
 	MatchCategory,
 	MatchOutcome,
 	SeasonStatus,
+	TossOutcome,
 };
