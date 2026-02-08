@@ -91,7 +91,7 @@
 						</div>
 						<div>Match {{ match.order }}</div>
 						<div
-							class="border-bottom"
+							class="border-bottom text-center"
 							v-if="match.toss_outcome !== TossOutcome.NotDecided"
 						>
 							{{
@@ -103,7 +103,7 @@
 							}}
 							won the toss
 						</div>
-						<div>{{ getStatusText() }}</div>
+						<div class="text-center">{{ getStatusText() }}</div>
 					</div>
 					<div class="col-4 d-flex align-items-center flex-column">
 						<div class="mb-2">
