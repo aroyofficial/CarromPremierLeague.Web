@@ -1,6 +1,6 @@
 <template>
 	<div id="fixtures-wrapper" class="d-flex flex-column mt-5">
-		<div id="fixtures-filter" class="d-flex justify-content-end gap-3">
+		<div id="fixtures-filter" class="d-flex justify-content-center gap-3">
 			<el-select
 				v-model="fixtureFilter.season"
 				placeholder="Select Season"
@@ -76,9 +76,15 @@
 				Create<el-icon class="el-icon--right"><Plus /></el-icon>
 			</el-button>
 		</div>
-		<div id="fixtures-paginated-table">
+		<div
+			id="fixtures-paginated-table"
+			:class="{
+				'd-flex justify-content-center align-items-center': noMatchesFound,
+			}"
+		>
+			<div v-if="noMatchesFound">No Matches Found</div>
 			<MatchCard
-				v-for="item in matches"
+				v-for="item in applyFilters(matches)"
 				:key="item.id"
 				:match="item"
 				class="mb-3"
@@ -262,6 +268,7 @@ const seasonStatuses = SeasonStatus;
 const tooltipText = ref("Order of the match in the season schedule");
 const matches = ref([]);
 const teamDetails = ref([]);
+const noMatchesFound = ref(false);
 const fixtureFilter = ref({
 	season: null,
 	team: null,
@@ -324,6 +331,29 @@ const fetchMatches = async () => {
 const disabledDate = (time) => {
 	const oneDay = 24 * 60 * 60 * 1000;
 	return time.getTime() <= Date.now() - oneDay;
+};
+
+const applyFilters = (matches) => {
+	let filteredMatches = matches;
+	if (fixtureFilter.value.team) {
+		filteredMatches = filteredMatches.filter(
+			(m) =>
+				m.team1 === fixtureFilter.value.team ||
+				m.team2 === fixtureFilter.value.team,
+		);
+	}
+	if (fixtureFilter.value.category) {
+		filteredMatches = filteredMatches.filter(
+			(m) => m.category === fixtureFilter.value.category,
+		);
+	}
+	if (fixtureFilter.value.status) {
+		filteredMatches = filteredMatches.filter(
+			(m) => m.status === fixtureFilter.value.status,
+		);
+	}
+	noMatchesFound.value = filteredMatches.length === 0;
+	return filteredMatches;
 };
 
 const validateMatchObject = () => {
@@ -412,6 +442,7 @@ onMounted(() => {
 
 #fixtures-paginated-table {
 	padding: 0px 15%;
+	min-height: calc(100vh - 216px);
 	height: calc(100vh - 216px);
 	overflow-y: auto;
 }
