@@ -37,7 +37,14 @@
 			:show-close="false"
 			align-center
 		>
-			<div class="dialog-body match-manager my-4">
+			<div
+				class="dialog-body match-manager my-4"
+				:class="{
+					'golden-glow':
+						match.category ===
+						MatchCategory.find((mc) => mc.name === 'Final').id,
+				}"
+			>
 				<div class="row d-flex">
 					<div class="col-4 d-flex justify-content-center">
 						<img :src="getTeam(match.team1).logo_url" class="team-logo" />
@@ -45,10 +52,15 @@
 					<div
 						class="col-4 d-flex flex-column justify-content-center align-items-center"
 					>
-						<div>Head To Head</div>
-						<div class="mb-2"><b>12 - 8</b></div>
-						<div>Total Potted Coins</div>
-						<div class="mb-2"><b>8 - 9</b></div>
+						<div>Head To Head Wins</div>
+						<div class="mb-2">
+							<b>{{ stats.team1_wins }} - {{ stats.team2_wins }}</b>
+						</div>
+						<div>Net Points Difference</div>
+						<div class="mb-2">
+							<b>{{ stats.team1_net_points }} - {{ stats.team2_net_points }}</b>
+						</div>
+						<div>Match {{ match.order }}</div>
 						<div>{{ getStatusText() }}</div>
 					</div>
 					<div class="col-4 d-flex justify-content-center">
@@ -59,7 +71,11 @@
 			<template #footer>
 				<div class="dialog-footer">
 					<el-button @click="hideMatchManagementDialog()">Cancel</el-button>
-					<el-button v-if="showStartBtn()" type="primary">
+					<el-button
+						v-if="showStartBtn()"
+						type="primary"
+						:disabled="!dayjs(match.scheduled_date).isSame(dayjs(), 'day')"
+					>
 						Start
 						<el-icon>
 							<ArrowRight />
@@ -72,24 +88,30 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onUpdated, onMounted } from "vue";
 import { useTeamStore } from "@/store/teamStore";
+import { useStatsStore } from "../store/statsStore";
+import { useRosterStore } from "../store/rosterStore";
 import { MatchStatus, MatchOutcome, MatchCategory } from "../utils/constants";
 import dayjs from "@/plugins/dayjs";
 import { ArrowRight } from "@element-plus/icons-vue";
 import { playBgm, pauseBgm } from "@/utils/common";
+import { startLoader, pauseLoader } from "../utils/common";
 
 const props = defineProps({
 	match: Object,
 });
 
 const teamStore = useTeamStore();
+const statsStore = useStatsStore();
+const rosterStore = useRosterStore();
 const showMatchManagementDialog = ref(false);
+const stats = ref({});
+const teamDetails = ref([]);
 
 const getTeam = (teamId) => {
 	return teamStore.teams.find((team) => team.id === teamId);
 };
-const matchOutcome = ref(MatchOutcome);
 
 const getStatusText = () => {
 	const status = MatchStatus.find((status) => status.id === props.match.status);
@@ -119,8 +141,16 @@ const getStatusText = () => {
 	}
 };
 
-const openMatchManagementDialog = () => {
+const openMatchManagementDialog = async () => {
+	startLoader();
+	await statsStore.fetchHeadToHead(props.match.team1, props.match.team2);
+	const key =
+		props.match.team1 < props.match.team2
+			? `${props.match.team1}-${props.match.team2}`
+			: `${props.match.team2}-${props.match.team1}`;
+	stats.value = statsStore.stats.get(key);
 	showMatchManagementDialog.value = true;
+	pauseLoader();
 	playBgm();
 };
 
@@ -136,7 +166,14 @@ const showStartBtn = () => {
 	return isScheduled;
 };
 
-onMounted(async () => {});
+onUpdated(async () => {
+	teamDetails.value = rosterStore.teams
+		.get(props.match.season_id)
+		?.filter(
+			(t) => t.team_id === props.match.team1 || t.team_id === props.match.team2,
+		);
+	console.log(teamDetails.value);
+});
 </script>
 
 <style scoped lang="scss">

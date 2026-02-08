@@ -237,6 +237,7 @@ import { ref, onMounted } from "vue";
 import { useSeasonStore } from "@/store/seasonStore";
 import { useTeamStore } from "@/store/teamStore";
 import { useMatchStore } from "@/store/matchStore";
+import { useRosterStore } from "@/store/rosterStore";
 import { Plus } from "@element-plus/icons-vue";
 import {
 	MatchCategory,
@@ -246,10 +247,12 @@ import {
 } from "../utils/constants";
 import dayjs from "@/plugins/dayjs";
 import MatchCard from "../components/MatchCard.vue";
+import { startLoader, pauseLoader } from "../utils/common";
 
 const seasonStore = useSeasonStore();
 const teamStore = useTeamStore();
 const matchStore = useMatchStore();
+const rosterStore = useRosterStore();
 const seasons = ref([]);
 const teams = ref([]);
 const showScheduleMatchDialog = ref(false);
@@ -258,6 +261,7 @@ const matchStatuses = Object.values(MatchStatus);
 const seasonStatuses = SeasonStatus;
 const tooltipText = ref("Order of the match in the season schedule");
 const matches = ref([]);
+const teamDetails = ref([]);
 const fixtureFilter = ref({
 	season: null,
 	team: null,
@@ -307,8 +311,14 @@ const resetScheduleMatchDialog = () => {
 };
 
 const fetchMatches = async () => {
+	startLoader();
 	await matchStore.fetchMatches(fixtureFilter.value.season);
+	if (!rosterStore.teams.has(fixtureFilter.value.season)) {
+		await rosterStore.fetchTeamDetails(fixtureFilter.value.season);
+	}
+	teamDetails.value = rosterStore.teams.get(fixtureFilter.value.season);
 	matches.value = matchStore.matches;
+	pauseLoader();
 };
 
 const disabledDate = (time) => {
