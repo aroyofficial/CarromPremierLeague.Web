@@ -72,6 +72,7 @@
 				type="primary"
 				size="large"
 				@click="showScheduleMatchDialog = true"
+				class="d-none"
 			>
 				Create<el-icon class="el-icon--right"><Plus /></el-icon>
 			</el-button>
@@ -357,6 +358,9 @@ const applyFilters = (matches) => {
 };
 
 const validateMatchObject = () => {
+	const isFinal =
+		MatchCategory.find((mc) => mc.name === "Final").id ==
+		matchObject.value.category;
 	let isValidTeam1 = teams.value.find(
 		(team) => team.id === matchObject.value.team1,
 	);
@@ -364,11 +368,14 @@ const validateMatchObject = () => {
 		(team) => team.id === matchObject.value.team2,
 	);
 	let isValidOpponent = matchObject.value.team1 !== matchObject.value.team2;
-	if (!isValidTeam1 || !isValidTeam2) {
+	if (!isFinal && (!isValidTeam1 || !isValidTeam2)) {
 		window.alert("Please select an opponent team");
 		return false;
 	}
-	if (!isValidOpponent) {
+	if (
+		!(isFinal && !matchObject.value.team && !matchObject.value.team2) &&
+		!isValidOpponent
+	) {
 		window.alert("Please select a different opponent team");
 		return false;
 	}
@@ -408,12 +415,16 @@ const validateMatchObject = () => {
 
 const scheduleMatch = async () => {
 	if (validateMatchObject()) {
-		const iso = new Date(matchObject.value.scheduled_date).toISOString();
+		startLoader();
+		const iso = dayjs(matchObject.value.scheduled_date).format(
+			"YYYY-MM-DDTHH:mm:ss",
+		);
 		const dateOnly = iso.split("T")[0];
 		matchObject.value.scheduled_date = dateOnly;
 		await matchStore.scheduleMatch(matchObject.value);
 		matches.value = matchStore.matches;
 		resetScheduleMatchDialog();
+		pauseLoader();
 	}
 };
 

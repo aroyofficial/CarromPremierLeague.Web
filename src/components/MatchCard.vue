@@ -6,13 +6,13 @@
 				'golden-glow':
 					match.category === MatchCategory.find((mc) => mc.name === 'Final').id,
 			}"
-			@click="openMatchManagementDialog()"
+			@click="match.team1 && match.team2 && openMatchManagementDialog()"
 		>
 			<div class="col-1">
-				<img :src="getTeam(match.team1).logo_url" class="fixtures-team-logo" />
+				<img :src="getTeamLogo(match.team1)" class="fixtures-team-logo" />
 			</div>
 			<div class="col-3-5 fixture-team-name ps-4">
-				{{ getTeam(match.team1).name }}
+				{{ match.team1 ? getTeam(match.team1).name : "TBD" }}
 			</div>
 			<div
 				class="col-3 d-flex justify-content-center align-items-center flex-column"
@@ -36,10 +36,10 @@
 				</div>
 			</div>
 			<div class="col-3-5 d-flex justify-content-end fixture-team-name pe-4">
-				{{ getTeam(match.team2).name }}
+				{{ match.team2 ? getTeam(match.team2).name : "TBD" }}
 			</div>
 			<div class="col-1 d-flex justify-content-end">
-				<img :src="getTeam(match.team2).logo_url" class="fixtures-team-logo" />
+				<img :src="getTeamLogo(match.team2)" class="fixtures-team-logo" />
 			</div>
 		</div>
 		<el-dialog
@@ -61,7 +61,7 @@
 				<div class="row d-flex">
 					<div class="col-4 d-flex align-items-center flex-column">
 						<div class="mb-2">
-							<img :src="getTeam(match.team1).logo_url" class="team-logo" />
+							<img :src="getTeamLogo(match.team1)" class="team-logo" />
 						</div>
 						<div
 							class="team-members d-flex flex-column gap-2 border p-3 rounded"
@@ -107,7 +107,7 @@
 					</div>
 					<div class="col-4 d-flex align-items-center flex-column">
 						<div class="mb-2">
-							<img :src="getTeam(match.team2).logo_url" class="team-logo" />
+							<img :src="getTeamLogo(match.team2)" class="team-logo" />
 						</div>
 						<div
 							class="team-members d-flex flex-column gap-2 border p-3 rounded"
@@ -159,7 +159,7 @@ import {
 import dayjs from "@/plugins/dayjs";
 import { ArrowRight } from "@element-plus/icons-vue";
 import { playBgm, pauseBgm } from "@/utils/common";
-import { startLoader, pauseLoader } from "../utils/common";
+import { startLoader, pauseLoader, resolveAsset } from "../utils/common";
 
 const props = defineProps({
 	match: Object,
@@ -174,6 +174,17 @@ const teamDetails = ref([]);
 
 const getTeam = (teamId) => {
 	return teamStore.teams.find((team) => team.id === teamId);
+};
+
+const getTeamLogo = (teamId) => {
+	if (
+		props.match.category ===
+			MatchCategory.find((mc) => mc.name === "Final").id &&
+		!teamId
+	) {
+		return resolveAsset("public/assets/images/teams/tbd.png");
+	}
+	return getTeam(teamId).logo_url;
 };
 
 const getStatusText = () => {
