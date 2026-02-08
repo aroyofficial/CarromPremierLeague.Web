@@ -13,12 +13,7 @@
 			<div
 				class="col-3 d-flex justify-content-center align-items-center flex-column"
 			>
-				<div
-					v-if="match.outcome === matchOutcome.NotDecided"
-					class="versus-text"
-				>
-					v/s
-				</div>
+				<div class="versus-text">Match {{ match.order }}</div>
 				<div class="match-status-text text-center">
 					{{ getStatusText() }}
 				</div>
