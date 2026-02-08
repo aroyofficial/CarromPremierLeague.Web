@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import { teamService } from "@/services/teamService";
+import { resolveAsset } from "@/utils/common";
 
 export const useTeamStore = defineStore("team", {
 	state: () => ({
@@ -14,7 +15,9 @@ export const useTeamStore = defineStore("team", {
 				const response = await teamService.getAll();
 				this.teams = response.data;
 				this.teams.forEach((team) => {
-					team.logo_url = `src/assets/images/${team.name.toLowerCase().replace(" ", "_")}.png`;
+					team.logo_url = resolveAsset(
+						`public/assets/images/${team.name.toLowerCase().replace(" ", "_")}.png`,
+					);
 				});
 			} finally {
 				this.loading = false;

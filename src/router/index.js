@@ -9,6 +9,7 @@ import { Routes } from "../utils/constants";
 import { useSeasonStore } from "@/store/seasonStore";
 import { useTeamStore } from "@/store/teamStore";
 import { useMatchStore } from "@/store/matchStore";
+import { startLoader, pauseLoader } from "../utils/common";
 
 const routes = [
 	{
@@ -60,6 +61,7 @@ router.beforeEach(async (to, from, next) => {
 	if (to.matched.length === 0) {
 		next({ name: "not-found" });
 	} else {
+		startLoader();
 		const seasonStore = useSeasonStore();
 		const teamStore = useTeamStore();
 		const matchStore = useMatchStore();
@@ -72,6 +74,7 @@ router.beforeEach(async (to, from, next) => {
 			await matchStore.fetchNextMatchOrder(seasonStore.selectedSeason);
 		}
 
+		pauseLoader();
 		next();
 	}
 });

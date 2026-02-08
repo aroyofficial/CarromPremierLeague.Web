@@ -2,6 +2,10 @@
 	<div>
 		<div
 			class="row align-items-center border p-4 match-card"
+			:class="{
+				'golden-glow':
+					match.category === MatchCategory.find((mc) => mc.name === 'Final').id,
+			}"
 			@click="openMatchManagementDialog()"
 		>
 			<div class="col-1">
@@ -70,7 +74,7 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import { useTeamStore } from "@/store/teamStore";
-import { MatchStatus, MatchOutcome } from "../utils/constants";
+import { MatchStatus, MatchOutcome, MatchCategory } from "../utils/constants";
 import dayjs from "@/plugins/dayjs";
 import { ArrowRight } from "@element-plus/icons-vue";
 import { playBgm, pauseBgm } from "@/utils/common";
@@ -166,5 +170,15 @@ onMounted(async () => {});
 	width: 200px;
 	height: 200px;
 	border-radius: 50%;
+}
+
+.golden-glow {
+	background: radial-gradient(
+		circle at center,
+		rgba(255, 223, 0, 0.6) 0%,
+		rgba(255, 200, 0, 0.4) 30%,
+		rgba(255, 165, 0, 0.2) 60%,
+		transparent 100%
+	);
 }
 </style>

@@ -391,15 +391,18 @@ onMounted(() => {
 	box-shadow: 0 0 0 1px var(--el-border-color) inset;
 }
 
-#fixtures-wrapper {
-	padding: 0px 15%;
+::v-deep(#match-order.el-input__inner) {
+	text-align: center !important;
 }
 
 #fixtures-filter {
+	padding: 0px 15%;
 	margin-bottom: 20px;
 }
 
-::v-deep(#match-order.el-input__inner) {
-	text-align: center !important;
+#fixtures-paginated-table {
+	padding: 0px 15%;
+	height: calc(100vh - 216px);
+	overflow-y: auto;
 }
 </style>
