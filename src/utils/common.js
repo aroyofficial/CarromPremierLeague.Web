@@ -1,29 +1,87 @@
 import { ElLoading } from "element-plus";
+import { BackgroundMusic } from "./constants";
 
 let loaderInstance = null;
-const BGM_ID = "cpl-bgm-audio";
 
-export function playBgm() {
-	if (document.getElementById(BGM_ID)) return;
+export async function playBgm(
+	type = BackgroundMusic.Match,
+	fadeInDuration = 2000,
+) {
+	let audio = document.getElementById(type);
 
-	const audio = document.createElement("audio");
-	audio.id = BGM_ID;
-	audio.src = new URL("../assets/audio/bgm.mp3", import.meta.url).href;
-	audio.loop = true;
+	if (!audio) {
+		audio = document.createElement("audio");
+		audio.id = type;
 
-	document.body.appendChild(audio);
-	audio.play().catch((err) => {
-		console.warn("Autoplay blocked:", err);
-	});
+		switch (type) {
+			case BackgroundMusic.Countdown:
+				audio.src = new URL(
+					"../assets/audio/countdown.mp3",
+					import.meta.url,
+				).href;
+				break;
+
+			case BackgroundMusic.Horn:
+				audio.src = new URL("../assets/audio/horn.mp3", import.meta.url).href;
+				break;
+
+			default:
+				audio.src = new URL("../assets/audio/bgm.mp3", import.meta.url).href;
+				audio.loop = true;
+				break;
+		}
+
+		audio.volume = 0;
+		document.body.appendChild(audio);
+	}
+
+	if (audio.paused) {
+		try {
+			await audio.play();
+		} catch (err) {
+			console.warn("Autoplay blocked:", err);
+			return;
+		}
+	}
+
+	await fadeTo(audio, fadeInDuration, 0.6);
 }
 
-export function pauseBgm() {
-	const audio = document.getElementById(BGM_ID);
+export async function pauseBgm(
+	type = BackgroundMusic.Match,
+	fadeOutDuration = 2000,
+) {
+	const audio = document.getElementById(type);
+	if (!audio) return;
 
-	if (audio) {
-		audio.pause();
-		audio.remove();
-	}
+	await fadeTo(audio, fadeOutDuration, 0);
+
+	audio.pause();
+	audio.currentTime = 0;
+	audio.remove();
+}
+
+function fadeTo(audio, duration, targetVolume) {
+	const startVolume = audio.volume;
+	const startTime = performance.now();
+
+	return new Promise((resolve) => {
+		function animate(now) {
+			const elapsed = now - startTime;
+			const progress = Math.min(elapsed / duration, 1);
+
+			audio.volume = startVolume + (targetVolume - startVolume) * progress;
+
+			if (progress < 1) {
+				requestAnimationFrame(animate);
+			} else {
+				audio.volume = targetVolume;
+				resolve();
+			}
+		}
+
+		requestAnimationFrame(animate);
+	});
 }
 
 export function resolveAsset(url) {

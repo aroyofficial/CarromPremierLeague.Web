@@ -76,6 +76,12 @@ const TossOutcome = Object.freeze({
 	NotDecided: 3,
 });
 
+const BackgroundMusic = Object.freeze({
+	Match: "cpl-bgm-audio",
+	Countdown: "countdown-bgm-audio",
+	Horn: "horn-bgm-audio",
+});
+
 export {
 	Pages,
 	Routes,
@@ -84,4 +90,5 @@ export {
 	MatchOutcome,
 	SeasonStatus,
 	TossOutcome,
+	BackgroundMusic,
 };

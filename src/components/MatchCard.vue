@@ -48,10 +48,37 @@
 			:close-on-click-modal="false"
 			:close-on-press-escape="false"
 			:show-close="false"
+			:fullscreen="showMatchManager"
 			align-center
 		>
+			<div v-if="showMatchManager" class="match-manager m-4">
+				<div class="d-flex align-items-center">
+					<div>
+						<el-select
+							v-model="matchObject.toss_outcome"
+							size="large"
+							style="width: 200px"
+							placeholder="Select Team"
+							:disabled="lock"
+						>
+							<el-option
+								:key="TossOutcome.Team1Won"
+								:label="getTeam(match.team1).name"
+								:value="TossOutcome.Team1Won"
+							/>
+							<el-option
+								:key="TossOutcome.Team2Won"
+								:label="getTeam(match.team2).name"
+								:value="TossOutcome.Team2Won"
+							/>
+						</el-select>
+					</div>
+					<div class="ms-3">won the toss</div>
+				</div>
+			</div>
 			<div
-				class="dialog-body match-manager my-4"
+				v-else
+				class="dialog-body match-info my-4"
 				:class="{
 					'golden-glow':
 						match.category ===
@@ -127,12 +154,31 @@
 				</div>
 			</div>
 			<template #footer>
-				<div class="dialog-footer">
+				<div
+					v-if="showMatchManager"
+					class="dialog-footer"
+					:class="{ 'match-started': showMatchManager }"
+				>
+					<el-button v-if="!lock" @click="back()" size="large" type="primary"
+						>Back</el-button
+					>
+					<el-button
+						v-if="!lock"
+						@click="startMatch()"
+						size="large"
+						:disabled="matchObject.toss_outcome == null"
+						type="success"
+						>Proceed</el-button
+					>
+					<el-button v-else type="primary" size="large">Finish</el-button>
+				</div>
+				<div v-else class="dialog-footer">
 					<el-button @click="hideMatchManagementDialog()">Cancel</el-button>
 					<el-button
 						v-if="showStartBtn()"
 						type="primary"
-						:disabled="!dayjs(match.scheduled_date).isSame(dayjs(), 'day')"
+						:disabled="blockMatchManagement()"
+						@click="showMatchManager = true"
 					>
 						Start
 						<el-icon>
@@ -141,12 +187,14 @@
 					</el-button>
 				</div>
 			</template>
+			<Countdown :start="showCountdown" />
 		</el-dialog>
 	</div>
 </template>
 
 <script setup>
-import { ref, onUpdated, onMounted } from "vue";
+import { ref, onUpdated, onMounted, watch } from "vue";
+import { useSeasonStore } from "@/store/seasonStore";
 import { useTeamStore } from "@/store/teamStore";
 import { useStatsStore } from "../store/statsStore";
 import { useRosterStore } from "../store/rosterStore";
@@ -155,22 +203,35 @@ import {
 	MatchOutcome,
 	MatchCategory,
 	TossOutcome,
+	BackgroundMusic,
 } from "../utils/constants";
 import dayjs from "@/plugins/dayjs";
 import { ArrowRight } from "@element-plus/icons-vue";
 import { playBgm, pauseBgm } from "@/utils/common";
 import { startLoader, pauseLoader, resolveAsset } from "../utils/common";
+import Countdown from "./Countdown.vue";
 
 const props = defineProps({
 	match: Object,
 });
 
+const seasonStore = useSeasonStore();
 const teamStore = useTeamStore();
 const statsStore = useStatsStore();
 const rosterStore = useRosterStore();
 const showMatchManagementDialog = ref(false);
 const stats = ref({});
 const teamDetails = ref([]);
+const showMatchManager = ref(false);
+const matchObject = ref({
+	toss_outcome: null,
+});
+const lock = ref(false);
+const showCountdown = ref(false);
+
+watch(showMatchManager, () => {
+	document.querySelector("span.el-dialog__title")?.classList.toggle("ms-4");
+});
 
 const getTeam = (teamId) => {
 	return teamStore.teams.find((team) => team.id === teamId);
@@ -185,6 +246,11 @@ const getTeamLogo = (teamId) => {
 		return resolveAsset("public/assets/images/teams/tbd.png");
 	}
 	return getTeam(teamId).logo_url;
+};
+
+const blockMatchManagement = () => {
+	return false;
+	// return !dayjs(props.match.scheduled_date).isSame(dayjs(), 'day');
 };
 
 const getStatusText = () => {
@@ -225,12 +291,30 @@ const openMatchManagementDialog = async () => {
 	stats.value = statsStore.stats.get(key);
 	showMatchManagementDialog.value = true;
 	pauseLoader();
-	playBgm();
+	await playBgm(BackgroundMusic.Match, 5000);
 };
 
-const hideMatchManagementDialog = () => {
+const hideMatchManagementDialog = async () => {
 	showMatchManagementDialog.value = false;
+	showMatchManager.value = false;
+	await pauseBgm(BackgroundMusic.Match, 3000);
+};
+
+const back = () => {
+	showMatchManager.value = false;
+	matchObject.value.toss_outcome = null;
+};
+
+const startMatch = async () => {
 	pauseBgm();
+	lock.value = true;
+	showCountdown.value = true;
+	setTimeout(async () => {
+		await playBgm(BackgroundMusic.Horn);
+		await pauseBgm(BackgroundMusic.Countdown);
+		setTimeout(async () => await pauseBgm(BackgroundMusic.Horn), 5000);
+		showCountdown.value = false;
+	}, 10500);
 };
 
 const showStartBtn = () => {
@@ -281,7 +365,7 @@ onUpdated(async () => {
 	font-size: 15px;
 }
 
-.match-manager .team-logo {
+.match-info .team-logo {
 	width: 200px;
 	height: 200px;
 	border-radius: 50%;
@@ -312,5 +396,11 @@ onUpdated(async () => {
 .team-members:hover {
 	cursor: pointer;
 	box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.2);
+}
+
+.dialog-footer.match-started {
+	position: absolute;
+	bottom: 1.5rem;
+	right: 1.5rem;
 }
 </style>
