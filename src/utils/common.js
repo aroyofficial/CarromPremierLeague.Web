@@ -70,12 +70,14 @@ function fadeTo(audio, duration, targetVolume) {
 			const elapsed = now - startTime;
 			const progress = Math.min(elapsed / duration, 1);
 
-			audio.volume = startVolume + (targetVolume - startVolume) * progress;
+			let newVolume = startVolume + (targetVolume - startVolume) * progress;
+			newVolume = Math.min(1, Math.max(0, newVolume));
+			audio.volume = newVolume;
 
 			if (progress < 1) {
 				requestAnimationFrame(animate);
 			} else {
-				audio.volume = targetVolume;
+				audio.volume = Math.min(1, Math.max(0, targetVolume));
 				resolve();
 			}
 		}
