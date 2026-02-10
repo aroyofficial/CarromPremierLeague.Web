@@ -111,6 +111,24 @@ export function pauseLoader() {
 	}
 }
 
+export function takeFullScreen() {
+	const element = document.documentElement;
+
+	if (element.requestFullscreen) {
+		element.requestFullscreen();
+	} else if (element.webkitRequestFullscreen) {
+		element.webkitRequestFullscreen();
+	} else if (element.msRequestFullscreen) {
+		element.msRequestFullscreen();
+	}
+}
+
+export function exitFullScreen() {
+	if (document.fullscreenElement) {
+		document.exitFullscreen();
+	}
+}
+
 document.addEventListener("DOMContentLoaded", () => {
 	const link = document.createElement("link");
 	link.rel = "icon";

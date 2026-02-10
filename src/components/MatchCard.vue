@@ -75,6 +75,184 @@
 					</div>
 					<div class="ms-3">won the toss</div>
 				</div>
+				<div id="match-live-info" class="row d-flex p-4">
+					<div
+						class="team-match-info col d-flex flex-column justify-content-center align-items-center"
+					>
+						<div>
+							<img :src="getTeamLogo(match.team1)" class="match-team-logo" />
+						</div>
+						<div class="team-scorecard mt-3 p-3 border rounded">
+							<div>
+								<div
+									class="mb-2 d-flex align-items-center justify-content-between"
+								>
+									<div style="width: 60px"></div>
+									<div
+										class="d-flex flex-column align-items-center justify-content-center"
+										style="width: 120px"
+									>
+										<div>
+											<img
+												:src="getTeamMembers(match.team1)[0].avatar_url"
+												class="player-avatar border"
+											/>
+										</div>
+										<div>
+											{{ getTeamMembers(match.team1)[0].first_name }}
+											{{ getTeamMembers(match.team1)[0].last_name[0] }}
+										</div>
+									</div>
+									<div
+										class="d-flex flex-column align-items-center justify-content-center"
+										style="width: 120px"
+									>
+										<div>
+											<img
+												:src="getTeamMembers(match.team1)[1].avatar_url"
+												class="player-avatar border"
+											/>
+										</div>
+										<div>
+											{{ getTeamMembers(match.team1)[1].first_name }}
+											{{ getTeamMembers(match.team1)[1].last_name[0] }}
+										</div>
+									</div>
+								</div>
+								<div
+									class="mb-2 d-flex align-items-center justify-content-between"
+								>
+									<div style="width: 60px">Coins</div>
+									<div>
+										<el-input-number size="small"></el-input-number>
+									</div>
+									<div>
+										<el-input-number size="small"></el-input-number>
+									</div>
+								</div>
+								<div
+									class="mb-2 d-flex align-items-center justify-content-between"
+								>
+									<div style="width: 60px">Fines</div>
+									<div>
+										<el-input-number size="small"></el-input-number>
+									</div>
+									<div>
+										<el-input-number size="small"></el-input-number>
+									</div>
+								</div>
+								<div
+									class="mb-2 d-flex align-items-center justify-content-between"
+								>
+									<div style="width: 60px">Pockets</div>
+									<div>
+										<el-input-number size="small"></el-input-number>
+									</div>
+									<div>
+										<el-input-number size="small"></el-input-number>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div
+						class="col d-flex flex-column gap-0 align-items-center justify-content-center"
+					>
+						<div id="stopwatch-head-btn" class="d-flex">
+							<div
+								v-for="i in [1, 2, 3, 4, 5]"
+								:key="i"
+								class="stopwatch-head-btn-knurling"
+							></div>
+						</div>
+						<div id="stopwatch-head-pin"></div>
+						<div
+							id="stopwatch"
+							class="d-flex align-items-center justify-content-center"
+						>
+							<el-countdown format="mm:ss" :value="regulationTimer" />
+						</div>
+					</div>
+					<div
+						class="team-match-info col d-flex flex-column justify-content-center align-items-center"
+					>
+						<div>
+							<img :src="getTeamLogo(match.team2)" class="match-team-logo" />
+						</div>
+						<div class="team-scorecard mt-3 p-3 border rounded">
+							<div>
+								<div
+									class="mb-2 d-flex align-items-center justify-content-between"
+								>
+									<div style="width: 60px"></div>
+									<div
+										class="d-flex flex-column align-items-center justify-content-center"
+										style="width: 120px"
+									>
+										<div>
+											<img
+												:src="getTeamMembers(match.team2)[0].avatar_url"
+												class="player-avatar border"
+											/>
+										</div>
+										<div>
+											{{ getTeamMembers(match.team2)[0].first_name }}
+											{{ getTeamMembers(match.team2)[0].last_name[0] }}
+										</div>
+									</div>
+									<div
+										class="d-flex flex-column align-items-center justify-content-center"
+										style="width: 120px"
+									>
+										<div>
+											<img
+												:src="getTeamMembers(match.team2)[1].avatar_url"
+												class="player-avatar border"
+											/>
+										</div>
+										<div>
+											{{ getTeamMembers(match.team2)[1].first_name }}
+											{{ getTeamMembers(match.team2)[1].last_name[0] }}
+										</div>
+									</div>
+								</div>
+								<div
+									class="mb-2 d-flex align-items-center justify-content-between"
+								>
+									<div style="width: 60px">Coins</div>
+									<div>
+										<el-input-number size="small"></el-input-number>
+									</div>
+									<div>
+										<el-input-number size="small"></el-input-number>
+									</div>
+								</div>
+								<div
+									class="mb-2 d-flex align-items-center justify-content-between"
+								>
+									<div style="width: 60px">Fines</div>
+									<div>
+										<el-input-number size="small"></el-input-number>
+									</div>
+									<div>
+										<el-input-number size="small"></el-input-number>
+									</div>
+								</div>
+								<div
+									class="mb-2 d-flex align-items-center justify-content-between"
+								>
+									<div style="width: 60px">Pockets</div>
+									<div>
+										<el-input-number size="small"></el-input-number>
+									</div>
+									<div>
+										<el-input-number size="small"></el-input-number>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
 			</div>
 			<div
 				v-else
@@ -178,7 +356,7 @@
 						v-if="showStartBtn()"
 						type="primary"
 						:disabled="blockMatchManagement()"
-						@click="showMatchManager = true"
+						@click="scaleDialog()"
 					>
 						Start
 						<el-icon>
@@ -207,8 +385,15 @@ import {
 } from "../utils/constants";
 import dayjs from "@/plugins/dayjs";
 import { ArrowRight } from "@element-plus/icons-vue";
-import { playBgm, pauseBgm } from "@/utils/common";
-import { startLoader, pauseLoader, resolveAsset } from "../utils/common";
+import {
+	startLoader,
+	pauseLoader,
+	resolveAsset,
+	playBgm,
+	pauseBgm,
+	takeFullScreen,
+	exitFullScreen,
+} from "../utils/common";
 import Countdown from "./Countdown.vue";
 
 const props = defineProps({
@@ -228,6 +413,8 @@ const matchObject = ref({
 });
 const lock = ref(false);
 const showCountdown = ref(false);
+const matchStarted = ref(false);
+const regulationTimer = ref(0);
 
 watch(showMatchManager, () => {
 	document.querySelector("span.el-dialog__title")?.classList.toggle("ms-4");
@@ -281,6 +468,11 @@ const getStatusText = () => {
 	}
 };
 
+const scaleDialog = () => {
+	showMatchManager.value = true;
+	takeFullScreen();
+};
+
 const openMatchManagementDialog = async () => {
 	startLoader();
 	await statsStore.fetchHeadToHead(props.match.team1, props.match.team2);
@@ -291,7 +483,7 @@ const openMatchManagementDialog = async () => {
 	stats.value = statsStore.stats.get(key);
 	showMatchManagementDialog.value = true;
 	pauseLoader();
-	await playBgm(BackgroundMusic.Match, 5000);
+	await playBgm(BackgroundMusic.Match, 8000);
 };
 
 const hideMatchManagementDialog = async () => {
@@ -303,6 +495,7 @@ const hideMatchManagementDialog = async () => {
 const back = () => {
 	showMatchManager.value = false;
 	matchObject.value.toss_outcome = null;
+	exitFullScreen();
 };
 
 const startMatch = async () => {
@@ -312,7 +505,11 @@ const startMatch = async () => {
 	setTimeout(async () => {
 		await playBgm(BackgroundMusic.Horn);
 		await pauseBgm(BackgroundMusic.Countdown);
-		setTimeout(async () => await pauseBgm(BackgroundMusic.Horn), 5000);
+		matchStarted.value = true;
+		regulationTimer.value = dayjs().add(15, "minute").valueOf();
+		setTimeout(async () => {
+			await pauseBgm(BackgroundMusic.Horn);
+		}, 4000);
 		showCountdown.value = false;
 	}, 10500);
 };
@@ -398,9 +595,69 @@ onUpdated(async () => {
 	box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.2);
 }
 
+#match-live-info {
+	height: calc(100vh - 190px);
+}
+
 .dialog-footer.match-started {
 	position: absolute;
 	bottom: 1.5rem;
 	right: 1.5rem;
+}
+
+#stopwatch-head-btn {
+	height: 12px;
+	width: 40px;
+	background: #000000;
+	border-radius: 5px;
+}
+
+.stopwatch-head-btn-knurling {
+	width: 7px;
+	height: 12px;
+	border-right: 1px solid #ffffff;
+}
+
+#stopwatch-head-pin {
+	height: 16px;
+	width: 20px;
+	background: #000000;
+	border-top: 1px solid #ffffff;
+}
+
+#stopwatch {
+	height: 250px;
+	width: 250px;
+	border-radius: 50%;
+	border: 10px solid #000000;
+}
+
+.el-statistic {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+
+::v-deep(.el-statistic__number) {
+	font-weight: bold;
+	font-size: 50px;
+}
+
+.match-team-logo {
+	width: 180px;
+	height: 180px;
+	border-radius: 50%;
+}
+
+.team-scorecard {
+	width: 350px;
+	border-radius: 12px;
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+	transition: all 0.3s ease;
+}
+
+.team-scorecard:hover {
+	cursor: pointer;
+	box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
 }
 </style>
