@@ -180,7 +180,11 @@
 							id="stopwatch"
 							class="d-flex align-items-center justify-content-center"
 						>
-							<el-countdown format="mm:ss" :value="regulationTimer" />
+							<el-countdown
+								format="mm:ss"
+								:value="regulationTimer"
+								@finish="live && onEndingCountdown()"
+							/>
 						</div>
 						<div class="mt-5 live-badge" :class="{ disabled: !live }">
 							<span class="live-icon"></span>
@@ -291,7 +295,7 @@
 									</div>
 									<div>
 										<el-input-number
-											v-model="scorecard.team2.players[0].pockets"
+											v-model="scorecard.team2.players[1].pockets"
 											size="small"
 											:min="0"
 											:readonly="!live"
@@ -505,10 +509,13 @@ const lock = ref(false);
 const showCountdown = ref(false);
 const matchStarted = ref(false);
 const regulationTimer = ref(0);
-const extraTimer = ref(0);
+const regulationTimeExhausted = ref(false);
+const extraTimeExhausted = ref(false);
 const live = ref(false);
 const showTossDialog = ref(false);
 const enableFinishBtn = ref(false);
+const goldenStrikeTaken = ref(false);
+const winnerTeamId = ref(null);
 const scorecard = ref({
 	team1: {
 		netCoins: 0,
@@ -568,6 +575,35 @@ const getTeamLogo = (teamId) => {
 const blockMatchManagement = () => {
 	return false;
 	// return !dayjs(props.match.scheduled_date).isSame(dayjs(), 'day');
+};
+
+const onEndingCountdown = () => {
+	if (!regulationTimeExhausted.value) {
+		regulationTimeExhausted.value = true;
+	}
+	const team1NetPoints =
+		scorecard.value.team1.players[0].coins +
+		scorecard.value.team1.players[1].coins -
+		scorecard.value.team1.players[0].fines -
+		scorecard.value.team1.players[1].fines;
+	const team2NetPoints =
+		scorecard.value.team2.players[0].coins +
+		scorecard.value.team2.players[1].coins -
+		scorecard.value.team2.players[0].fines -
+		scorecard.value.team2.players[1].fines;
+	if (team1NetPoints != team2NetPoints) {
+		winnerTeamId.value =
+			team1NetPoints > team2NetPoints ? props.match.team1 : props.match.team2;
+		finishMatch(true);
+	} else {
+		if (!extraTimeExhausted.value) {
+			extraTimeExhausted.value = true;
+			// regulationTimer = dayjs().add(5, "minute").valueOf();
+			regulationTimer.value = dayjs().add(5, "second").valueOf();
+		} else {
+			goldenStrikeTaken.value = true;
+		}
+	}
 };
 
 const getTossText = () => {
@@ -666,7 +702,8 @@ const startMatch = async () => {
 		matchStarted.value = true;
 		live.value = true;
 		enableFinishBtn.value = true;
-		regulationTimer.value = dayjs().add(15, "minute").valueOf();
+		// regulationTimer.value = dayjs().add(15, "minute").valueOf();
+		regulationTimer.value = dayjs().add(10, "second").valueOf();
 		setTimeout(async () => {
 			await pauseBgm(BackgroundMusic.Horn);
 		}, 4000);
@@ -685,8 +722,11 @@ const getTeamMembers = (teamId) => {
 	return teamDetails.value.find((td) => td.team_id === teamId)?.players;
 };
 
-const finishMatch = () => {
-	if (!window.confirm("Are you sure you want to finish the match?")) {
+const finishMatch = (forcefully = false) => {
+	if (
+		!forcefully &&
+		window.confirm("Are you sure you want to finish the match?")
+	) {
 		takeFullScreen();
 		return;
 	}
