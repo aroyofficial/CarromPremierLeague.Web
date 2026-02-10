@@ -401,7 +401,7 @@
 						type="primary"
 						size="large"
 						@click="finishMatch()"
-						:disabled="enableFinishBtn"
+						:disabled="!enableFinishBtn"
 						>Finish</el-button
 					>
 				</div>
@@ -508,6 +508,7 @@ const regulationTimer = ref(0);
 const extraTimer = ref(0);
 const live = ref(false);
 const showTossDialog = ref(false);
+const enableFinishBtn = ref(false);
 const scorecard = ref({
 	team1: {
 		netCoins: 0,
