@@ -51,30 +51,7 @@
 			:fullscreen="showMatchManager"
 			align-center
 		>
-			<div v-if="showMatchManager" class="match-manager m-4">
-				<div class="d-flex align-items-center">
-					<div>
-						<el-select
-							v-model="matchObject.toss_outcome"
-							size="large"
-							style="width: 200px"
-							placeholder="Select Team"
-							:disabled="lock"
-						>
-							<el-option
-								:key="TossOutcome.Team1Won"
-								:label="getTeam(match.team1).name"
-								:value="TossOutcome.Team1Won"
-							/>
-							<el-option
-								:key="TossOutcome.Team2Won"
-								:label="getTeam(match.team2).name"
-								:value="TossOutcome.Team2Won"
-							/>
-						</el-select>
-					</div>
-					<div class="ms-3">won the toss</div>
-				</div>
+			<div v-if="showMatchManager" class="match-manager">
 				<div id="match-live-info" class="row d-flex p-4">
 					<div
 						class="team-match-info col d-flex flex-column justify-content-center align-items-center"
@@ -124,10 +101,22 @@
 								>
 									<div style="width: 60px">Coins</div>
 									<div>
-										<el-input-number size="small"></el-input-number>
+										<el-input-number
+											v-model="scorecard.team1.players[0].coins"
+											size="small"
+											:min="0"
+											:max="9 - scorecard.team1.players[1].coins"
+											:readonly="!live"
+										></el-input-number>
 									</div>
 									<div>
-										<el-input-number size="small"></el-input-number>
+										<el-input-number
+											v-model="scorecard.team1.players[1].coins"
+											size="small"
+											:min="0"
+											:max="9 - scorecard.team1.players[0].coins"
+											:readonly="!live"
+										></el-input-number>
 									</div>
 								</div>
 								<div
@@ -135,10 +124,20 @@
 								>
 									<div style="width: 60px">Fines</div>
 									<div>
-										<el-input-number size="small"></el-input-number>
+										<el-input-number
+											v-model="scorecard.team1.players[0].fines"
+											size="small"
+											:min="0"
+											:readonly="!live"
+										></el-input-number>
 									</div>
 									<div>
-										<el-input-number size="small"></el-input-number>
+										<el-input-number
+											v-model="scorecard.team1.players[1].fines"
+											size="small"
+											:min="0"
+											:readonly="!live"
+										></el-input-number>
 									</div>
 								</div>
 								<div
@@ -146,10 +145,20 @@
 								>
 									<div style="width: 60px">Pockets</div>
 									<div>
-										<el-input-number size="small"></el-input-number>
+										<el-input-number
+											v-model="scorecard.team1.players[0].pockets"
+											size="small"
+											:min="0"
+											:readonly="!live"
+										></el-input-number>
 									</div>
 									<div>
-										<el-input-number size="small"></el-input-number>
+										<el-input-number
+											v-model="scorecard.team1.players[1].pockets"
+											size="small"
+											:min="0"
+											:readonly="!live"
+										></el-input-number>
 									</div>
 								</div>
 							</div>
@@ -158,6 +167,7 @@
 					<div
 						class="col d-flex flex-column gap-0 align-items-center justify-content-center"
 					>
+						<div class="mb-5 poppins-bold">Match {{ match.order }}</div>
 						<div id="stopwatch-head-btn" class="d-flex">
 							<div
 								v-for="i in [1, 2, 3, 4, 5]"
@@ -171,6 +181,13 @@
 							class="d-flex align-items-center justify-content-center"
 						>
 							<el-countdown format="mm:ss" :value="regulationTimer" />
+						</div>
+						<div class="mt-5 live-badge" :class="{ disabled: !live }">
+							<span class="live-icon"></span>
+							{{ live ? "Live" : "Starting" }}
+						</div>
+						<div class="mt-2">
+							{{ getTossText() }}
 						</div>
 					</div>
 					<div
@@ -221,10 +238,22 @@
 								>
 									<div style="width: 60px">Coins</div>
 									<div>
-										<el-input-number size="small"></el-input-number>
+										<el-input-number
+											v-model="scorecard.team2.players[0].coins"
+											size="small"
+											:min="0"
+											:max="9 - scorecard.team2.players[1].coins"
+											:readonly="!live"
+										></el-input-number>
 									</div>
 									<div>
-										<el-input-number size="small"></el-input-number>
+										<el-input-number
+											v-model="scorecard.team2.players[1].coins"
+											size="small"
+											:min="0"
+											:max="9 - scorecard.team2.players[0].coins"
+											:readonly="!live"
+										></el-input-number>
 									</div>
 								</div>
 								<div
@@ -232,10 +261,20 @@
 								>
 									<div style="width: 60px">Fines</div>
 									<div>
-										<el-input-number size="small"></el-input-number>
+										<el-input-number
+											v-model="scorecard.team2.players[0].fines"
+											size="small"
+											:min="0"
+											:readonly="!live"
+										></el-input-number>
 									</div>
 									<div>
-										<el-input-number size="small"></el-input-number>
+										<el-input-number
+											v-model="scorecard.team2.players[1].fines"
+											size="small"
+											:min="0"
+											:readonly="!live"
+										></el-input-number>
 									</div>
 								</div>
 								<div
@@ -243,10 +282,20 @@
 								>
 									<div style="width: 60px">Pockets</div>
 									<div>
-										<el-input-number size="small"></el-input-number>
+										<el-input-number
+											v-model="scorecard.team2.players[0].pockets"
+											size="small"
+											:min="0"
+											:readonly="!live"
+										></el-input-number>
 									</div>
 									<div>
-										<el-input-number size="small"></el-input-number>
+										<el-input-number
+											v-model="scorecard.team2.players[0].pockets"
+											size="small"
+											:min="0"
+											:readonly="!live"
+										></el-input-number>
 									</div>
 								</div>
 							</div>
@@ -344,11 +393,17 @@
 						v-if="!lock"
 						@click="startMatch()"
 						size="large"
-						:disabled="matchObject.toss_outcome == null"
 						type="success"
 						>Proceed</el-button
 					>
-					<el-button v-else type="primary" size="large">Finish</el-button>
+					<el-button
+						v-else
+						type="primary"
+						size="large"
+						@click="finishMatch()"
+						:disabled="enableFinishBtn"
+						>Finish</el-button
+					>
 				</div>
 				<div v-else class="dialog-footer">
 					<el-button @click="hideMatchManagementDialog()">Cancel</el-button>
@@ -367,11 +422,46 @@
 			</template>
 			<Countdown :start="showCountdown" />
 		</el-dialog>
+		<el-dialog
+			v-model="showTossDialog"
+			:close-on-click-modal="false"
+			:close-on-press-escape="false"
+			:show-close="false"
+			align-center
+			width="400"
+		>
+			<template #header>
+				<div class="ms-2">Who won the Toss?</div>
+			</template>
+			<div>
+				<el-radio-group v-model="matchObject.toss_outcome">
+					<div class="radio-column ms-2">
+						<el-radio :value="TossOutcome.Team1Won">{{
+							getTeam(match.team1).name
+						}}</el-radio>
+						<el-radio :value="TossOutcome.Team2Won">{{
+							getTeam(match.team2).name
+						}}</el-radio>
+					</div>
+				</el-radio-group>
+			</div>
+			<template #footer>
+				<el-button type="primary" @click="closeTossDialog()">Back</el-button>
+				<el-button
+					type="success"
+					@click="scaleDialog()"
+					:disabled="matchObject.toss_outcome == null"
+					class="me-2"
+				>
+					Proceed
+				</el-button>
+			</template>
+		</el-dialog>
 	</div>
 </template>
 
 <script setup>
-import { ref, onUpdated, onMounted, watch } from "vue";
+import { ref, onUpdated, watch } from "vue";
 import { useSeasonStore } from "@/store/seasonStore";
 import { useTeamStore } from "@/store/teamStore";
 import { useStatsStore } from "../store/statsStore";
@@ -415,6 +505,45 @@ const lock = ref(false);
 const showCountdown = ref(false);
 const matchStarted = ref(false);
 const regulationTimer = ref(0);
+const extraTimer = ref(0);
+const live = ref(false);
+const showTossDialog = ref(false);
+const scorecard = ref({
+	team1: {
+		netCoins: 0,
+		players: [
+			{
+				id: null,
+				coins: 0,
+				fines: 0,
+				pockets: 0,
+			},
+			{
+				id: null,
+				coins: 0,
+				fines: 0,
+				pockets: 0,
+			},
+		],
+	},
+	team2: {
+		netCoins: 0,
+		players: [
+			{
+				id: null,
+				coins: 0,
+				fines: 0,
+				pockets: 0,
+			},
+			{
+				id: null,
+				coins: 0,
+				fines: 0,
+				pockets: 0,
+			},
+		],
+	},
+});
 
 watch(showMatchManager, () => {
 	document.querySelector("span.el-dialog__title")?.classList.toggle("ms-4");
@@ -438,6 +567,12 @@ const getTeamLogo = (teamId) => {
 const blockMatchManagement = () => {
 	return false;
 	// return !dayjs(props.match.scheduled_date).isSame(dayjs(), 'day');
+};
+
+const getTossText = () => {
+	return matchObject.value.toss_outcome === TossOutcome.Team1Won
+		? `${getTeam(props.match.team1).name} won the Toss`
+		: `${getTeam(props.match.team2).name} won the Toss`;
 };
 
 const getStatusText = () => {
@@ -469,8 +604,25 @@ const getStatusText = () => {
 };
 
 const scaleDialog = () => {
+	if (matchObject.value.toss_outcome === null) {
+		showTossDialog.value = true;
+		return;
+	}
+	showTossDialog.value = false;
 	showMatchManager.value = true;
 	takeFullScreen();
+	scorecard.value.team1.players[0].id = getTeamMembers(
+		props.match.team1,
+	)[0].player_id;
+	scorecard.value.team1.players[1].id = getTeamMembers(
+		props.match.team1,
+	)[1].player_id;
+	scorecard.value.team2.players[0].id = getTeamMembers(
+		props.match.team2,
+	)[0].player_id;
+	scorecard.value.team2.players[1].id = getTeamMembers(
+		props.match.team2,
+	)[1].player_id;
 };
 
 const openMatchManagementDialog = async () => {
@@ -498,6 +650,11 @@ const back = () => {
 	exitFullScreen();
 };
 
+const closeTossDialog = () => {
+	showTossDialog.value = false;
+	matchObject.toss_outcome = null;
+};
+
 const startMatch = async () => {
 	pauseBgm();
 	lock.value = true;
@@ -506,6 +663,8 @@ const startMatch = async () => {
 		await playBgm(BackgroundMusic.Horn);
 		await pauseBgm(BackgroundMusic.Countdown);
 		matchStarted.value = true;
+		live.value = true;
+		enableFinishBtn.value = true;
 		regulationTimer.value = dayjs().add(15, "minute").valueOf();
 		setTimeout(async () => {
 			await pauseBgm(BackgroundMusic.Horn);
@@ -523,6 +682,20 @@ const showStartBtn = () => {
 
 const getTeamMembers = (teamId) => {
 	return teamDetails.value.find((td) => td.team_id === teamId)?.players;
+};
+
+const finishMatch = () => {
+	if (!window.confirm("Are you sure you want to finish the match?")) {
+		takeFullScreen();
+		return;
+	}
+	exitFullScreen();
+	showMatchManagementDialog.value = false;
+	showMatchManager.value = false;
+	lock.value = false;
+	matchStarted.value = false;
+	live.value = false;
+	enableFinishBtn.value = false;
 };
 
 onUpdated(async () => {
@@ -596,7 +769,7 @@ onUpdated(async () => {
 }
 
 #match-live-info {
-	height: calc(100vh - 190px);
+	height: calc(100vh - 130px);
 }
 
 .dialog-footer.match-started {
@@ -659,5 +832,59 @@ onUpdated(async () => {
 .team-scorecard:hover {
 	cursor: pointer;
 	box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+}
+
+.live-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-weight: 600;
+	color: #28a745;
+}
+
+.live-icon {
+	width: 10px;
+	height: 10px;
+	background-color: #28a745;
+	border-radius: 50%;
+	position: relative;
+	animation: rippleGlow 1.8s infinite;
+}
+
+.live-icon::after {
+	content: "";
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	border-radius: 50%;
+	background-color: #28a745;
+	z-index: -1;
+}
+
+.live-badge.disabled {
+	color: #9e9e9e;
+}
+
+.live-badge.disabled .live-icon {
+	background-color: #9e9e9e;
+	animation: none;
+	box-shadow: none;
+}
+
+@keyframes rippleGlow {
+	0% {
+		box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7);
+	}
+	70% {
+		box-shadow: 0 0 0 10px rgba(40, 167, 69, 0);
+	}
+	100% {
+		box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
+	}
+}
+
+.radio-column {
+	display: flex;
+	flex-direction: column;
 }
 </style>
