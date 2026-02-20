@@ -181,6 +181,7 @@
 							class="d-flex align-items-center justify-content-center"
 						>
 							<el-countdown
+								:key="regulationTimer"
 								format="mm:ss"
 								:value="regulationTimer"
 								@finish="live && onEndingCountdown()"
@@ -461,6 +462,40 @@
 				</el-button>
 			</template>
 		</el-dialog>
+		<el-dialog
+			v-model="showGoldenStrikeDialog"
+			:close-on-click-modal="false"
+			:close-on-press-escape="false"
+			:show-close="false"
+			align-center
+			width="420"
+		>
+			<template #header>
+				<div class="ms-2">Who won the Golden Strike?</div>
+			</template>
+			<div>
+				<el-radio-group v-model="winnerTeamId">
+					<div class="radio-column ms-2">
+						<el-radio :value="match.team1">{{
+							getTeam(match.team1).name
+						}}</el-radio>
+						<el-radio :value="match.team2">{{
+							getTeam(match.team2).name
+						}}</el-radio>
+					</div>
+				</el-radio-group>
+			</div>
+			<template #footer>
+				<el-button
+					type="success"
+					@click="confirmGoldenStrikeWinner()"
+					:disabled="winnerTeamId == null"
+					class="me-2"
+				>
+					Proceed
+				</el-button>
+			</template>
+		</el-dialog>
 	</div>
 </template>
 
@@ -468,6 +503,7 @@
 import { ref, onUpdated, watch } from "vue";
 import { useSeasonStore } from "@/store/seasonStore";
 import { useTeamStore } from "@/store/teamStore";
+import { useMatchStore } from "@/store/matchStore";
 import { useStatsStore } from "../store/statsStore";
 import { useRosterStore } from "../store/rosterStore";
 import {
@@ -496,6 +532,7 @@ const props = defineProps({
 
 const seasonStore = useSeasonStore();
 const teamStore = useTeamStore();
+const matchStore = useMatchStore();
 const statsStore = useStatsStore();
 const rosterStore = useRosterStore();
 const showMatchManagementDialog = ref(false);
@@ -513,10 +550,14 @@ const regulationTimeExhausted = ref(false);
 const extraTimeExhausted = ref(false);
 const live = ref(false);
 const showTossDialog = ref(false);
+const showGoldenStrikeDialog = ref(false);
 const enableFinishBtn = ref(false);
 const goldenStrikeTaken = ref(false);
 const winnerTeamId = ref(null);
-const scorecard = ref({
+const startMatchTimeoutId = ref(null);
+const hornStopTimeoutId = ref(null);
+
+const createInitialScorecard = () => ({
 	team1: {
 		netCoins: 0,
 		players: [
@@ -553,8 +594,55 @@ const scorecard = ref({
 	},
 });
 
+const scorecard = ref(createInitialScorecard());
+
 watch(showMatchManager, () => {
 	document.querySelector("span.el-dialog__title")?.classList.toggle("ms-4");
+});
+
+const clearMatchTimeouts = () => {
+	if (startMatchTimeoutId.value) {
+		clearTimeout(startMatchTimeoutId.value);
+		startMatchTimeoutId.value = null;
+	}
+	if (hornStopTimeoutId.value) {
+		clearTimeout(hornStopTimeoutId.value);
+		hornStopTimeoutId.value = null;
+	}
+};
+
+const resetMatchModalState = () => {
+	clearMatchTimeouts();
+	showMatchManager.value = false;
+	showTossDialog.value = false;
+	showGoldenStrikeDialog.value = false;
+	matchObject.value = {
+		toss_outcome: null,
+	};
+	lock.value = false;
+	showCountdown.value = false;
+	matchStarted.value = false;
+	regulationTimer.value = 0;
+	regulationTimeExhausted.value = false;
+	extraTimeExhausted.value = false;
+	live.value = false;
+	enableFinishBtn.value = false;
+	goldenStrikeTaken.value = false;
+	winnerTeamId.value = null;
+	scorecard.value = createInitialScorecard();
+	exitFullScreen();
+};
+
+watch(showMatchManagementDialog, async (open) => {
+	if (open) {
+		return;
+	}
+	resetMatchModalState();
+	await Promise.all([
+		pauseBgm(BackgroundMusic.Match, 300),
+		pauseBgm(BackgroundMusic.Countdown, 300),
+		pauseBgm(BackgroundMusic.Horn, 300),
+	]);
 });
 
 const getTeam = (teamId) => {
@@ -577,10 +665,7 @@ const blockMatchManagement = () => {
 	// return !dayjs(props.match.scheduled_date).isSame(dayjs(), 'day');
 };
 
-const onEndingCountdown = () => {
-	if (!regulationTimeExhausted.value) {
-		regulationTimeExhausted.value = true;
-	}
+const getTeamNetPoints = () => {
 	const team1NetPoints =
 		scorecard.value.team1.players[0].coins +
 		scorecard.value.team1.players[1].coins -
@@ -591,18 +676,94 @@ const onEndingCountdown = () => {
 		scorecard.value.team2.players[1].coins -
 		scorecard.value.team2.players[0].fines -
 		scorecard.value.team2.players[1].fines;
-	if (team1NetPoints != team2NetPoints) {
-		winnerTeamId.value =
+	return {
+		team1NetPoints,
+		team2NetPoints,
+	};
+};
+
+const getFinishedMatchMetadata = () => {
+	const { team1NetPoints, team2NetPoints } = getTeamNetPoints();
+	let resolvedWinnerTeamId = winnerTeamId.value;
+
+	if (resolvedWinnerTeamId == null && team1NetPoints !== team2NetPoints) {
+		resolvedWinnerTeamId =
 			team1NetPoints > team2NetPoints ? props.match.team1 : props.match.team2;
-		finishMatch(true);
-	} else {
+	}
+
+	if (resolvedWinnerTeamId == null) {
+		return null;
+	}
+
+	return {
+		winnerTeamId: resolvedWinnerTeamId,
+		outcome:
+			resolvedWinnerTeamId === props.match.team1
+				? MatchOutcome.Team1Won
+				: MatchOutcome.Team2Won,
+		netPoints: Math.abs(team1NetPoints - team2NetPoints),
+	};
+};
+
+const getMatchStatsPayload = () => {
+	const allPlayers = [
+		...scorecard.value.team1.players,
+		...scorecard.value.team2.players,
+	];
+
+	return allPlayers
+		.filter((player) => player.id != null)
+		.map((player) => ({
+			player_id: player.id,
+			coins_pocketed: player.coins,
+			strikers_pocketed: player.pockets,
+			coins_fined: player.fines,
+			shots_taken: 0,
+		}));
+};
+
+const syncMatchCardFromApi = (updatedMatch) => {
+	if (!updatedMatch) {
+		return;
+	}
+
+	props.match.status = updatedMatch.status;
+	props.match.outcome = updatedMatch.outcome;
+	props.match.net_points = updatedMatch.net_points;
+	props.match.golden_strike = updatedMatch.golden_strike;
+	props.match.toss_outcome = updatedMatch.toss_outcome;
+};
+
+const onEndingCountdown = () => {
+	const { team1NetPoints, team2NetPoints } = getTeamNetPoints();
+
+	const isTie = team1NetPoints === team2NetPoints;
+
+	if (!regulationTimeExhausted.value) {
+		regulationTimeExhausted.value = true;
+		if (!isTie) {
+			winnerTeamId.value =
+				team1NetPoints > team2NetPoints ? props.match.team1 : props.match.team2;
+			void finishMatch(true);
+			return;
+		}
 		if (!extraTimeExhausted.value) {
 			extraTimeExhausted.value = true;
 			// regulationTimer = dayjs().add(5, "minute").valueOf();
 			regulationTimer.value = dayjs().add(5, "second").valueOf();
-		} else {
-			goldenStrikeTaken.value = true;
 		}
+		return;
+	}
+
+	// Extra-time finish check: auto-close immediately if one team leads.
+	if (!isTie) {
+		winnerTeamId.value =
+			team1NetPoints > team2NetPoints ? props.match.team1 : props.match.team2;
+		void finishMatch(true);
+	} else {
+		goldenStrikeTaken.value = true;
+		winnerTeamId.value = null;
+		showGoldenStrikeDialog.value = true;
 	}
 };
 
@@ -675,10 +836,8 @@ const openMatchManagementDialog = async () => {
 	await playBgm(BackgroundMusic.Match, 8000);
 };
 
-const hideMatchManagementDialog = async () => {
+const hideMatchManagementDialog = () => {
 	showMatchManagementDialog.value = false;
-	showMatchManager.value = false;
-	await pauseBgm(BackgroundMusic.Match, 3000);
 };
 
 const back = () => {
@@ -689,14 +848,24 @@ const back = () => {
 
 const closeTossDialog = () => {
 	showTossDialog.value = false;
-	matchObject.toss_outcome = null;
+	matchObject.value.toss_outcome = null;
+};
+
+const confirmGoldenStrikeWinner = async () => {
+	if (winnerTeamId.value == null) {
+		return;
+	}
+	showGoldenStrikeDialog.value = false;
+	await finishMatch(true);
 };
 
 const startMatch = async () => {
 	pauseBgm();
+	clearMatchTimeouts();
 	lock.value = true;
 	showCountdown.value = true;
-	setTimeout(async () => {
+	startMatchTimeoutId.value = setTimeout(async () => {
+		startMatchTimeoutId.value = null;
 		await playBgm(BackgroundMusic.Horn);
 		await pauseBgm(BackgroundMusic.Countdown);
 		matchStarted.value = true;
@@ -704,7 +873,8 @@ const startMatch = async () => {
 		enableFinishBtn.value = true;
 		// regulationTimer.value = dayjs().add(15, "minute").valueOf();
 		regulationTimer.value = dayjs().add(10, "second").valueOf();
-		setTimeout(async () => {
+		hornStopTimeoutId.value = setTimeout(async () => {
+			hornStopTimeoutId.value = null;
 			await pauseBgm(BackgroundMusic.Horn);
 		}, 4000);
 		showCountdown.value = false;
@@ -722,21 +892,60 @@ const getTeamMembers = (teamId) => {
 	return teamDetails.value.find((td) => td.team_id === teamId)?.players;
 };
 
-const finishMatch = (forcefully = false) => {
+const finishMatch = async (forcefully = false) => {
+	if (!forcefully && goldenStrikeTaken.value && winnerTeamId.value == null) {
+		showGoldenStrikeDialog.value = true;
+		return;
+	}
 	if (
 		!forcefully &&
-		window.confirm("Are you sure you want to finish the match?")
+		!window.confirm("Are you sure you want to finish the match?")
 	) {
 		takeFullScreen();
 		return;
 	}
-	exitFullScreen();
-	showMatchManagementDialog.value = false;
-	showMatchManager.value = false;
-	lock.value = false;
-	matchStarted.value = false;
-	live.value = false;
-	enableFinishBtn.value = false;
+
+	const finishedMatchMetadata = getFinishedMatchMetadata();
+	if (!finishedMatchMetadata) {
+		window.alert(
+			"The match is tied. Please select the Golden Strike winner to finish the match.",
+		);
+		showGoldenStrikeDialog.value = true;
+		return;
+	}
+
+	startLoader("Saving match result...");
+	try {
+		const playedStatus = MatchStatus.find(
+			(status) => status.name === "Played",
+		)?.id;
+		const tossOutcome =
+			matchObject.value.toss_outcome ??
+			props.match.toss_outcome ??
+			TossOutcome.NotDecided;
+
+		const updatedMatch = await matchStore.updateMatch(props.match.id, {
+			status: playedStatus,
+			outcome: finishedMatchMetadata.outcome,
+			net_points: finishedMatchMetadata.netPoints,
+			golden_strike: goldenStrikeTaken.value,
+			toss_outcome: tossOutcome,
+		});
+
+		const matchStatsPayload = getMatchStatsPayload();
+		if (matchStatsPayload.length > 0) {
+			await matchStore.updateMatchStats(props.match.id, matchStatsPayload);
+		}
+
+		winnerTeamId.value = finishedMatchMetadata.winnerTeamId;
+		syncMatchCardFromApi(updatedMatch);
+		showMatchManagementDialog.value = false;
+	} catch (error) {
+		console.error("Failed to persist finished match details", error);
+		window.alert(error?.message || "Failed to save match details.");
+	} finally {
+		pauseLoader();
+	}
 };
 
 onUpdated(async () => {
