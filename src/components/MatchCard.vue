@@ -105,7 +105,6 @@
 											v-model="scorecard.team1.players[0].coins"
 											size="small"
 											:min="0"
-											:max="9 - scorecard.team1.players[1].coins"
 											:readonly="!live"
 										></el-input-number>
 									</div>
@@ -114,7 +113,6 @@
 											v-model="scorecard.team1.players[1].coins"
 											size="small"
 											:min="0"
-											:max="9 - scorecard.team1.players[0].coins"
 											:readonly="!live"
 										></el-input-number>
 									</div>
@@ -180,7 +178,14 @@
 							id="stopwatch"
 							class="d-flex align-items-center justify-content-center"
 						>
+							<div v-if="timerFrozenAtZero" class="countdown-frozen">
+								00:00
+							</div>
+							<div v-else-if="timerPaused" class="countdown-frozen">
+								{{ formatDurationFromSeconds(pausedTimerSeconds) }}
+							</div>
 							<el-countdown
+								v-else
 								:key="regulationTimer"
 								format="mm:ss"
 								:value="regulationTimer"
@@ -247,7 +252,6 @@
 											v-model="scorecard.team2.players[0].coins"
 											size="small"
 											:min="0"
-											:max="9 - scorecard.team2.players[1].coins"
 											:readonly="!live"
 										></el-input-number>
 									</div>
@@ -256,7 +260,6 @@
 											v-model="scorecard.team2.players[1].coins"
 											size="small"
 											:min="0"
-											:max="9 - scorecard.team2.players[0].coins"
 											:readonly="!live"
 										></el-input-number>
 									</div>
@@ -405,9 +408,9 @@
 						v-else
 						type="primary"
 						size="large"
-						@click="finishMatch()"
+						@click="showSaveBtn ? saveMatchResult() : finishMatch()"
 						:disabled="!enableFinishBtn"
-						>Finish</el-button
+						>{{ showSaveBtn ? "Save" : "Finish" }}</el-button
 					>
 				</div>
 				<div v-else class="dialog-footer">
@@ -426,6 +429,52 @@
 				</div>
 			</template>
 			<Countdown :start="showCountdown" />
+		</el-dialog>
+		<el-dialog
+			v-model="showRegulationDecisionDialog"
+			:close-on-click-modal="false"
+			:close-on-press-escape="false"
+			:show-close="false"
+			align-center
+			width="460"
+		>
+			<template #header>
+				<div class="ms-2">Regulation Time Over</div>
+			</template>
+			<div class="ms-2">
+				Do you want to finish the match now?
+			</div>
+			<template #footer>
+				<el-button type="primary" @click="handleRegulationDecision(true)"
+					>Yes</el-button
+				>
+				<el-button type="warning" @click="handleRegulationDecision(false)"
+					>No, Continue Extra Time</el-button
+				>
+			</template>
+		</el-dialog>
+		<el-dialog
+			v-model="showExtraDecisionDialog"
+			:close-on-click-modal="false"
+			:close-on-press-escape="false"
+			:show-close="false"
+			align-center
+			width="460"
+		>
+			<template #header>
+				<div class="ms-2">Extra Time Over</div>
+			</template>
+			<div class="ms-2">
+				Do you want to finish the match or go for Golden Strike?
+			</div>
+			<template #footer>
+				<el-button type="primary" @click="handleExtraDecision('finish')"
+					>Finish Match</el-button
+				>
+				<el-button type="warning" @click="handleExtraDecision('golden')"
+					>Golden Strike</el-button
+				>
+			</template>
 		</el-dialog>
 		<el-dialog
 			v-model="showTossDialog"
@@ -550,12 +599,21 @@ const regulationTimeExhausted = ref(false);
 const extraTimeExhausted = ref(false);
 const live = ref(false);
 const showTossDialog = ref(false);
+const showRegulationDecisionDialog = ref(false);
+const showExtraDecisionDialog = ref(false);
 const showGoldenStrikeDialog = ref(false);
 const enableFinishBtn = ref(false);
 const goldenStrikeTaken = ref(false);
 const winnerTeamId = ref(null);
+const timerFrozenAtZero = ref(false);
+const extraTimeStarted = ref(false);
+const timerPaused = ref(false);
+const pausedTimerSeconds = ref(0);
+const showSaveBtn = ref(false);
 const startMatchTimeoutId = ref(null);
 const hornStopTimeoutId = ref(null);
+const regulationDurationSeconds = 10;
+const extraDurationSeconds = 5;
 
 const createInitialScorecard = () => ({
 	team1: {
@@ -615,6 +673,8 @@ const resetMatchModalState = () => {
 	clearMatchTimeouts();
 	showMatchManager.value = false;
 	showTossDialog.value = false;
+	showRegulationDecisionDialog.value = false;
+	showExtraDecisionDialog.value = false;
 	showGoldenStrikeDialog.value = false;
 	matchObject.value = {
 		toss_outcome: null,
@@ -623,8 +683,13 @@ const resetMatchModalState = () => {
 	showCountdown.value = false;
 	matchStarted.value = false;
 	regulationTimer.value = 0;
+	timerFrozenAtZero.value = false;
+	timerPaused.value = false;
+	pausedTimerSeconds.value = 0;
+	showSaveBtn.value = false;
 	regulationTimeExhausted.value = false;
 	extraTimeExhausted.value = false;
+	extraTimeStarted.value = false;
 	live.value = false;
 	enableFinishBtn.value = false;
 	goldenStrikeTaken.value = false;
@@ -667,19 +732,51 @@ const blockMatchManagement = () => {
 
 const getTeamNetPoints = () => {
 	const team1NetPoints =
-		scorecard.value.team1.players[0].coins +
-		scorecard.value.team1.players[1].coins -
-		scorecard.value.team1.players[0].fines -
-		scorecard.value.team1.players[1].fines;
+		Number(scorecard.value.team1.players[0].coins || 0) +
+		Number(scorecard.value.team1.players[1].coins || 0) -
+		Number(scorecard.value.team1.players[0].fines || 0) -
+		Number(scorecard.value.team1.players[1].fines || 0);
 	const team2NetPoints =
-		scorecard.value.team2.players[0].coins +
-		scorecard.value.team2.players[1].coins -
-		scorecard.value.team2.players[0].fines -
-		scorecard.value.team2.players[1].fines;
+		Number(scorecard.value.team2.players[0].coins || 0) +
+		Number(scorecard.value.team2.players[1].coins || 0) -
+		Number(scorecard.value.team2.players[0].fines || 0) -
+		Number(scorecard.value.team2.players[1].fines || 0);
 	return {
 		team1NetPoints,
 		team2NetPoints,
 	};
+};
+
+const getInvalidTeamNetPoints = () => {
+	const { team1NetPoints, team2NetPoints } = getTeamNetPoints();
+	if (team1NetPoints < 0 || team1NetPoints > 9) {
+		return {
+			teamName: getTeam(props.match.team1)?.name || "Team 1",
+			netPoints: team1NetPoints,
+		};
+	}
+	if (team2NetPoints < 0 || team2NetPoints > 9) {
+		return {
+			teamName: getTeam(props.match.team2)?.name || "Team 2",
+			netPoints: team2NetPoints,
+		};
+	}
+	return null;
+};
+
+const getInvalidGoldenStrikeState = () => {
+	const { team1NetPoints, team2NetPoints } = getTeamNetPoints();
+	const isTie = team1NetPoints === team2NetPoints;
+
+	if (!goldenStrikeTaken.value && isTie) {
+		return "Without Golden Strike, one team must have more net points than the other.";
+	}
+
+	if (goldenStrikeTaken.value && !isTie) {
+		return "For Golden Strike, both teams must have equal net points.";
+	}
+
+	return null;
 };
 
 const getFinishedMatchMetadata = () => {
@@ -734,37 +831,143 @@ const syncMatchCardFromApi = (updatedMatch) => {
 	props.match.toss_outcome = updatedMatch.toss_outcome;
 };
 
-const onEndingCountdown = () => {
-	const { team1NetPoints, team2NetPoints } = getTeamNetPoints();
+const playHorn = async () => {
+	await playBgm(BackgroundMusic.Horn);
+	if (hornStopTimeoutId.value) {
+		clearTimeout(hornStopTimeoutId.value);
+	}
+	hornStopTimeoutId.value = setTimeout(async () => {
+		hornStopTimeoutId.value = null;
+		await pauseBgm(BackgroundMusic.Horn);
+	}, 4000);
+};
 
-	const isTie = team1NetPoints === team2NetPoints;
+const formatDurationFromSeconds = (seconds) => {
+	const safeSeconds = Math.max(0, Number(seconds || 0));
+	const minutes = Math.floor(safeSeconds / 60)
+		.toString()
+		.padStart(2, "0");
+	const secs = Math.floor(safeSeconds % 60)
+		.toString()
+		.padStart(2, "0");
+	return `${minutes}:${secs}`;
+};
 
+const getRemainingSeconds = (targetTime) => {
+	if (!targetTime) {
+		return 0;
+	}
+	const diffMs = targetTime - dayjs().valueOf();
+	return Math.max(0, Math.ceil(diffMs / 1000));
+};
+
+const getElapsedMatchTime = () => {
+	if (!regulationTimeExhausted.value && !extraTimeStarted.value) {
+		const remainingRegulationSeconds = timerFrozenAtZero.value
+			? 0
+			: timerPaused.value
+				? pausedTimerSeconds.value
+				: getRemainingSeconds(regulationTimer.value);
+		return {
+			duration: Math.max(
+				0,
+				Math.min(
+					regulationDurationSeconds,
+					regulationDurationSeconds - remainingRegulationSeconds,
+				),
+			),
+			extra: null,
+		};
+	}
+
+	const duration = regulationDurationSeconds;
+	if (!extraTimeStarted.value) {
+		return {
+			duration,
+			extra: null,
+		};
+	}
+
+	if (extraTimeExhausted.value) {
+		return {
+			duration,
+			extra: extraDurationSeconds,
+		};
+	}
+
+	const remainingExtraSeconds = timerFrozenAtZero.value
+		? 0
+		: timerPaused.value
+			? pausedTimerSeconds.value
+			: getRemainingSeconds(regulationTimer.value);
+	return {
+		duration,
+		extra: Math.max(
+			0,
+			Math.min(extraDurationSeconds, extraDurationSeconds - remainingExtraSeconds),
+		),
+	};
+};
+
+const startExtraTime = () => {
+	showRegulationDecisionDialog.value = false;
+	extraTimeStarted.value = true;
+	enableFinishBtn.value = true;
+	timerFrozenAtZero.value = false;
+	timerPaused.value = false;
+	pausedTimerSeconds.value = 0;
+	showSaveBtn.value = false;
+	goldenStrikeTaken.value = false;
+	// regulationTimer.value = dayjs().add(5, "minute").valueOf();
+	regulationTimer.value = dayjs().add(extraDurationSeconds, "second").valueOf();
+};
+
+const handleRegulationDecision = async (finishNow) => {
+	if (!finishNow) {
+		startExtraTime();
+		return;
+	}
+	showRegulationDecisionDialog.value = false;
+	timerPaused.value = false;
+	pausedTimerSeconds.value = 0;
+	showSaveBtn.value = false;
+	enableFinishBtn.value = true;
+};
+
+const handleExtraDecision = (decision) => {
+	showExtraDecisionDialog.value = false;
+	if (decision === "golden") {
+		openGoldenStrikeDialog();
+		return;
+	}
+	timerPaused.value = false;
+	pausedTimerSeconds.value = 0;
+	showSaveBtn.value = false;
+	enableFinishBtn.value = true;
+};
+
+const onEndingCountdown = async () => {
 	if (!regulationTimeExhausted.value) {
 		regulationTimeExhausted.value = true;
-		if (!isTie) {
-			winnerTeamId.value =
-				team1NetPoints > team2NetPoints ? props.match.team1 : props.match.team2;
-			void finishMatch(true);
-			return;
-		}
-		if (!extraTimeExhausted.value) {
-			extraTimeExhausted.value = true;
-			// regulationTimer = dayjs().add(5, "minute").valueOf();
-			regulationTimer.value = dayjs().add(5, "second").valueOf();
-		}
+		timerFrozenAtZero.value = true;
+		timerPaused.value = false;
+		pausedTimerSeconds.value = 0;
+		showSaveBtn.value = false;
+		regulationTimer.value = dayjs().valueOf();
+		await playHorn();
+		showRegulationDecisionDialog.value = true;
 		return;
 	}
 
-	// Extra-time finish check: auto-close immediately if one team leads.
-	if (!isTie) {
-		winnerTeamId.value =
-			team1NetPoints > team2NetPoints ? props.match.team1 : props.match.team2;
-		void finishMatch(true);
-	} else {
-		goldenStrikeTaken.value = true;
-		winnerTeamId.value = null;
-		showGoldenStrikeDialog.value = true;
-	}
+	extraTimeExhausted.value = true;
+	timerFrozenAtZero.value = true;
+	timerPaused.value = false;
+	pausedTimerSeconds.value = 0;
+	showSaveBtn.value = false;
+	regulationTimer.value = dayjs().valueOf();
+	enableFinishBtn.value = false;
+	await playHorn();
+	showExtraDecisionDialog.value = true;
 };
 
 const getTossText = () => {
@@ -775,6 +978,9 @@ const getTossText = () => {
 
 const getStatusText = () => {
 	const status = MatchStatus.find((status) => status.id === props.match.status);
+	if (!status) {
+		return "Status unavailable";
+	}
 	switch (status.id) {
 		case 1:
 			return `${dayjs(props.match.scheduled_date).format("ddd MMM DD YYYY")}`;
@@ -782,11 +988,8 @@ const getStatusText = () => {
 			return `Ongoing`;
 		case 3:
 			let winnerTeamId = null;
-			let winningFactor = null;
 			if (props.match.golden_strike) {
-				winningFactor = "Golden Strike";
-			} else {
-				winningFactor = `${props.match.net_points} pts`;
+				// no-op; winner decided via golden strike
 			}
 			switch (props.match.outcome) {
 				case MatchOutcome.Team1Won:
@@ -796,8 +999,21 @@ const getStatusText = () => {
 					winnerTeamId = props.match.team2;
 					break;
 			}
-			getTeam(winnerTeamId).name;
-			return `${getTeam(winnerTeamId).name} won by ${winningFactor}`;
+			if (!winnerTeamId) {
+				return "Result pending";
+			}
+			const winnerTeam = getTeam(winnerTeamId);
+			if (!winnerTeam) {
+				return "Result pending";
+			}
+			const winningFactor = props.match.golden_strike
+				? "Golden Strike"
+				: props.match.net_points != null
+					? `${props.match.net_points} pts`
+					: "result";
+			return `${winnerTeam.name} won by ${winningFactor}`;
+		default:
+			return "Status unavailable";
 	}
 };
 
@@ -856,7 +1072,16 @@ const confirmGoldenStrikeWinner = async () => {
 		return;
 	}
 	showGoldenStrikeDialog.value = false;
-	await finishMatch(true);
+	timerPaused.value = false;
+	pausedTimerSeconds.value = 0;
+	showSaveBtn.value = false;
+	enableFinishBtn.value = true;
+};
+
+const openGoldenStrikeDialog = () => {
+	goldenStrikeTaken.value = true;
+	winnerTeamId.value = null;
+	showGoldenStrikeDialog.value = true;
 };
 
 const startMatch = async () => {
@@ -871,8 +1096,16 @@ const startMatch = async () => {
 		matchStarted.value = true;
 		live.value = true;
 		enableFinishBtn.value = true;
+		goldenStrikeTaken.value = false;
+		timerFrozenAtZero.value = false;
+		timerPaused.value = false;
+		pausedTimerSeconds.value = 0;
+		showSaveBtn.value = false;
+		extraTimeStarted.value = false;
 		// regulationTimer.value = dayjs().add(15, "minute").valueOf();
-		regulationTimer.value = dayjs().add(10, "second").valueOf();
+		regulationTimer.value = dayjs()
+			.add(regulationDurationSeconds, "second")
+			.valueOf();
 		hornStopTimeoutId.value = setTimeout(async () => {
 			hornStopTimeoutId.value = null;
 			await pauseBgm(BackgroundMusic.Horn);
@@ -892,16 +1125,32 @@ const getTeamMembers = (teamId) => {
 	return teamDetails.value.find((td) => td.team_id === teamId)?.players;
 };
 
+const saveMatchResult = async () => {
+	await finishMatch(true);
+};
+
 const finishMatch = async (forcefully = false) => {
-	if (!forcefully && goldenStrikeTaken.value && winnerTeamId.value == null) {
-		showGoldenStrikeDialog.value = true;
+	if (!forcefully && live.value && !timerFrozenAtZero.value && !timerPaused.value) {
+		pausedTimerSeconds.value = getRemainingSeconds(regulationTimer.value);
+		timerPaused.value = true;
+		showSaveBtn.value = true;
+		enableFinishBtn.value = true;
 		return;
 	}
-	if (
-		!forcefully &&
-		!window.confirm("Are you sure you want to finish the match?")
-	) {
-		takeFullScreen();
+	if (!forcefully && goldenStrikeTaken.value && winnerTeamId.value == null) {
+		openGoldenStrikeDialog();
+		return;
+	}
+	const invalidTeamNetPoints = getInvalidTeamNetPoints();
+	if (invalidTeamNetPoints) {
+		window.alert(
+			`${invalidTeamNetPoints.teamName} net points must be between 0 and 9. Current value: ${invalidTeamNetPoints.netPoints}.`,
+		);
+		return;
+	}
+	const invalidGoldenStrikeState = getInvalidGoldenStrikeState();
+	if (invalidGoldenStrikeState) {
+		window.alert(invalidGoldenStrikeState);
 		return;
 	}
 
@@ -919,6 +1168,7 @@ const finishMatch = async (forcefully = false) => {
 		const playedStatus = MatchStatus.find(
 			(status) => status.name === "Played",
 		)?.id;
+		const elapsedMatchTime = getElapsedMatchTime();
 		const tossOutcome =
 			matchObject.value.toss_outcome ??
 			props.match.toss_outcome ??
@@ -930,6 +1180,8 @@ const finishMatch = async (forcefully = false) => {
 			net_points: finishedMatchMetadata.netPoints,
 			golden_strike: goldenStrikeTaken.value,
 			toss_outcome: tossOutcome,
+			duration: elapsedMatchTime.duration,
+			extra: elapsedMatchTime.extra,
 		});
 
 		const matchStatsPayload = getMatchStatsPayload();
@@ -1053,6 +1305,11 @@ onUpdated(async () => {
 	width: 250px;
 	border-radius: 50%;
 	border: 10px solid #000000;
+}
+
+.countdown-frozen {
+	font-weight: bold;
+	font-size: 50px;
 }
 
 .el-statistic {

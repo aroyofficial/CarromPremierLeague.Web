@@ -34,6 +34,7 @@
 						leagueTable.standings.length > 0
 					"
 					:data="leagueTable.standings"
+					:row-class-name="getRowClassName"
 					style="width: fit-content"
 				>
 					<el-table-column prop="team_name" label="TEAM" width="240">
@@ -45,6 +46,7 @@
 								width="10"
 							/>
 							{{ row.team_name }}
+							<span v-if="isWinnerRow(row)" class="winner-badge">&#127942;</span>
 						</template>
 					</el-table-column>
 					<el-table-column prop="matches_played" label="P" width="80" />
@@ -66,9 +68,12 @@
 import { ref, onMounted } from "vue";
 import { useSeasonStore } from "@/store/seasonStore";
 import { useTeamStore } from "@/store/teamStore";
+import { useMatchStore } from "@/store/matchStore";
+import { MatchCategory, MatchStatus } from "@/utils/constants";
 
 const seasonStore = useSeasonStore();
 const teamStore = useTeamStore();
+const matchStore = useMatchStore();
 const selectedSeason = ref(null);
 const seasons = ref([]);
 const teams = ref([]);
@@ -88,26 +93,61 @@ const fetchLeagueTable = async () => {
 	try {
 		loading.value = true;
 		seasonStore.setSeason(selectedSeason.value);
-		await seasonStore.fetchLeagueTable();
+		await Promise.all([
+			seasonStore.fetchLeagueTable(),
+			matchStore.fetchMatches(selectedSeason.value),
+		]);
 		leagueTable.value = seasonStore.leagueTable;
 		if (
 			leagueTable.value &&
 			leagueTable.value.standings &&
 			leagueTable.value.standings.length > 0
 		) {
-			leagueTable.value.standings.forEach((team, index) => {
+			leagueTable.value.standings.forEach((team) => {
 				team.losses = team.matches_played - team.wins;
-				team.actual_team_name = team.team_name;
 			});
-			let winnerIndex = leagueTable.value.standings.findIndex(
-				(st) => st.team_id === leagueTable.value.winner_id,
-			);
-			winnerIndex !== -1 &&
-				(leagueTable.value.standings[winnerIndex].team_name += "  🏆");
 		}
 	} finally {
 		loading.value = false;
 	}
+};
+
+const isSeasonEnded = () => leagueTable.value?.season_status === 3;
+
+const isWinnerRow = (row) =>
+	isSeasonEnded() && row.team_id === leagueTable.value?.winner_id;
+
+const isLeagueStageCompleted = () => {
+	if (isSeasonEnded()) {
+		return false;
+	}
+	const leagueCategoryId = MatchCategory.find(
+		(category) => category.name === "League",
+	)?.id;
+	const playedStatusId = MatchStatus.find(
+		(status) => status.name === "Played",
+	)?.id;
+	const leagueMatches = matchStore.matches.filter(
+		(match) =>
+			match.season_id === selectedSeason.value &&
+			match.category === leagueCategoryId,
+	);
+	if (leagueMatches.length === 0) {
+		return false;
+	}
+	return leagueMatches.every((match) => match.status === playedStatusId);
+};
+
+const isFinalistRow = (rowIndex) => isLeagueStageCompleted() && rowIndex < 2;
+
+const getRowClassName = ({ row, rowIndex }) => {
+	if (isWinnerRow(row)) {
+		return "winner-row";
+	}
+	if (isFinalistRow(rowIndex)) {
+		return "finalist-row";
+	}
+	return "";
 };
 
 onMounted(async () => {
@@ -152,4 +192,25 @@ onMounted(async () => {
 .el-table--fit:hover {
 	cursor: pointer;
 }
+
+::v-deep(.el-table__body .el-table__row.winner-row > td.el-table__cell) {
+	background: linear-gradient(90deg, #fff8d6 0%, #fff2ad 100%);
+}
+
+::v-deep(.el-table__body .el-table__row.winner-row > td.el-table__cell:first-child) {
+	border-left: 3px solid #d4a017;
+}
+
+::v-deep(.el-table__body .el-table__row.finalist-row > td.el-table__cell) {
+	background: linear-gradient(90deg, #e6f3ff 0%, #f2f8ff 100%);
+}
+
+::v-deep(.el-table__body .el-table__row.finalist-row > td.el-table__cell:first-child) {
+	border-left: 3px solid #2f7fbf;
+}
+
+.winner-badge {
+	margin-left: 8px;
+}
 </style>
+
