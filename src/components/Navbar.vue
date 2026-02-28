@@ -27,6 +27,9 @@
 		<el-menu-item index="4" :class="{ 'poppins-semibold': activeIndex == '4' }"
 			>Players</el-menu-item
 		>
+		<el-menu-item index="5" :class="{ 'poppins-semibold': activeIndex == '5' }"
+			>Stats</el-menu-item
+		>
 	</el-menu>
 </template>
 
@@ -57,6 +60,9 @@ const handleSelect = (index) => {
 		case Pages.PLAYERS:
 			router.push(Routes.PLAYERS);
 			break;
+		case Pages.STATS:
+			router.push(Routes.STATS);
+			break;
 		default:
 			break;
 	}
@@ -78,6 +84,9 @@ onMounted(() => {
 			break;
 		case Routes.PLAYERS:
 			activeIndex.value = "4";
+			break;
+		case Routes.STATS:
+			activeIndex.value = "5";
 			break;
 		default:
 			activeIndex.value = null;

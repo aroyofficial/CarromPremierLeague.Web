@@ -4,7 +4,8 @@ const Pages = Object.freeze({
 	FIXTURES: 2,
 	TEAMS: 3,
 	PLAYERS: 4,
-	GALLERY: 5,
+	STATS: 5,
+	GALLERY: 6,
 });
 
 const Routes = Object.freeze({
@@ -14,6 +15,7 @@ const Routes = Object.freeze({
 	FIXTURES: "/fixtures",
 	TEAMS: "/teams",
 	PLAYERS: "/players",
+	STATS: "/stats",
 });
 
 const SeasonStatus = Object.freeze({

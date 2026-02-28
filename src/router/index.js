@@ -4,6 +4,7 @@ import Fixtures from "@/views/Fixtures.vue";
 import Teams from "@/views/Teams.vue";
 import PointsTable from "@/views/PointsTable.vue";
 import Players from "@/views/Players.vue";
+import Stats from "@/views/Stats.vue";
 import NotFound from "@/views/NotFound.vue";
 import { Routes } from "../utils/constants";
 import { useSeasonStore } from "@/store/seasonStore";
@@ -36,6 +37,12 @@ const routes = [
 		name: "players",
 		component: Players,
 		meta: { title: "Players" },
+	},
+	{
+		path: Routes.STATS,
+		name: "stats",
+		component: Stats,
+		meta: { title: "Stats" },
 	},
 	{
 		path: Routes.FIXTURES,
