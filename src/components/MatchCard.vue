@@ -404,14 +404,31 @@
 						type="success"
 						>Proceed</el-button
 					>
-					<el-button
-						v-else
-						type="primary"
-						size="large"
-						@click="showSaveBtn ? saveMatchResult() : finishMatch()"
-						:disabled="!enableFinishBtn"
-						>{{ showSaveBtn ? "Save" : "Finish" }}</el-button
-					>
+					<template v-else>
+						<el-button
+							v-if="showSaveBtn && timerPaused"
+							type="warning"
+							size="large"
+							@click="resumeMatch()"
+							>Resume</el-button
+						>
+						<el-button
+							v-if="showSaveBtn"
+							type="primary"
+							size="large"
+							@click="saveMatchResult()"
+							:disabled="!enableFinishBtn"
+							>Save</el-button
+						>
+						<el-button
+							v-else
+							type="primary"
+							size="large"
+							@click="finishMatch()"
+							:disabled="!enableFinishBtn"
+							>Finish</el-button
+						>
+					</template>
 				</div>
 				<div v-else class="dialog-footer">
 					<el-button @click="hideMatchManagementDialog()">Cancel</el-button>
@@ -612,8 +629,8 @@ const pausedTimerSeconds = ref(0);
 const showSaveBtn = ref(false);
 const startMatchTimeoutId = ref(null);
 const hornStopTimeoutId = ref(null);
-const regulationDurationSeconds = 10;
-const extraDurationSeconds = 5;
+const regulationDurationSeconds = 15 * 60;
+const extraDurationSeconds = 5 * 60;
 
 const createInitialScorecard = () => ({
 	team1: {
@@ -1123,6 +1140,25 @@ const showStartBtn = () => {
 
 const getTeamMembers = (teamId) => {
 	return teamDetails.value.find((td) => td.team_id === teamId)?.players;
+};
+
+const resumeMatch = () => {
+	if (!timerPaused.value || timerFrozenAtZero.value) {
+		return;
+	}
+
+	const remainingSeconds = Math.max(0, Number(pausedTimerSeconds.value || 0));
+	if (remainingSeconds <= 0) {
+		timerPaused.value = false;
+		showSaveBtn.value = false;
+		return;
+	}
+
+	regulationTimer.value = dayjs().add(remainingSeconds, "second").valueOf();
+	timerPaused.value = false;
+	pausedTimerSeconds.value = 0;
+	showSaveBtn.value = false;
+	enableFinishBtn.value = true;
 };
 
 const saveMatchResult = async () => {
