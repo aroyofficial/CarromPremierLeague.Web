@@ -6,6 +6,7 @@ export const useStatsStore = defineStore("stats", {
 		stats: new Map(),
 		topCoinPotters: new Map(),
 		topCoinPotterMessages: new Map(),
+		topCoinPotterLeagueCompletion: new Map(),
 		loading: false,
 	}),
 
@@ -27,6 +28,8 @@ export const useStatsStore = defineStore("stats", {
 			if (!forceRefresh && this.topCoinPotters.has(key)) {
 				return {
 					players: this.topCoinPotters.get(key),
+					isLeagueStageCompleted:
+						this.topCoinPotterLeagueCompletion.get(key) || false,
 					message:
 						this.topCoinPotterMessages.get(key) ||
 						"Top coin potters fetched successfully",
@@ -39,12 +42,16 @@ export const useStatsStore = defineStore("stats", {
 					seasonId,
 					limit,
 				);
-				const players = response?.data || [];
+				const players = response?.data?.players || [];
+				const isLeagueStageCompleted = Boolean(
+					response?.data?.is_league_stage_completed,
+				);
 				const message =
 					response?.message || "Top coin potters fetched successfully";
 				this.topCoinPotters.set(key, players);
 				this.topCoinPotterMessages.set(key, message);
-				return { players, message };
+				this.topCoinPotterLeagueCompletion.set(key, isLeagueStageCompleted);
+				return { players, isLeagueStageCompleted, message };
 			} finally {
 				this.loading = false;
 			}
