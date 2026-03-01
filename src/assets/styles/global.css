@@ -1,3 +1,8 @@
+html,
+body {
+	height: 100%;
+}
+
 body {
 	margin: 0;
 	font-family: "Poppins", sans-serif;
@@ -8,6 +13,13 @@ body {
 }
 
 #app {
+	--app-header-height: 60px;
+	--app-footer-height: 50px;
+	min-height: 100vh;
+	padding-top: var(--app-header-height);
+	padding-bottom: var(--app-footer-height);
+	box-sizing: border-box;
+	overflow-x: hidden;
 	/* background: #000000ba; */
 }
 

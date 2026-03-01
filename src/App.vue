@@ -1,15 +1,18 @@
 <template>
 	<Navbar />
-	<router-view />
+	<main id="app-content">
+		<router-view />
+	</main>
 	<Footer />
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
 import Navbar from "./components/Navbar.vue";
 import Footer from "./components/Footer.vue";
-
-onMounted(async () => {});
 </script>
 
-<style lang="scss"></style>
+<style lang="scss">
+#app-content {
+	min-height: calc(100vh - var(--app-header-height) - var(--app-footer-height));
+}
+</style>

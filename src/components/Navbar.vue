@@ -1,5 +1,6 @@
 <template>
 	<el-menu
+		class="app-header-menu"
 		:default-active="activeIndex"
 		mode="horizontal"
 		:ellipsis="false"
@@ -96,6 +97,18 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.app-header-menu {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: var(--app-header-height);
+	z-index: 1100;
+	background: #ffffff;
+	border-bottom: 1px solid #e2e8f0;
+	box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+}
+
 .el-menu--horizontal > .el-menu-item:nth-child(1) {
 	margin-right: auto;
 }

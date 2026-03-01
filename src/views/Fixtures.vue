@@ -454,7 +454,5 @@ onMounted(() => {
 #fixtures-paginated-table {
 	padding: 0px 15%;
 	min-height: calc(100vh - 216px);
-	height: calc(100vh - 216px);
-	overflow-y: auto;
 }
 </style>
