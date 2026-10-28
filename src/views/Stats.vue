@@ -1,5 +1,5 @@
 <template>
-	<div id="stats-wrapper" class="d-flex flex-column align-items-center mt-5">
+	<div id="stats-wrapper" class="page-container d-flex flex-column align-items-center">
 		<div class="stats-shell d-flex flex-column">
 			<div class="stats-topbar mb-4">
 				<div>
@@ -67,7 +67,7 @@
 								<div class="metric-value">{{ player.coins_fined || 0 }}</div>
 							</div>
 							<div class="metric-box">
-								<div class="metric-label">Strikers</div>
+								<div class="metric-label">Pockets</div>
 								<div class="metric-value">{{ player.strikers_pocketed || 0 }}</div>
 							</div>
 						</div>
@@ -136,7 +136,7 @@ const fetchTopCoinPotters = async () => {
 		topCoinPotters.value = result.players || [];
 		isLeagueStageCompleted.value = result.isLeagueStageCompleted || false;
 		emptyMessage.value =
-			result.message || "No league stage coin stats available for this season.";
+			result.message || "Data is not available for this season.";
 	} catch (error) {
 		console.error("Failed to fetch golden striker stats", error);
 		topCoinPotters.value = [];
@@ -157,10 +157,6 @@ onMounted(async () => {
 <style scoped lang="scss">
 ::v-deep(.el-select__wrapper.is-focused) {
 	box-shadow: 0 0 0 1px var(--el-border-color) inset;
-}
-
-#stats-wrapper {
-	padding: 20px 12%;
 }
 
 .stats-shell {

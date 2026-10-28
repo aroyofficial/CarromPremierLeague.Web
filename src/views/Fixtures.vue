@@ -83,7 +83,7 @@
 				'd-flex justify-content-center align-items-center': noMatchesFound,
 			}"
 		>
-			<div v-if="noMatchesFound">No Matches Found</div>
+			<div v-if="noMatchesFound">Data is not available for this season.</div>
 			<MatchCard
 				v-for="item in applyFilters(matches)"
 				:key="item.id"
@@ -173,9 +173,7 @@
 							clearable
 						>
 							<el-option
-								v-for="item in seasons.filter(
-									(s) => s.status === seasonStatuses.SCHEDULED,
-								)"
+								v-for="item in seasons.filter(isSeasonOpen)"
 								:key="item.id"
 								:label="item.name"
 								:value="item.id"
@@ -246,12 +244,8 @@ import { useTeamStore } from "@/store/teamStore";
 import { useMatchStore } from "@/store/matchStore";
 import { useRosterStore } from "@/store/rosterStore";
 import { Plus } from "@element-plus/icons-vue";
-import {
-	MatchCategory,
-	MatchOutcome,
-	MatchStatus,
-	SeasonStatus,
-} from "../utils/constants";
+import { MatchCategory, MatchOutcome, MatchStatus } from "../utils/constants";
+import { isSeasonOpen } from "@/utils/season";
 import dayjs from "@/plugins/dayjs";
 import MatchCard from "../components/MatchCard.vue";
 import { startLoader, pauseLoader } from "../utils/common";
@@ -265,7 +259,6 @@ const teams = ref([]);
 const showScheduleMatchDialog = ref(false);
 const matchCategories = Object.values(MatchCategory);
 const matchStatuses = Object.values(MatchStatus);
-const seasonStatuses = SeasonStatus;
 const tooltipText = ref("Order of the match in the season schedule");
 const matches = ref([]);
 const teamDetails = ref([]);
@@ -380,9 +373,7 @@ const validateMatchObject = () => {
 		return false;
 	}
 	let isValidSeason = seasons.value.find(
-		(season) =>
-			season.id === matchObject.value.season_id &&
-			season.status === SeasonStatus.SCHEDULED,
+		(season) => season.id === matchObject.value.season_id && isSeasonOpen(season),
 	);
 	if (!isValidSeason) {
 		window.alert("Please select a scheduled season");

@@ -1,22 +1,24 @@
-const Pages = Object.freeze({
-	HOME: 0,
-	POINTS_TABLE: 1,
-	FIXTURES: 2,
-	TEAMS: 3,
-	PLAYERS: 4,
-	STATS: 5,
-	GALLERY: 6,
-});
-
 const Routes = Object.freeze({
 	NOT_FOUND: "/not-found",
 	HOME: "/",
 	POINTS_TABLE: "/points-table",
+	RULES: "/rules",
 	FIXTURES: "/fixtures",
 	TEAMS: "/teams",
 	PLAYERS: "/players",
 	STATS: "/stats",
+	LOGIN: "/login",
 });
+
+const NavItems = Object.freeze([
+	{ label: "Home", path: Routes.HOME },
+	{ label: "Points Table", path: Routes.POINTS_TABLE },
+	{ label: "Rules", path: Routes.RULES },
+	{ label: "Teams", path: Routes.TEAMS },
+	{ label: "Players", path: Routes.PLAYERS },
+]);
+
+const LEAGUE_TIMEZONE = "Asia/Kolkata";
 
 const SeasonStatus = Object.freeze({
 	SCHEDULED: 1,
@@ -85,8 +87,9 @@ const BackgroundMusic = Object.freeze({
 });
 
 export {
-	Pages,
 	Routes,
+	NavItems,
+	LEAGUE_TIMEZONE,
 	MatchStatus,
 	MatchCategory,
 	MatchOutcome,

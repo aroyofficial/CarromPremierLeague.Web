@@ -1,12 +1,13 @@
 <template>
-	<div id="players-wrapper" class="d-flex flex-column align-items-center mt-5">
+	<div id="players-wrapper" class="page-container">
 		<div class="players-shell d-flex flex-column">
-			<div class="players-topbar mb-4">
+			<header class="page-heading">
 				<div>
-					<div class="players-title poppins-semibold">Players</div>
-					<div class="players-subtitle">Explore roster depth by season and team</div>
+					<span class="page-eyebrow">Profiles</span>
+					<h1 class="page-title">Players</h1>
+					<p class="page-subtitle">Find players by season and team.</p>
 				</div>
-				<div class="players-filters">
+				<div class="page-filters">
 					<el-select
 						v-model="selectedSeason"
 						placeholder="Season"
@@ -47,22 +48,7 @@
 						clearable
 					/>
 				</div>
-			</div>
-
-			<div class="summary-row mb-4">
-				<div class="summary-card">
-					<div class="summary-label">Players</div>
-					<div class="summary-value">{{ filteredPlayers.length }}</div>
-				</div>
-				<div class="summary-card">
-					<div class="summary-label">Assigned</div>
-					<div class="summary-value">{{ assignedPlayersCount }}</div>
-				</div>
-				<div class="summary-card">
-					<div class="summary-label">Unassigned</div>
-					<div class="summary-value">{{ unassignedPlayersCount }}</div>
-				</div>
-			</div>
+			</header>
 
 			<div
 				v-loading="loading"
@@ -122,13 +108,13 @@
 								</div>
 							</div>
 							<div class="metric-card">
-								<div class="metric-title">Fined</div>
+								<div class="metric-title">Fines</div>
 								<div class="metric-number">
 									{{ player.total_coins_fined || 0 }}
 								</div>
 							</div>
 							<div class="metric-card">
-								<div class="metric-title">Strikers</div>
+								<div class="metric-title">Pockets</div>
 								<div class="metric-number">
 									{{ player.total_strikers_pocketed || 0 }}
 								</div>
@@ -136,7 +122,9 @@
 						</div>
 					</div>
 				</div>
-				<div v-else-if="!loading" class="empty-state">No players found.</div>
+				<div v-else-if="!loading" class="empty-state">
+					{{ isAllSeasons ? "No players found." : "Data is not available for this season." }}
+				</div>
 			</div>
 		</div>
 	</div>
@@ -205,22 +193,6 @@ const teamById = computed(() => {
 		map.set(team.id, team);
 	}
 	return map;
-});
-
-const assignedPlayersCount = computed(() => {
-	if (isAllSeasons.value) {
-		return (playerStore.playerProfiles || []).filter((p) => p.debut_season_id != null)
-			.length;
-	}
-	return playerTeamMap.value.size;
-});
-
-const unassignedPlayersCount = computed(() => {
-	if (isAllSeasons.value) {
-		return (playerStore.playerProfiles || []).filter((p) => p.debut_season_id == null)
-			.length;
-	}
-	return Math.max((playerStore.playerProfiles || []).length - playerTeamMap.value.size, 0);
 });
 
 const filteredPlayers = computed(() => {
@@ -376,78 +348,15 @@ onMounted(async () => {
 	box-shadow: 0 0 0 1px var(--el-border-color) inset;
 }
 
-#players-wrapper {
-	padding: 20px 12%;
-}
-
 .players-shell {
-	width: min(1080px, 100%);
-}
-
-.players-topbar {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	gap: 16px;
-}
-
-.players-title {
-	font-size: 24px;
-	color: #1e3a8a;
-}
-
-.players-subtitle {
-	font-size: 13px;
-	color: #64748b;
-}
-
-.players-filters {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-}
-
-.season-select {
-	width: 165px;
-}
-
-.team-select {
-	width: 180px;
-}
-
-.player-search {
-	width: 220px;
-}
-
-.summary-row {
-	display: grid;
-	grid-template-columns: repeat(3, minmax(0, 1fr));
-	gap: 12px;
-}
-
-.summary-card {
-	border: 1px solid #dbeafe;
-	background: linear-gradient(135deg, #f5f9ff 0%, #edf4ff 100%);
-	border-radius: 12px;
-	padding: 12px 14px;
-}
-
-.summary-label {
-	font-size: 12px;
-	color: #6b7280;
-}
-
-.summary-value {
-	font-size: 22px;
-	font-weight: 600;
-	color: #0f172a;
+	width: 100%;
 }
 
 #players-body {
 	min-height: 220px;
 	border: 1px solid #dbe7f6;
-	padding: 16px;
-	border-radius: 14px;
+	padding: clamp(10px, 2vw, 16px);
+	border-radius: var(--cpl-radius-lg);
 	background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
 	box-shadow:
 		0 10px 24px rgba(37, 99, 235, 0.08),
@@ -610,36 +519,29 @@ onMounted(async () => {
 	padding: 12px 0;
 }
 
-@media (max-width: 1080px) {
-	.players-topbar {
-		flex-direction: column;
-		align-items: flex-start;
-	}
+.page-filters > * {
+	width: 180px;
+}
 
-	.players-filters {
-		width: 100%;
-		flex-direction: column;
-		align-items: stretch;
-	}
-
-	.season-select,
-	.team-select,
-	.player-search {
-		width: 100%;
+@media (min-width: 1200px) {
+	.players-grid {
+		grid-template-columns: repeat(4, minmax(0, 1fr));
 	}
 }
 
-@media (max-width: 980px) {
-	.summary-row {
-		grid-template-columns: 1fr;
-	}
-
+@media (max-width: 991.98px) {
 	.players-grid {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
 }
 
-@media (max-width: 680px) {
+@media (max-width: 767.98px) {
+	.page-filters > * {
+		width: 100%;
+	}
+}
+
+@media (max-width: 575.98px) {
 	.players-grid {
 		grid-template-columns: 1fr;
 	}
