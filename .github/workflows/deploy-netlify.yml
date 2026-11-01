@@ -1,0 +1,80 @@
+name: Deploy web to Netlify
+
+on:
+  workflow_dispatch:
+    inputs:
+      git_ref:
+        description: Branch, tag, or full commit SHA to build and deploy
+        required: true
+        default: feature/season-3-portal-revamp
+        type: string
+      production:
+        description: Publish this deploy to the live Netlify site
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Build and deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the selected ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.git_ref }}
+          fetch-depth: 0
+
+      - name: Check required secrets
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+        run: |
+          missing=0
+          for name in NETLIFY_AUTH_TOKEN NETLIFY_SITE_ID VITE_API_BASE_URL; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Repository secret ${name} is not set."
+              missing=1
+            fi
+          done
+          exit "${missing}"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        env:
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+          VITE_WEB_ENV: production
+        run: npm run build
+
+      - name: Confirm the Vue history redirect is in the publish folder
+        run: |
+          if ! grep -q "/index.html" dist/_redirects; then
+            echo "::error::dist/_redirects is missing the Vue Router fallback."
+            exit 1
+          fi
+
+      - name: Deploy to Netlify
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+          GIT_REF: ${{ inputs.git_ref }}
+          PRODUCTION: ${{ inputs.production }}
+        run: |
+          message="CPL web ${GITHUB_SHA} from ${GIT_REF}"
+          if [ "${PRODUCTION}" = "true" ]; then
+            npx --yes netlify-cli deploy --prod --dir=dist --message "${message}"
+          else
+            npx --yes netlify-cli deploy --dir=dist --message "${message}"
+          fi

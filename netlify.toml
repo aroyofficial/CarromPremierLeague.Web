@@ -1,0 +1,10 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# Vue Router uses history mode. A refresh of /schedule must return the app,
+# not a Netlify 404. Real files in dist, including /assets/*, are still served.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
