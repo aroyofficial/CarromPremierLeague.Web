@@ -83,7 +83,7 @@
 				'd-flex justify-content-center align-items-center': noMatchesFound,
 			}"
 		>
-			<div v-if="noMatchesFound">No Matches Found</div>
+			<div v-if="noMatchesFound">Data is not available for this season.</div>
 			<MatchCard
 				v-for="item in applyFilters(matches)"
 				:key="item.id"
@@ -173,9 +173,7 @@
 							clearable
 						>
 							<el-option
-								v-for="item in seasons.filter(
-									(s) => s.status === seasonStatuses.SCHEDULED,
-								)"
+								v-for="item in seasons.filter(isSeasonOpen)"
 								:key="item.id"
 								:label="item.name"
 								:value="item.id"
@@ -240,18 +238,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, watch } from "vue";
 import { useSeasonStore } from "@/store/seasonStore";
 import { useTeamStore } from "@/store/teamStore";
 import { useMatchStore } from "@/store/matchStore";
 import { useRosterStore } from "@/store/rosterStore";
 import { Plus } from "@element-plus/icons-vue";
-import {
-	MatchCategory,
-	MatchOutcome,
-	MatchStatus,
-	SeasonStatus,
-} from "../utils/constants";
+import { MatchCategory, MatchOutcome, MatchStatus } from "../utils/constants";
+import { isSeasonOpen } from "@/utils/season";
 import dayjs from "@/plugins/dayjs";
 import MatchCard from "../components/MatchCard.vue";
 import { startLoader, pauseLoader } from "../utils/common";
@@ -265,7 +259,6 @@ const teams = ref([]);
 const showScheduleMatchDialog = ref(false);
 const matchCategories = Object.values(MatchCategory);
 const matchStatuses = Object.values(MatchStatus);
-const seasonStatuses = SeasonStatus;
 const tooltipText = ref("Order of the match in the season schedule");
 const matches = ref([]);
 const teamDetails = ref([]);
@@ -317,6 +310,19 @@ const resetScheduleMatchDialog = () => {
 	};
 	showScheduleMatchDialog.value = false;
 };
+
+watch(
+	() => matchStore.matches,
+	(next) => {
+		if (!fixtureFilter.value.season) return;
+		if (
+			next.length === 0 ||
+			next.every((match) => match.season_id === fixtureFilter.value.season)
+		) {
+			matches.value = next;
+		}
+	},
+);
 
 const fetchMatches = async () => {
 	startLoader();
@@ -380,9 +386,7 @@ const validateMatchObject = () => {
 		return false;
 	}
 	let isValidSeason = seasons.value.find(
-		(season) =>
-			season.id === matchObject.value.season_id &&
-			season.status === SeasonStatus.SCHEDULED,
+		(season) => season.id === matchObject.value.season_id && isSeasonOpen(season),
 	);
 	if (!isValidSeason) {
 		window.alert("Please select a scheduled season");
@@ -429,7 +433,7 @@ const scheduleMatch = async () => {
 };
 
 onMounted(() => {
-	seasons.value = seasonStore.seasons;
+	seasons.value = seasonStore.visibleSeasons;
 	teams.value = teamStore.teams;
 	fixtureFilter.value.season = seasonStore.selectedSeason;
 	matchObject.value.order = matchStore.nextMatchOrder;
@@ -454,7 +458,5 @@ onMounted(() => {
 #fixtures-paginated-table {
 	padding: 0px 15%;
 	min-height: calc(100vh - 216px);
-	height: calc(100vh - 216px);
-	overflow-y: auto;
 }
 </style>

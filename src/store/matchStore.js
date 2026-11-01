@@ -33,6 +33,32 @@ export const useMatchStore = defineStore("match", {
 				const response = await matchService.schedule(match);
 				this.matches.push(response.data);
 				await this.fetchNextMatchOrder(match.season_id);
+				return response.data;
+			} finally {
+				this.loading = false;
+			}
+		},
+		async updateMatch(matchId, payload) {
+			this.loading = true;
+			try {
+				const response = await matchService.update(matchId, payload);
+				const index = this.matches.findIndex((match) => match.id === matchId);
+				if (index !== -1) {
+					this.matches[index] = {
+						...this.matches[index],
+						...response.data,
+					};
+				}
+				return response.data;
+			} finally {
+				this.loading = false;
+			}
+		},
+		async updateMatchStats(matchId, stats) {
+			this.loading = true;
+			try {
+				const response = await matchService.updateStats(matchId, stats);
+				return response.data;
 			} finally {
 				this.loading = false;
 			}

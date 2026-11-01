@@ -16,4 +16,12 @@ export const matchService = {
 	async schedule(match) {
 		return await api.post("matches", match);
 	},
+
+	async update(matchId, payload) {
+		return await api.patch(`matches/${matchId}`, payload);
+	},
+
+	async updateStats(matchId, stats) {
+		return await api.put(`matches/${matchId}/stats`, { stats });
+	},
 };

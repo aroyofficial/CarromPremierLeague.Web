@@ -1,46 +1,52 @@
 <template>
-	<div>
-		<div
-			id="not-found-page-wrapper"
-			class="d-flex flex-column align-items-center"
-		>
-			<div id="page-status-code" class="poppins-extrabold">404</div>
-			<div id="page-not-found" class="poppins-semibold">Page Not Found</div>
-			<div id="page-status-msg" class="px-3">
-				Sorry, the page you are looking for could not be found.
-			</div>
-		</div>
+	<div class="not-found">
+		<div class="status-code">404</div>
+		<h1 class="status-title">Page Not Found</h1>
+		<p class="status-msg">Sorry, the page you are looking for could not be found.</p>
+		<router-link :to="Routes.HOME" class="home-link">Back to Home</router-link>
 	</div>
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
-
-const example = ref(null);
-
-onMounted(() => {});
+import { Routes } from "@/utils/constants";
 </script>
 
 <style scoped lang="scss">
-#not-found-page-wrapper {
-	position: absolute;
-	top: 46%;
-	left: 50%;
-	transform: translate(-50%, -50%);
+.not-found {
+	min-height: calc(100vh - var(--app-header-height) - 80px);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	text-align: center;
+	padding: 40px var(--page-gutter);
 }
 
-#page-status-code {
-	font-size: 110px;
+.status-code {
+	font-family: var(--cpl-font-display);
+	font-size: clamp(80px, 20vw, 140px);
+	font-weight: 800;
+	line-height: 1;
+	color: var(--cpl-navy-900);
 }
 
-#page-not-found {
-	font-size: 30px;
-	margin-top: -20px;
-	margin-bottom: 12px;
+.status-title {
+	font-size: clamp(22px, 4vw, 30px);
+	font-weight: 600;
+	margin: 8px 0;
 }
 
-#page-status-msg {
-	border-bottom: 1px solid black;
-	padding-bottom: 7px;
+.status-msg {
+	color: var(--cpl-ink-600);
+	margin-bottom: 20px;
+}
+
+.home-link {
+	padding: 10px 22px;
+	border-radius: 999px;
+	font-weight: 600;
+	text-decoration: none;
+	color: var(--cpl-navy-900);
+	background: linear-gradient(135deg, var(--cpl-gold-400), var(--cpl-gold-500));
 }
 </style>

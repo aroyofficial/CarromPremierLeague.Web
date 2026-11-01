@@ -12,4 +12,8 @@ export const seasonService = {
 	async getLeagueTable(seasonId) {
 		return await api.get(`seasons/${seasonId}/league-table`);
 	},
+
+	async getSchedule(seasonId) {
+		return await api.get(`seasons/${seasonId}/schedule`);
+	},
 };
