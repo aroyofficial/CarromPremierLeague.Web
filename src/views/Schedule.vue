@@ -339,16 +339,27 @@ const tally = (match, teamId) =>
 		{ coins: 0, opponent: 0, single: 0, double: 0, fines: 0, strikers: 0 },
 	);
 
+const COINS_PER_COLOR = 9;
+
+const creditedCoins = (match, teamId) => {
+	const mine = tally(match, teamId);
+	const otherId = teamId === match.team1_id ? match.team2_id : match.team1_id;
+	const other = otherId ? tally(match, otherId) : { opponent: 0 };
+	const room = Math.max(0, COINS_PER_COLOR - Math.min(COINS_PER_COLOR, other.opponent || 0));
+	return Math.min(mine.coins, room);
+};
+
 const teamScore = (match, teamId) => {
 	const totals = tally(match, teamId);
-	return totals.coins - totals.fines;
+	// A due fine can take owned coins below zero. The result shows 0.
+	return Math.max(0, creditedCoins(match, teamId) - totals.fines);
 };
 
 const teamRows = (match) => {
 	const home = tally(match, match.team1_id);
 	const away = tally(match, match.team2_id);
 	return [
-		{ label: "Own Coins Pocketed", home: home.coins, away: away.coins },
+		{ label: "Own Coins Pocketed", home: creditedCoins(match, match.team1_id), away: creditedCoins(match, match.team2_id) },
 		{ label: "Opponent Coins Pocketed", home: home.opponent, away: away.opponent, opponent: true },
 		{ label: "Single Fines (1 coin)", home: home.single, away: away.single },
 		{ label: "Double Fines (2 coins)", home: home.double, away: away.double },

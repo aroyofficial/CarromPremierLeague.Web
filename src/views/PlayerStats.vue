@@ -30,9 +30,11 @@
 							<th class="col-player" scope="col">Player</th>
 							<th class="col-team" scope="col">Team</th>
 							<th scope="col"><abbr title="Matches with a recorded scorecard">Matches</abbr></th>
-							<th scope="col"><abbr title="Coins pocketed">Coins</abbr></th>
-							<th scope="col"><abbr title="Coins fined">Fines</abbr></th>
-							<th scope="col"><abbr title="Striker pockets">Pockets</abbr></th>
+							<th scope="col"><abbr title="Coins pocketed">C</abbr></th>
+							<th scope="col"><abbr title="Opponent coins pocketed">OC</abbr></th>
+							<th scope="col"><abbr title="Strikers pocketed">S</abbr></th>
+							<th scope="col"><abbr title="Single fines">SF</abbr></th>
+							<th scope="col"><abbr title="Double fines">DF</abbr></th>
 						</tr>
 					</thead>
 					<tbody>
@@ -46,8 +48,10 @@
 							<td class="col-team">{{ player.team_name || "Team unavailable" }}</td>
 							<td>{{ player.matches_played }}</td>
 							<td class="col-coins">{{ player.coins_pocketed }}</td>
-							<td>{{ player.coins_fined }}</td>
+							<td>{{ player.opponent_coins_pocketed }}</td>
 							<td>{{ player.strikers_pocketed }}</td>
+							<td>{{ player.single_fines }}</td>
+							<td>{{ player.double_fines }}</td>
 						</tr>
 					</tbody>
 				</table>

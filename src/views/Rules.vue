@@ -47,7 +47,10 @@
 
 				<section id="format" class="rule-card">
 					<h2><span aria-hidden="true">🎯</span> Match Format &amp; Gameplay</h2>
-					<p>Each match is played to a fixed clock.</p>
+					<p>
+						Each match is played to a fixed clock. The board has 9 white coins and 9 black coins.
+						One team plays each colour, so a team cannot be credited with more than 9 of its own coins.
+					</p>
 					<ul>
 						<li>
 							<b>Regulation Time:</b> Every match lasts 15 minutes.
@@ -58,6 +61,16 @@
 						<li>
 							<b>Winner:</b> When time expires, the team with more coins pocketed wins the match and
 							receives 2 points.
+						</li>
+					</ul>
+
+					<h3>Fines</h3>
+					<ul>
+						<li>A <b>single fine</b> costs 1 pocketed coin.</li>
+						<li>A <b>double fine</b> costs 2 pocketed coins.</li>
+						<li>
+							If a team does not have enough pocketed coins to cover a single or double fine, that
+							fine is <b>due</b>.
 						</li>
 					</ul>
 

@@ -105,6 +105,7 @@
 											v-model="scorecard.team1.players[0].coins"
 											size="small"
 											:min="0"
+											:max="coinMax(scorecard.team1.players, 0)"
 											:readonly="!live"
 										></el-input-number>
 									</div>
@@ -113,6 +114,7 @@
 											v-model="scorecard.team1.players[1].coins"
 											size="small"
 											:min="0"
+											:max="coinMax(scorecard.team1.players, 1)"
 											:readonly="!live"
 										></el-input-number>
 									</div>
@@ -252,6 +254,7 @@
 											v-model="scorecard.team2.players[0].coins"
 											size="small"
 											:min="0"
+											:max="coinMax(scorecard.team2.players, 0)"
 											:readonly="!live"
 										></el-input-number>
 									</div>
@@ -260,6 +263,7 @@
 											v-model="scorecard.team2.players[1].coins"
 											size="small"
 											:min="0"
+											:max="coinMax(scorecard.team2.players, 1)"
 											:readonly="!live"
 										></el-input-number>
 									</div>
@@ -757,6 +761,34 @@ const blockMatchManagement = () => {
 	// return !dayjs(props.match.scheduled_date).isSame(dayjs(), 'day');
 };
 
+const COINS_PER_COLOR = 9;
+
+const coinMax = (players, index) => {
+	const other = Number(players[index === 0 ? 1 : 0]?.coins || 0);
+	return Math.max(0, COINS_PER_COLOR - other);
+};
+
+const colorCoinTotal = (players) =>
+	Number(players[0]?.coins || 0) + Number(players[1]?.coins || 0);
+
+const getInvalidCoinCount = () => {
+	const team1Coins = colorCoinTotal(scorecard.value.team1.players);
+	const team2Coins = colorCoinTotal(scorecard.value.team2.players);
+	if (team1Coins > COINS_PER_COLOR) {
+		return {
+			teamName: getTeam(props.match.team1)?.name || "Team 1",
+			coins: team1Coins,
+		};
+	}
+	if (team2Coins > COINS_PER_COLOR) {
+		return {
+			teamName: getTeam(props.match.team2)?.name || "Team 2",
+			coins: team2Coins,
+		};
+	}
+	return null;
+};
+
 const getTeamNetPoints = () => {
 	const team1NetPoints =
 		Number(scorecard.value.team1.players[0].coins || 0) +
@@ -1252,6 +1284,13 @@ const finishMatch = async (forcefully = false) => {
 		winnerTeamId.value == null
 	) {
 		openGoldenStrikeDialog();
+		return;
+	}
+	const invalidCoinCount = getInvalidCoinCount();
+	if (invalidCoinCount) {
+		window.alert(
+			`${invalidCoinCount.teamName} has ${invalidCoinCount.coins} coins pocketed. Each colour has only 9 coins.`,
+		);
 		return;
 	}
 	const invalidTeamNetPoints = getInvalidTeamNetPoints();

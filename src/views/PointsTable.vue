@@ -75,11 +75,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useSeasonStore } from "@/store/seasonStore";
 import { useTeamStore } from "@/store/teamStore";
 import { useMatchStore } from "@/store/matchStore";
-import { MatchCategory, MatchStatus, SeasonStatus } from "@/utils/constants";
+import { BackgroundMusic, MatchCategory, MatchStatus, SeasonStatus } from "@/utils/constants";
+import { pauseBgm, playBgm } from "@/utils/common";
 
 const seasonStore = useSeasonStore();
 const teamStore = useTeamStore();
@@ -149,10 +150,39 @@ const getRowClassName = (row, index) => {
 	return "";
 };
 
+let musicStart = null;
+
+const releaseMusicGesture = () => {
+	window.removeEventListener("pointerdown", startTableMusic);
+	window.removeEventListener("keydown", startTableMusic);
+};
+
+const startTableMusic = () => {
+	if (musicStart) return musicStart;
+	musicStart = playBgm(BackgroundMusic.Match).then(() => {
+		const audio = document.getElementById(BackgroundMusic.Match);
+		if (audio && !audio.paused) {
+			releaseMusicGesture();
+			return;
+		}
+		musicStart = null;
+	});
+	return musicStart;
+};
+
 onMounted(() => {
 	seasons.value = seasonStore.visibleSeasons;
 	selectedSeason.value = seasonStore.selectedSeason;
 	fetchLeagueTable();
+	startTableMusic();
+	window.addEventListener("pointerdown", startTableMusic);
+	window.addEventListener("keydown", startTableMusic);
+});
+
+onUnmounted(() => {
+	window.removeEventListener("pointerdown", startTableMusic);
+	window.removeEventListener("keydown", startTableMusic);
+	pauseBgm(BackgroundMusic.Match, 400);
 });
 </script>
 
