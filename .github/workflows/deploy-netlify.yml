@@ -67,8 +67,15 @@ jobs:
             console.log(`Building for API host: ${url.host}`);
           '
           npm run build
-          if ! grep -R -Fq "${VITE_API_BASE_URL}" dist/assets; then
-            echo "::error::The built site does not contain VITE_API_BASE_URL."
+          node -e '
+            const fs = require("fs");
+            fs.writeFileSync(
+              "dist/runtime-config.js",
+              `window.__CPL_API_BASE_URL__ = ${JSON.stringify(process.env.VITE_API_BASE_URL)};\n`,
+            );
+          '
+          if ! grep -Fxq "window.__CPL_API_BASE_URL__ = \"${VITE_API_BASE_URL}\";" dist/runtime-config.js; then
+            echo "::error::The generated runtime API configuration is invalid."
             exit 1
           fi
 
