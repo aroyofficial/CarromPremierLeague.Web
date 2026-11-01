@@ -17,7 +17,7 @@
 			<div
 				class="col-3 d-flex justify-content-center align-items-center flex-column"
 			>
-				<div class="versus-text">Match {{ match.order }}</div>
+				<div class="versus-text">{{ getCategoryLabel() }} · Match {{ match.order }}</div>
 				<div
 					class="toss-text"
 					v-if="match.toss_outcome !== TossOutcome.NotDecided"
@@ -482,14 +482,12 @@
 				<div class="ms-2">Extra Time Over</div>
 			</template>
 			<div class="ms-2">
-				Do you want to finish the match or go for Golden Strike?
+				The match is still tied after extra time. Finishing it schedules a Golden Strike
+				between these teams.
 			</div>
 			<template #footer>
-				<el-button type="primary" @click="handleExtraDecision('finish')"
-					>Finish Match</el-button
-				>
 				<el-button type="warning" @click="handleExtraDecision('golden')"
-					>Golden Strike</el-button
+					>Schedule Golden Strike</el-button
 				>
 			</template>
 		</el-dialog>
@@ -727,6 +725,18 @@ watch(showMatchManagementDialog, async (open) => {
 	]);
 });
 
+const categoryId = (name) => MatchCategory.find((category) => category.name === name)?.id;
+
+const isLeagueCategory = (category) => category === categoryId("League");
+
+const isKnockoutCategory = (category) =>
+	category === categoryId("Final") || category === categoryId("Eliminator");
+
+const isGoldenStrikeCategory = (category) => category === categoryId("Golden Strike");
+
+const getCategoryLabel = () =>
+	MatchCategory.find((category) => category.id === props.match.category)?.name || "Match";
+
 const getTeam = (teamId) => {
 	return teamStore.teams.find((team) => team.id === teamId);
 };
@@ -785,8 +795,12 @@ const getInvalidGoldenStrikeState = () => {
 	const { team1NetPoints, team2NetPoints } = getTeamNetPoints();
 	const isTie = team1NetPoints === team2NetPoints;
 
-	if (!goldenStrikeTaken.value && isTie) {
-		return "Without Golden Strike, one team must have more net points than the other.";
+	if (isGoldenStrikeCategory(props.match.category)) {
+		return null;
+	}
+
+	if (isKnockoutCategory(props.match.category) && isTie && !extraTimeExhausted.value) {
+		return "This match is tied. Extra time has to be played before it can finish.";
 	}
 
 	if (goldenStrikeTaken.value && !isTie) {
@@ -798,25 +812,51 @@ const getInvalidGoldenStrikeState = () => {
 
 const getFinishedMatchMetadata = () => {
 	const { team1NetPoints, team2NetPoints } = getTeamNetPoints();
-	let resolvedWinnerTeamId = winnerTeamId.value;
+	const isTie = team1NetPoints === team2NetPoints;
 
-	if (resolvedWinnerTeamId == null && team1NetPoints !== team2NetPoints) {
-		resolvedWinnerTeamId =
+	if (isGoldenStrikeCategory(props.match.category)) {
+		if (winnerTeamId.value == null) {
+			return null;
+		}
+		return {
+			winnerTeamId: winnerTeamId.value,
+			outcome:
+				winnerTeamId.value === props.match.team1
+					? MatchOutcome.Team1Won
+					: MatchOutcome.Team2Won,
+			netPoints: 0,
+			goldenStrike: true,
+		};
+	}
+
+	if (!isTie) {
+		const resolvedWinnerTeamId =
 			team1NetPoints > team2NetPoints ? props.match.team1 : props.match.team2;
+		return {
+			winnerTeamId: resolvedWinnerTeamId,
+			outcome:
+				resolvedWinnerTeamId === props.match.team1
+					? MatchOutcome.Team1Won
+					: MatchOutcome.Team2Won,
+			netPoints: Math.abs(team1NetPoints - team2NetPoints),
+			goldenStrike: false,
+		};
 	}
 
-	if (resolvedWinnerTeamId == null) {
-		return null;
+	if (
+		isLeagueCategory(props.match.category) ||
+		(isKnockoutCategory(props.match.category) && extraTimeExhausted.value)
+	) {
+		return {
+			winnerTeamId: null,
+			outcome: MatchOutcome.NotDecided,
+			netPoints: 0,
+			goldenStrike: false,
+			draw: true,
+		};
 	}
 
-	return {
-		winnerTeamId: resolvedWinnerTeamId,
-		outcome:
-			resolvedWinnerTeamId === props.match.team1
-				? MatchOutcome.Team1Won
-				: MatchOutcome.Team2Won,
-		netPoints: Math.abs(team1NetPoints - team2NetPoints),
-	};
+	return null;
 };
 
 const getMatchStatsPayload = () => {
@@ -926,9 +966,14 @@ const getElapsedMatchTime = () => {
 	};
 };
 
-const startExtraTime = () => {
+const startExtraTime = async () => {
 	showRegulationDecisionDialog.value = false;
 	extraTimeStarted.value = true;
+	try {
+		await matchStore.updateMatch(props.match.id, { extra: 0 });
+	} catch (error) {
+		console.error("Failed to start extra time", error);
+	}
 	enableFinishBtn.value = true;
 	timerFrozenAtZero.value = false;
 	timerPaused.value = false;
@@ -951,16 +996,13 @@ const handleRegulationDecision = async (finishNow) => {
 	enableFinishBtn.value = true;
 };
 
-const handleExtraDecision = (decision) => {
+const handleExtraDecision = async () => {
 	showExtraDecisionDialog.value = false;
-	if (decision === "golden") {
-		openGoldenStrikeDialog();
-		return;
-	}
 	timerPaused.value = false;
 	pausedTimerSeconds.value = 0;
 	showSaveBtn.value = false;
 	enableFinishBtn.value = true;
+	await finishMatch(true);
 };
 
 const onEndingCountdown = async () => {
@@ -972,7 +1014,15 @@ const onEndingCountdown = async () => {
 		showSaveBtn.value = false;
 		regulationTimer.value = dayjs().valueOf();
 		await playHorn();
-		showRegulationDecisionDialog.value = true;
+		const { team1NetPoints, team2NetPoints } = getTeamNetPoints();
+		if (
+			isKnockoutCategory(props.match.category) &&
+			team1NetPoints === team2NetPoints
+		) {
+			startExtraTime();
+			return;
+		}
+		enableFinishBtn.value = true;
 		return;
 	}
 
@@ -984,7 +1034,12 @@ const onEndingCountdown = async () => {
 	regulationTimer.value = dayjs().valueOf();
 	enableFinishBtn.value = false;
 	await playHorn();
-	showExtraDecisionDialog.value = true;
+	const { team1NetPoints, team2NetPoints } = getTeamNetPoints();
+	if (team1NetPoints === team2NetPoints) {
+		showExtraDecisionDialog.value = true;
+		return;
+	}
+	enableFinishBtn.value = true;
 };
 
 const getTossText = () => {
@@ -1017,6 +1072,14 @@ const getStatusText = () => {
 					break;
 			}
 			if (!winnerTeamId) {
+				if (props.match.outcome === MatchOutcome.NotDecided) {
+					if (isKnockoutCategory(props.match.category)) {
+						return "Tied — Golden Strike scheduled";
+					}
+					if (isLeagueCategory(props.match.category)) {
+						return "Match tied";
+					}
+				}
 				return "Result pending";
 			}
 			const winnerTeam = getTeam(winnerTeamId);
@@ -1112,6 +1175,16 @@ const startMatch = async () => {
 		await pauseBgm(BackgroundMusic.Countdown);
 		matchStarted.value = true;
 		live.value = true;
+		try {
+			const inProgressStatus = MatchStatus.find((status) => status.name === "In Progress")?.id;
+			const updatedMatch = await matchStore.updateMatch(props.match.id, {
+				status: inProgressStatus,
+				toss_outcome: matchObject.value.toss_outcome ?? props.match.toss_outcome,
+			});
+			syncMatchCardFromApi(updatedMatch);
+		} catch (error) {
+			console.error("Failed to mark the match live", error);
+		}
 		enableFinishBtn.value = true;
 		goldenStrikeTaken.value = false;
 		timerFrozenAtZero.value = false;
@@ -1173,7 +1246,11 @@ const finishMatch = async (forcefully = false) => {
 		enableFinishBtn.value = true;
 		return;
 	}
-	if (!forcefully && goldenStrikeTaken.value && winnerTeamId.value == null) {
+	if (
+		!forcefully &&
+		(isGoldenStrikeCategory(props.match.category) || goldenStrikeTaken.value) &&
+		winnerTeamId.value == null
+	) {
 		openGoldenStrikeDialog();
 		return;
 	}
@@ -1192,10 +1269,13 @@ const finishMatch = async (forcefully = false) => {
 
 	const finishedMatchMetadata = getFinishedMatchMetadata();
 	if (!finishedMatchMetadata) {
+		if (isGoldenStrikeCategory(props.match.category)) {
+			openGoldenStrikeDialog();
+			return;
+		}
 		window.alert(
-			"The match is tied. Please select the Golden Strike winner to finish the match.",
+			"The match is tied. Extra time has to be played before it can finish.",
 		);
-		showGoldenStrikeDialog.value = true;
 		return;
 	}
 
@@ -1214,7 +1294,7 @@ const finishMatch = async (forcefully = false) => {
 			status: playedStatus,
 			outcome: finishedMatchMetadata.outcome,
 			net_points: finishedMatchMetadata.netPoints,
-			golden_strike: goldenStrikeTaken.value,
+			golden_strike: finishedMatchMetadata.goldenStrike,
 			toss_outcome: tossOutcome,
 			duration: elapsedMatchTime.duration,
 			extra: elapsedMatchTime.extra,
@@ -1227,6 +1307,7 @@ const finishMatch = async (forcefully = false) => {
 
 		winnerTeamId.value = finishedMatchMetadata.winnerTeamId;
 		syncMatchCardFromApi(updatedMatch);
+		await matchStore.fetchMatches(props.match.season_id);
 		showMatchManagementDialog.value = false;
 	} catch (error) {
 		console.error("Failed to persist finished match details", error);

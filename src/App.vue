@@ -13,6 +13,7 @@ import Footer from "./components/Footer.vue";
 
 <style lang="scss">
 #app-content {
-	min-height: calc(100vh - var(--app-header-height) - var(--app-footer-height));
+	flex: 1 0 auto;
+	width: 100%;
 }
 </style>

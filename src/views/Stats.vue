@@ -1,6 +1,7 @@
 <template>
-	<div id="stats-wrapper" class="d-flex flex-column align-items-center mt-5">
+	<div id="stats-wrapper" class="page-container d-flex flex-column align-items-center">
 		<div class="stats-shell d-flex flex-column">
+			<StatsSwitch />
 			<div class="stats-topbar mb-4">
 				<div>
 					<div class="stats-title-row">
@@ -12,7 +13,9 @@
 							<el-icon class="info-icon"><InfoFilled /></el-icon>
 						</el-tooltip>
 					</div>
-					<div class="stats-subtitle">Top 3 coin potters from league stage</div>
+					<div class="stats-subtitle">
+						The player who pocketed the most coins in this season's league-stage matches
+					</div>
 				</div>
 				<div class="stats-controls">
 					<el-select
@@ -67,7 +70,7 @@
 								<div class="metric-value">{{ player.coins_fined || 0 }}</div>
 							</div>
 							<div class="metric-box">
-								<div class="metric-label">Strikers</div>
+								<div class="metric-label">Pockets</div>
 								<div class="metric-value">{{ player.strikers_pocketed || 0 }}</div>
 							</div>
 						</div>
@@ -87,6 +90,7 @@ import { useSeasonStore } from "@/store/seasonStore";
 import { useStatsStore } from "@/store/statsStore";
 import { resolveAsset } from "@/utils/common";
 import { InfoFilled } from "@element-plus/icons-vue";
+import StatsSwitch from "@/components/StatsSwitch.vue";
 
 const seasonStore = useSeasonStore();
 const statsStore = useStatsStore();
@@ -136,7 +140,7 @@ const fetchTopCoinPotters = async () => {
 		topCoinPotters.value = result.players || [];
 		isLeagueStageCompleted.value = result.isLeagueStageCompleted || false;
 		emptyMessage.value =
-			result.message || "No league stage coin stats available for this season.";
+			result.message || "Data is not available for this season.";
 	} catch (error) {
 		console.error("Failed to fetch golden striker stats", error);
 		topCoinPotters.value = [];
@@ -148,7 +152,7 @@ const fetchTopCoinPotters = async () => {
 };
 
 onMounted(async () => {
-	seasons.value = seasonStore.seasons;
+	seasons.value = seasonStore.visibleSeasons;
 	selectedSeason.value = seasonStore.selectedSeason;
 	await fetchTopCoinPotters();
 });
@@ -157,10 +161,6 @@ onMounted(async () => {
 <style scoped lang="scss">
 ::v-deep(.el-select__wrapper.is-focused) {
 	box-shadow: 0 0 0 1px var(--el-border-color) inset;
-}
-
-#stats-wrapper {
-	padding: 20px 12%;
 }
 
 .stats-shell {
@@ -181,6 +181,7 @@ onMounted(async () => {
 }
 
 .season-select {
+	--el-select-width: 190px;
 	width: 190px;
 }
 
@@ -367,6 +368,7 @@ onMounted(async () => {
 	}
 
 	.season-select {
+		--el-select-width: 100%;
 		width: 100%;
 	}
 

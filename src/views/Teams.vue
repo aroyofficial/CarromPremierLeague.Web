@@ -1,12 +1,13 @@
 <template>
-	<div id="teams-wrapper" class="d-flex flex-column align-items-center mt-5">
+	<div id="teams-wrapper" class="page-container">
 		<div class="teams-shell d-flex flex-column">
-			<div class="teams-topbar mb-4">
+			<header class="page-heading">
 				<div>
-					<div class="teams-title poppins-semibold">Teams</div>
-					<div class="teams-subtitle">Season-wise lineup and roster overview</div>
+					<span class="page-eyebrow">Squads</span>
+					<h1 class="page-title">Teams</h1>
+					<p class="page-subtitle">Season-wise lineup and roster overview</p>
 				</div>
-				<div class="teams-filters">
+				<div class="page-filters">
 					<el-select
 						v-model="selectedSeason"
 						placeholder="Select Season"
@@ -22,35 +23,16 @@
 							:value="item.id"
 						/>
 					</el-select>
-					<el-input
-						v-model="teamSearch"
-						placeholder="Search team"
-						class="team-search"
-						size="large"
-						clearable
-					/>
 				</div>
-			</div>
-
-			<div class="summary-row mb-4">
-				<div class="summary-card">
-					<div class="summary-label">Teams</div>
-					<div class="summary-value">{{ filteredTeams.length }}</div>
-				</div>
-				<div class="summary-card">
-					<div class="summary-label">Active Rosters</div>
-					<div class="summary-value">{{ activeRosterCount }}</div>
-				</div>
-				<div class="summary-card">
-					<div class="summary-label">Players Assigned</div>
-					<div class="summary-value">{{ assignedPlayersCount }}</div>
-				</div>
-			</div>
+			</header>
 
 			<div v-loading="loading" element-loading-text="Loading..." id="teams-body">
-				<div v-if="!loading && filteredTeams.length > 0" class="teams-grid">
+				<div v-if="!loading && !hasSeasonRoster" class="empty-state">
+					Data is not available for this season.
+				</div>
+				<div v-else-if="!loading && teams.length > 0" class="teams-grid">
 					<div
-						v-for="team in filteredTeams"
+						v-for="team in teams"
 						:key="team.id"
 						class="team-card"
 					>
@@ -109,13 +91,13 @@ import { useSeasonStore } from "@/store/seasonStore";
 import { useTeamStore } from "@/store/teamStore";
 import { useRosterStore } from "@/store/rosterStore";
 import { seasonService } from "@/services/seasonService";
+import { isSeasonFinished } from "@/utils/season";
 
 const seasonStore = useSeasonStore();
 const teamStore = useTeamStore();
 const rosterStore = useRosterStore();
 const selectedSeason = ref(null);
 const seasons = ref([]);
-const teamSearch = ref("");
 const loading = ref(false);
 const seasonRosters = ref([]);
 const championSeasonsByTeamId = ref(new Map());
@@ -137,28 +119,10 @@ const rosterByTeamId = computed(() => {
 	return map;
 });
 
-const filteredTeams = computed(() => {
-	const search = teamSearch.value.trim().toLowerCase();
-	const teams = teamStore.teams || [];
-	if (!search) {
-		return teams;
-	}
-	return teams.filter(
-		(team) =>
-			team.name.toLowerCase().includes(search) ||
-			(team.slogan || "").toLowerCase().includes(search),
-	);
-});
+const teams = computed(() => teamStore.teams || []);
 
-const activeRosterCount = computed(
-	() => (seasonRosters.value || []).filter((team) => (team.players || []).length > 0).length,
-);
-
-const assignedPlayersCount = computed(() =>
-	(seasonRosters.value || []).reduce(
-		(total, team) => total + ((team.players || []).length || 0),
-		0,
-	),
+const hasSeasonRoster = computed(() =>
+	(seasonRosters.value || []).some((team) => (team.players || []).length > 0),
 );
 
 const getTeamPlayers = (teamId) => rosterByTeamId.value.get(teamId) || [];
@@ -187,9 +151,7 @@ const fetchRosterForSeason = async () => {
 };
 
 const fetchChampionCounts = async () => {
-	const completedSeasons = (seasonStore.seasons || []).filter(
-		(season) => Number(season.status) === 3,
-	);
+	const completedSeasons = (seasonStore.seasons || []).filter(isSeasonFinished);
 	if (completedSeasons.length === 0) {
 		championSeasonsByTeamId.value = new Map();
 		return;
@@ -218,7 +180,7 @@ const fetchChampionCounts = async () => {
 };
 
 onMounted(async () => {
-	seasons.value = seasonStore.seasons;
+	seasons.value = seasonStore.visibleSeasons;
 	selectedSeason.value = seasonStore.selectedSeason;
 	await Promise.all([fetchRosterForSeason(), fetchChampionCounts()]);
 });
@@ -230,74 +192,15 @@ onMounted(async () => {
 	box-shadow: 0 0 0 1px var(--el-border-color) inset;
 }
 
-#teams-wrapper {
-	padding: 20px 12%;
-}
-
 .teams-shell {
-	width: min(1060px, 100%);
-}
-
-.teams-topbar {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	gap: 16px;
-}
-
-.teams-title {
-	font-size: 24px;
-	color: #113f67;
-}
-
-.teams-subtitle {
-	font-size: 13px;
-	color: #64748b;
-}
-
-.teams-filters {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-}
-
-.season-select {
-	width: 180px;
-}
-
-.team-search {
-	width: 220px;
-}
-
-.summary-row {
-	display: grid;
-	grid-template-columns: repeat(3, minmax(0, 1fr));
-	gap: 12px;
-}
-
-.summary-card {
-	border: 1px solid #dbeafe;
-	background: linear-gradient(135deg, #f8fbff 0%, #eef6ff 100%);
-	border-radius: 12px;
-	padding: 12px 14px;
-}
-
-.summary-label {
-	font-size: 12px;
-	color: #6b7280;
-}
-
-.summary-value {
-	font-size: 22px;
-	font-weight: 600;
-	color: #0f172a;
+	width: 100%;
 }
 
 #teams-body {
 	min-height: 220px;
 	border: 1px solid #dbe7f6;
-	padding: 16px;
-	border-radius: 14px;
+	padding: clamp(10px, 2vw, 16px);
+	border-radius: var(--cpl-radius-lg);
 	background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
 	box-shadow:
 		0 10px 24px rgba(29, 78, 216, 0.08),
@@ -315,6 +218,13 @@ onMounted(async () => {
 	border-radius: 12px;
 	padding: 12px;
 	background: #ffffff;
+	min-width: 0;
+	transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.team-card:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 12px 20px rgba(17, 63, 103, 0.08);
 }
 
 .team-head {
@@ -354,13 +264,16 @@ onMounted(async () => {
 	line-height: 1;
 }
 
+.team-head > div:nth-child(2) {
+	min-width: 0;
+}
+
 .team-slogan {
 	font-size: 12px;
 	color: #64748b;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
-	max-width: 260px;
 }
 
 .team-count-badge {
@@ -416,31 +329,30 @@ onMounted(async () => {
 	padding: 12px 0;
 }
 
-@media (max-width: 980px) {
-	.teams-topbar {
-		flex-direction: column;
-		align-items: flex-start;
+@media (min-width: 1200px) {
+	.teams-grid {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
 	}
+}
 
-	.teams-filters {
-		width: 100%;
-		flex-direction: column;
-		align-items: stretch;
-	}
-
-	.season-select,
-	.team-search {
-		width: 100%;
-	}
-
-	.summary-row {
-		grid-template-columns: 1fr;
-	}
-
+@media (max-width: 767.98px) {
 	.teams-grid {
 		grid-template-columns: 1fr;
 	}
+}
 
+@media (max-width: 575.98px) {
+	.team-head {
+		grid-template-columns: auto 1fr;
+	}
+
+	.team-count-badge {
+		grid-column: 1 / -1;
+		justify-self: start;
+	}
+}
+
+@media (max-width: 399.98px) {
 	.player-list {
 		grid-template-columns: 1fr;
 	}

@@ -1,216 +1,371 @@
 <template>
-	<div
-		id="points-table-wrapper"
-		class="d-flex flex-column align-items-center mt-5"
-	>
-		<div class="d-flex flex-column" style="width: max-content">
-			<div id="points-table-filters" class="mb-4 d-flex justify-content-end">
+	<div class="page-container">
+		<header class="page-heading">
+			<div>
+				<span class="page-eyebrow">Standings</span>
+				<h1 class="page-title">Points Table</h1>
+			</div>
+			<div class="page-filters">
 				<el-select
 					v-model="selectedSeason"
 					placeholder="Select Season"
-					style="width: 180px"
 					size="large"
 					:popper-options="dropdownPopperOptions"
 					@change="fetchLeagueTable"
 				>
-					<el-option
-						v-for="item in seasons"
-						:key="item.id"
-						:label="item.name"
-						:value="item.id"
-					/>
+					<el-option v-for="item in seasons" :key="item.id" :label="item.name" :value="item.id" />
 				</el-select>
 			</div>
-			<div
-				v-loading="loading"
-				element-loading-text="Loading..."
-				id="points-table-body"
-			>
-				<el-table
-					v-if="
-						!loading &&
-						leagueTable &&
-						leagueTable.standings &&
-						leagueTable.standings.length > 0
-					"
-					:data="leagueTable.standings"
-					:row-class-name="getRowClassName"
-					style="width: fit-content"
-				>
-					<el-table-column prop="team_name" label="TEAM" width="240">
-						<template #default="{ row }">
-							<img
-								class="team-logo"
-								:src="teams.find((t) => t.id === row.team_id)?.logo_url"
-								height="10"
-								width="10"
-							/>
-							{{ row.team_name }}
-							<span v-if="isWinnerRow(row)" class="winner-badge">&#127942;</span>
-						</template>
-					</el-table-column>
-					<el-table-column prop="matches_played" label="P" width="80" />
-					<el-table-column prop="wins" label="W" width="80" />
-					<el-table-column prop="losses" label="L" width="80" />
-					<el-table-column prop="net_points" label="NET" width="100" />
-					<el-table-column prop="points" label="PTS" width="100">
-						<template #default="{ row }">
-							<b>{{ row.points }}</b>
-						</template>
-					</el-table-column>
-				</el-table>
+		</header>
+
+		<div v-loading="loading" element-loading-text="Loading..." class="table-card">
+			<div v-if="dataAvailable && standings.length" class="table-scroll">
+				<table class="standings">
+					<thead>
+						<tr>
+							<th class="col-rank" scope="col">#</th>
+							<th class="col-team" scope="col">Team</th>
+							<th scope="col"><abbr title="Played">P</abbr></th>
+							<th scope="col"><abbr title="Won">W</abbr></th>
+							<th scope="col"><abbr title="Drawn">D</abbr></th>
+							<th scope="col"><abbr title="Lost">L</abbr></th>
+							<th scope="col"><abbr title="Net coins">NET</abbr></th>
+							<th scope="col"><abbr title="Points">PTS</abbr></th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr
+							v-for="(row, index) in standings"
+							:key="row.team_id"
+							:class="getRowClassName(row, index)"
+							:style="{ '--i': index }"
+						>
+							<td class="col-rank">{{ index + 1 }}</td>
+							<td class="col-team">
+								<div class="team-cell">
+									<img :src="getTeamLogo(row.team_id)" :alt="''" class="logo" />
+									<span class="team-name">{{ row.team_name }}</span>
+									<span v-if="isWinnerRow(row)" class="badge" title="Champion">&#127942;</span>
+								</div>
+							</td>
+							<td>{{ row.matches_played }}</td>
+							<td>{{ row.wins }}</td>
+							<td>{{ row.draws || 0 }}</td>
+							<td>{{ row.losses }}</td>
+							<td :class="{ positive: row.net_points > 0, negative: row.net_points < 0 }">{{ row.net_points }}</td>
+							<td class="col-pts">{{ row.points }}</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+			<div v-else-if="!loading" class="empty-state">
+				{{ errorMessage || (dataAvailable ? "No standings have been recorded yet." : "Data is not available for this season.") }}
+			</div>
+
+			<div v-if="standings.length && (isSeasonEnded() || isLeagueStageCompleted())" class="legend">
+				<span v-if="isSeasonEnded()"><i class="dot winner"></i>Champion</span>
+				<template v-else-if="standings.length > 4">
+					<span><i class="dot finalist"></i>Qualified for Final</span>
+					<span><i class="dot eliminator"></i>Eliminator</span>
+				</template>
+				<span v-else><i class="dot finalist"></i>Qualified for Final</span>
 			</div>
 		</div>
 	</div>
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useSeasonStore } from "@/store/seasonStore";
 import { useTeamStore } from "@/store/teamStore";
 import { useMatchStore } from "@/store/matchStore";
-import { MatchCategory, MatchStatus } from "@/utils/constants";
+import { MatchCategory, MatchStatus, SeasonStatus } from "@/utils/constants";
 
 const seasonStore = useSeasonStore();
 const teamStore = useTeamStore();
 const matchStore = useMatchStore();
 const selectedSeason = ref(null);
 const seasons = ref([]);
-const teams = ref([]);
-const leagueTable = ref([]);
+const leagueTable = ref(null);
 const loading = ref(false);
+const errorMessage = ref("");
 const dropdownPopperOptions = ref({
 	placement: "bottom-start",
-	modifiers: [
-		{
-			name: "flip",
-			enabled: false,
-		},
-	],
+	modifiers: [{ name: "flip", enabled: false }],
 });
 
+const standings = computed(() => leagueTable.value?.standings || []);
+const dataAvailable = computed(() => leagueTable.value?.data_available !== false);
+
+const getTeamLogo = (teamId) => teamStore.teams.find((t) => t.id === teamId)?.logo_url;
+
 const fetchLeagueTable = async () => {
+	if (!selectedSeason.value) return;
+	loading.value = true;
+	errorMessage.value = "";
 	try {
-		loading.value = true;
 		seasonStore.setSeason(selectedSeason.value);
 		await Promise.all([
 			seasonStore.fetchLeagueTable(),
 			matchStore.fetchMatches(selectedSeason.value),
 		]);
-		leagueTable.value = seasonStore.leagueTable;
-		if (
-			leagueTable.value &&
-			leagueTable.value.standings &&
-			leagueTable.value.standings.length > 0
-		) {
-			leagueTable.value.standings.forEach((team) => {
-				team.losses = team.matches_played - team.wins;
-			});
-		}
+		const table = seasonStore.leagueTable;
+		(table?.standings || []).forEach((team) => {
+			team.losses = team.matches_played - team.wins - (team.draws || 0);
+		});
+		leagueTable.value = table;
+	} catch (error) {
+		console.error("Failed to load league table", error);
+		leagueTable.value = null;
+		errorMessage.value = "Unable to load the points table right now. Please try again.";
 	} finally {
 		loading.value = false;
 	}
 };
 
-const isSeasonEnded = () => leagueTable.value?.season_status === 3;
+const isSeasonEnded = () => leagueTable.value?.season_status === SeasonStatus.FINISHED;
 
-const isWinnerRow = (row) =>
-	isSeasonEnded() && row.team_id === leagueTable.value?.winner_id;
+const isWinnerRow = (row) => isSeasonEnded() && row.team_id === leagueTable.value?.winner_id;
 
 const isLeagueStageCompleted = () => {
-	if (isSeasonEnded()) {
-		return false;
-	}
-	const leagueCategoryId = MatchCategory.find(
-		(category) => category.name === "League",
-	)?.id;
-	const playedStatusId = MatchStatus.find(
-		(status) => status.name === "Played",
-	)?.id;
+	if (isSeasonEnded()) return false;
+	const leagueCategoryId = MatchCategory.find((c) => c.name === "League")?.id;
+	const playedStatusId = MatchStatus.find((s) => s.name === "Played")?.id;
 	const leagueMatches = matchStore.matches.filter(
-		(match) =>
-			match.season_id === selectedSeason.value &&
-			match.category === leagueCategoryId,
+		(m) => m.season_id === selectedSeason.value && m.category === leagueCategoryId,
 	);
-	if (leagueMatches.length === 0) {
-		return false;
-	}
-	return leagueMatches.every((match) => match.status === playedStatusId);
+	return leagueMatches.length > 0 && leagueMatches.every((m) => m.status === playedStatusId);
 };
 
-const isFinalistRow = (rowIndex) => isLeagueStageCompleted() && rowIndex < 2;
-
-const getRowClassName = ({ row, rowIndex }) => {
-	if (isWinnerRow(row)) {
-		return "winner-row";
+const getRowClassName = (row, index) => {
+	if (isWinnerRow(row)) return "winner-row";
+	if (!isLeagueStageCompleted()) return "";
+	if (standings.value.length > 4) {
+		if (index === 0) return "finalist-row";
+		if (index === 1 || index === 2) return "eliminator-row";
+		return "";
 	}
-	if (isFinalistRow(rowIndex)) {
-		return "finalist-row";
-	}
+	if (index < 2) return "finalist-row";
 	return "";
 };
 
-onMounted(async () => {
-	seasons.value = seasonStore.seasons;
+onMounted(() => {
+	seasons.value = seasonStore.visibleSeasons;
 	selectedSeason.value = seasonStore.selectedSeason;
-	leagueTable.value = seasonStore.leagueTable;
-	teams.value = teamStore.teams;
 	fetchLeagueTable();
 });
 </script>
 
 <style lang="scss" scoped>
-::v-deep(.el-table__header-wrapper th.el-table__cell:not(:first-child) > .cell),
-::v-deep(.el-table__row > td.el-table__cell:not(:first-child) > .cell) {
-	text-align: center;
+.table-card {
+	min-height: 240px;
+	padding: clamp(8px, 2vw, 16px);
+	border-radius: var(--cpl-radius-lg);
+	background: #fff;
+	border: 1px solid var(--cpl-line);
+	box-shadow: var(--cpl-shadow-card);
 }
 
-::v-deep(.el-table__body-wrapper .el-table__row:last-child td) {
-	border-bottom: none !important;
+.table-scroll {
+	overflow-x: auto;
 }
 
-::v-deep(.el-select__wrapper.is-focused) {
-	box-shadow: 0 0 0 1px var(--el-border-color) inset;
+.standings {
+	width: 100%;
+	border-collapse: separate;
+	border-spacing: 0;
+	font-size: 15px;
+
+	th {
+		padding: 12px 10px;
+		font-size: 12px;
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--cpl-ink-400);
+		text-align: center;
+		border-bottom: 1px solid var(--cpl-line);
+		white-space: nowrap;
+	}
+
+	abbr {
+		text-decoration: none;
+		cursor: help;
+	}
+
+	td {
+		padding: 14px 10px;
+		text-align: center;
+		border-bottom: 1px solid #f1f5f9;
+		font-variant-numeric: tabular-nums;
+	}
+
+	tbody tr {
+		animation: row-in 0.4s ease both;
+		animation-delay: calc(var(--i) * 60ms);
+		transition: background 0.2s ease;
+
+		&:hover {
+			background: #f8fafc;
+		}
+
+		&:last-child td {
+			border-bottom: none;
+		}
+	}
+
+	.col-rank {
+		width: 44px;
+		font-weight: 700;
+		color: var(--cpl-ink-400);
+	}
+
+	.col-team {
+		text-align: left;
+	}
+
+	.col-pts {
+		font-weight: 800;
+		font-size: 17px;
+		color: var(--cpl-ink-900);
+	}
+
+	.positive {
+		color: #15803d;
+	}
+
+	.negative {
+		color: #b91c1c;
+	}
 }
 
-#points-table-wrapper {
-	padding: 20px 15%;
+.team-cell {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	min-width: 0;
 }
 
-#points-table-body {
-	min-height: 220px;
-	min-width: 640px;
-	border: 1px solid var(--el-border-color-lighter);
-	padding: 10px;
-	border-radius: 10px;
-	box-shadow:
-		0 10px 25px rgba(59, 130, 246, 0.15),
-		0 20px 40px rgba(59, 130, 246, 0.1),
-		0 2px 6px rgba(0, 0, 0, 0.05);
+.logo {
+	width: 36px;
+	height: 36px;
+	flex-shrink: 0;
+	border-radius: 50%;
+	object-fit: cover;
+	box-shadow: 0 0 0 1px var(--cpl-line);
 }
 
-.el-table--fit:hover {
-	cursor: pointer;
+.team-name {
+	font-weight: 600;
+	color: var(--cpl-ink-900);
 }
 
-::v-deep(.el-table__body .el-table__row.winner-row > td.el-table__cell) {
+.winner-row td {
 	background: linear-gradient(90deg, #fff8d6 0%, #fff2ad 100%);
 }
 
-::v-deep(.el-table__body .el-table__row.winner-row > td.el-table__cell:first-child) {
-	border-left: 3px solid #d4a017;
+.winner-row td:first-child {
+	box-shadow: inset 4px 0 0 #d4a017;
 }
 
-::v-deep(.el-table__body .el-table__row.finalist-row > td.el-table__cell) {
+.finalist-row td {
 	background: linear-gradient(90deg, #e6f3ff 0%, #f2f8ff 100%);
 }
 
-::v-deep(.el-table__body .el-table__row.finalist-row > td.el-table__cell:first-child) {
-	border-left: 3px solid #2f7fbf;
+.finalist-row td:first-child {
+	box-shadow: inset 4px 0 0 #2f7fbf;
 }
 
-.winner-badge {
-	margin-left: 8px;
+.eliminator-row td {
+	background: linear-gradient(90deg, #fff4e5 0%, #fff9f2 100%);
+}
+
+.eliminator-row td:first-child {
+	box-shadow: inset 4px 0 0 #d97706;
+}
+
+.legend {
+	display: flex;
+	gap: 16px;
+	padding: 12px 10px 4px;
+	font-size: 12px;
+	color: var(--cpl-ink-600);
+
+	span {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+	}
+}
+
+.dot {
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+
+	&.winner {
+		background: #d4a017;
+	}
+	&.finalist {
+		background: #2f7fbf;
+	}
+	&.eliminator {
+		background: #d97706;
+	}
+}
+
+.empty-state {
+	min-height: 200px;
+	display: grid;
+	place-items: center;
+	text-align: center;
+	color: var(--cpl-ink-600);
+}
+
+@media (max-width: 575.98px) {
+	.standings {
+		font-size: 13px;
+
+		th,
+		td {
+			padding: 10px 4px;
+		}
+
+		.col-rank {
+			width: 24px;
+		}
+
+		.col-pts {
+			font-size: 15px;
+		}
+	}
+
+	.team-cell {
+		gap: 8px;
+	}
+
+	.logo {
+		width: 28px;
+		height: 28px;
+	}
+
+	.team-name {
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+		line-height: 1.25;
+	}
+}
+
+@keyframes row-in {
+	from {
+		opacity: 0;
+		transform: translateX(-8px);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
 }
 </style>
-
