@@ -112,14 +112,10 @@ const dropdownPopperOptions = ref({
 
 const toSlug = (value) => (value || "").toLowerCase().trim().replace(/\s+/g, "-");
 
-const getPlayerAvatar = (player) => {
-	if (player.avatar_url) {
-		return player.avatar_url;
-	}
-	return resolveAsset(
+const getPlayerAvatar = (player) =>
+	resolveAsset(
 		`public/assets/images/players/${toSlug(player.first_name)}-${toSlug(player.last_name)}.png`,
 	);
-};
 
 const fetchTopCoinPotters = async () => {
 	if (!selectedSeason.value) {
