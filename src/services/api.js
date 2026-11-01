@@ -1,8 +1,11 @@
 import axios from "axios";
 import { authToken } from "@/utils/authToken";
 
+const apiBaseUrl =
+	globalThis.__CPL_API_BASE_URL__ || import.meta.env.VITE_API_BASE_URL;
+
 const api = axios.create({
-	baseURL: __CPL_API_BASE_URL__,
+	baseURL: apiBaseUrl,
 	// Long enough to survive a cold start on the free API host.
 	timeout: 90000,
 	headers: {
