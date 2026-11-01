@@ -19,25 +19,6 @@
 			</div>
 		</header>
 
-		<div class="summary" aria-label="Schedule summary">
-			<button type="button" class="summary-card" :class="{ 'is-on': filter === 'all' }" @click="filter = 'all'">
-				<strong>{{ matches.length }}</strong>
-				<span>Matches</span>
-			</button>
-			<button type="button" class="summary-card live" :class="{ 'is-on': filter === 'live' }" @click="filter = 'live'">
-				<strong>{{ counts.live }}</strong>
-				<span>Live</span>
-			</button>
-			<button type="button" class="summary-card" :class="{ 'is-on': filter === 'upcoming' }" @click="filter = 'upcoming'">
-				<strong>{{ counts.upcoming }}</strong>
-				<span>To play</span>
-			</button>
-			<button type="button" class="summary-card" :class="{ 'is-on': filter === 'played' }" @click="filter = 'played'">
-				<strong>{{ counts.played }}</strong>
-				<span>Played</span>
-			</button>
-		</div>
-
 		<div v-loading="loading" element-loading-text="Loading..." class="schedule-body">
 			<section v-for="group in groups" :key="group.date" class="day-group">
 				<h2 class="day-label">{{ groupLabel(group.date) }}</h2>
@@ -289,7 +270,6 @@ const seasons = ref([]);
 const matches = ref([]);
 const loading = ref(false);
 const errorMessage = ref("");
-const filter = ref("all");
 const openId = ref(null);
 let refreshTimer = null;
 const statsOpen = ref(false);
@@ -308,18 +288,7 @@ const isLive = (match) => match.status === statusId("In Progress");
 const isPlayed = (match) => match.status === statusId("Played");
 const isScheduled = (match) => match.status === statusId("Scheduled");
 
-const counts = computed(() => ({
-	live: matches.value.filter(isLive).length,
-	played: matches.value.filter(isPlayed).length,
-	upcoming: matches.value.filter(isScheduled).length,
-}));
-
-const visibleMatches = computed(() => {
-	if (filter.value === "live") return matches.value.filter(isLive);
-	if (filter.value === "played") return matches.value.filter(isPlayed);
-	if (filter.value === "upcoming") return matches.value.filter(isScheduled);
-	return matches.value;
-});
+const visibleMatches = computed(() => matches.value);
 
 const groups = computed(() => {
 	const grouped = [];
@@ -332,13 +301,7 @@ const groups = computed(() => {
 	return grouped;
 });
 
-const emptyLabel = computed(() => {
-	if (errorMessage.value) return errorMessage.value;
-	if (filter.value === "live") return "No match is live right now.";
-	if (filter.value === "played") return "No matches have been played in this season.";
-	if (filter.value === "upcoming") return "Every match in this season has been played.";
-	return "No matches have been scheduled for this season.";
-});
+const emptyLabel = computed(() => errorMessage.value || "No matches have been scheduled for this season.");
 
 const categoryName = (category) => MatchCategory.find((item) => item.id === category)?.name || "Match";
 
@@ -600,61 +563,6 @@ onUnmounted(() => {
 <style lang="scss" scoped>
 .schedule-page {
 	max-width: 1080px;
-}
-
-.summary {
-	display: grid;
-	grid-template-columns: repeat(4, minmax(0, 1fr));
-	gap: 12px;
-	margin-bottom: 22px;
-}
-
-.summary-card {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	justify-content: center;
-	gap: 2px;
-	min-height: 88px;
-	padding: 14px 16px;
-	border: 1px solid var(--cpl-line);
-	border-radius: 16px;
-	background: #fff;
-	box-shadow: var(--cpl-shadow-card);
-	cursor: pointer;
-	text-align: center;
-
-	strong {
-		font-family: var(--cpl-font-display);
-		font-size: 28px;
-		line-height: 1;
-		color: var(--cpl-navy-900);
-	}
-
-	span {
-		font-size: 12px;
-		font-weight: 600;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-		color: var(--cpl-ink-400);
-	}
-
-	&.is-on {
-		border-color: var(--cpl-navy-800);
-		background: var(--cpl-navy-900);
-		strong,
-		span {
-			color: #fff;
-		}
-	}
-
-	&.live strong {
-		color: var(--cpl-red-500);
-	}
-
-	&.live.is-on strong {
-		color: #fecaca;
-	}
 }
 
 .schedule-body {
@@ -1565,10 +1473,6 @@ onUnmounted(() => {
 }
 
 @media (max-width: 767.98px) {
-	.summary {
-		grid-template-columns: 1fr 1fr;
-	}
-
 	.drawer-grid,
 	.player-columns {
 		grid-template-columns: 1fr;
@@ -1674,15 +1578,6 @@ onUnmounted(() => {
 }
 
 @media (max-width: 479.98px) {
-	.summary-card {
-		min-height: 76px;
-		padding: 12px 10px;
-	}
-
-	.summary-card strong {
-		font-size: 24px;
-	}
-
 	.crest {
 		width: 46px;
 		height: 46px;
