@@ -56,7 +56,21 @@ jobs:
         env:
           VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
           VITE_WEB_ENV: production
-        run: npm run build
+        run: |
+          set -euo pipefail
+          node -e '
+            const value = process.env.VITE_API_BASE_URL;
+            const url = new URL(value);
+            if (url.protocol !== "https:" || !url.hostname.endsWith(".onrender.com") || !url.pathname.endsWith("/")) {
+              throw new Error("VITE_API_BASE_URL must be an https onrender.com URL ending in /.");
+            }
+            console.log(`Building for API host: ${url.host}`);
+          '
+          npm run build
+          if ! grep -R -Fq "${VITE_API_BASE_URL}" dist/assets; then
+            echo "::error::The built site does not contain VITE_API_BASE_URL."
+            exit 1
+          fi
 
       - name: Confirm the Vue history redirect is in the publish folder
         run: |
@@ -74,7 +88,7 @@ jobs:
         run: |
           message="CPL web ${GITHUB_SHA} from ${GIT_REF}"
           if [ "${PRODUCTION}" = "true" ]; then
-            npx --yes netlify-cli deploy --prod --dir=dist --message "${message}"
+            npx --yes netlify-cli deploy --site "${NETLIFY_SITE_ID}" --prod --dir=dist --message "${message}"
           else
-            npx --yes netlify-cli deploy --dir=dist --message "${message}"
+            npx --yes netlify-cli deploy --site "${NETLIFY_SITE_ID}" --dir=dist --message "${message}"
           fi
