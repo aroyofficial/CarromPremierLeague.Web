@@ -335,7 +335,7 @@ const fetchPlayersDirectory = async () => {
 };
 
 onMounted(async () => {
-	seasons.value = seasonStore.seasons;
+	seasons.value = seasonStore.visibleSeasons;
 	teams.value = teamStore.teams;
 	selectedSeason.value = SEASON_FILTER_ALL;
 	await fetchPlayersDirectory();

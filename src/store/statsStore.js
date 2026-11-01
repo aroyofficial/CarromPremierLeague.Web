@@ -7,6 +7,7 @@ export const useStatsStore = defineStore("stats", {
 		topCoinPotters: new Map(),
 		topCoinPotterMessages: new Map(),
 		topCoinPotterLeagueCompletion: new Map(),
+		playerStats: new Map(),
 		loading: false,
 	}),
 
@@ -52,6 +53,26 @@ export const useStatsStore = defineStore("stats", {
 				this.topCoinPotterMessages.set(key, message);
 				this.topCoinPotterLeagueCompletion.set(key, isLeagueStageCompleted);
 				return { players, isLeagueStageCompleted, message };
+			} finally {
+				this.loading = false;
+			}
+		},
+
+		async fetchSeasonPlayerStats(seasonId, forceRefresh = false) {
+			if (!forceRefresh && this.playerStats.has(seasonId)) {
+				return this.playerStats.get(seasonId);
+			}
+
+			this.loading = true;
+			try {
+				const response = await statsService.getSeasonPlayerStats(seasonId);
+				const result = {
+					dataAvailable: response?.data?.data_available !== false,
+					players: response?.data?.players || [],
+					message: response?.message || "Player stats fetched successfully",
+				};
+				this.playerStats.set(seasonId, result);
+				return result;
 			} finally {
 				this.loading = false;
 			}

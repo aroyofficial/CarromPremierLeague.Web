@@ -1,6 +1,7 @@
 <template>
 	<div id="stats-wrapper" class="page-container d-flex flex-column align-items-center">
 		<div class="stats-shell d-flex flex-column">
+			<StatsSwitch />
 			<div class="stats-topbar mb-4">
 				<div>
 					<div class="stats-title-row">
@@ -12,7 +13,9 @@
 							<el-icon class="info-icon"><InfoFilled /></el-icon>
 						</el-tooltip>
 					</div>
-					<div class="stats-subtitle">Top 3 coin potters from league stage</div>
+					<div class="stats-subtitle">
+						The player who pocketed the most coins in this season's league-stage matches
+					</div>
 				</div>
 				<div class="stats-controls">
 					<el-select
@@ -87,6 +90,7 @@ import { useSeasonStore } from "@/store/seasonStore";
 import { useStatsStore } from "@/store/statsStore";
 import { resolveAsset } from "@/utils/common";
 import { InfoFilled } from "@element-plus/icons-vue";
+import StatsSwitch from "@/components/StatsSwitch.vue";
 
 const seasonStore = useSeasonStore();
 const statsStore = useStatsStore();
@@ -148,7 +152,7 @@ const fetchTopCoinPotters = async () => {
 };
 
 onMounted(async () => {
-	seasons.value = seasonStore.seasons;
+	seasons.value = seasonStore.visibleSeasons;
 	selectedSeason.value = seasonStore.selectedSeason;
 	await fetchTopCoinPotters();
 });
@@ -177,6 +181,7 @@ onMounted(async () => {
 }
 
 .season-select {
+	--el-select-width: 190px;
 	width: 190px;
 }
 
@@ -363,6 +368,7 @@ onMounted(async () => {
 	}
 
 	.season-select {
+		--el-select-width: 100%;
 		width: 100%;
 	}
 

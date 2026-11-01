@@ -23,38 +23,16 @@
 							:value="item.id"
 						/>
 					</el-select>
-					<el-input
-						v-model="teamSearch"
-						placeholder="Search team"
-						class="team-search"
-						size="large"
-						clearable
-					/>
 				</div>
 			</header>
-
-			<div class="summary-row mb-4">
-				<div class="summary-card">
-					<div class="summary-label">Teams</div>
-					<div class="summary-value">{{ filteredTeams.length }}</div>
-				</div>
-				<div class="summary-card">
-					<div class="summary-label">Active Rosters</div>
-					<div class="summary-value">{{ activeRosterCount }}</div>
-				</div>
-				<div class="summary-card">
-					<div class="summary-label">Players Assigned</div>
-					<div class="summary-value">{{ assignedPlayersCount }}</div>
-				</div>
-			</div>
 
 			<div v-loading="loading" element-loading-text="Loading..." id="teams-body">
 				<div v-if="!loading && !hasSeasonRoster" class="empty-state">
 					Data is not available for this season.
 				</div>
-				<div v-else-if="!loading && filteredTeams.length > 0" class="teams-grid">
+				<div v-else-if="!loading && teams.length > 0" class="teams-grid">
 					<div
-						v-for="team in filteredTeams"
+						v-for="team in teams"
 						:key="team.id"
 						class="team-card"
 					>
@@ -120,7 +98,6 @@ const teamStore = useTeamStore();
 const rosterStore = useRosterStore();
 const selectedSeason = ref(null);
 const seasons = ref([]);
-const teamSearch = ref("");
 const loading = ref(false);
 const seasonRosters = ref([]);
 const championSeasonsByTeamId = ref(new Map());
@@ -142,32 +119,10 @@ const rosterByTeamId = computed(() => {
 	return map;
 });
 
-const filteredTeams = computed(() => {
-	const search = teamSearch.value.trim().toLowerCase();
-	const teams = teamStore.teams || [];
-	if (!search) {
-		return teams;
-	}
-	return teams.filter(
-		(team) =>
-			team.name.toLowerCase().includes(search) ||
-			(team.slogan || "").toLowerCase().includes(search),
-	);
-});
-
-const activeRosterCount = computed(
-	() => (seasonRosters.value || []).filter((team) => (team.players || []).length > 0).length,
-);
+const teams = computed(() => teamStore.teams || []);
 
 const hasSeasonRoster = computed(() =>
 	(seasonRosters.value || []).some((team) => (team.players || []).length > 0),
-);
-
-const assignedPlayersCount = computed(() =>
-	(seasonRosters.value || []).reduce(
-		(total, team) => total + ((team.players || []).length || 0),
-		0,
-	),
 );
 
 const getTeamPlayers = (teamId) => rosterByTeamId.value.get(teamId) || [];
@@ -225,7 +180,7 @@ const fetchChampionCounts = async () => {
 };
 
 onMounted(async () => {
-	seasons.value = seasonStore.seasons;
+	seasons.value = seasonStore.visibleSeasons;
 	selectedSeason.value = seasonStore.selectedSeason;
 	await Promise.all([fetchRosterForSeason(), fetchChampionCounts()]);
 });
@@ -239,30 +194,6 @@ onMounted(async () => {
 
 .teams-shell {
 	width: 100%;
-}
-
-.summary-row {
-	display: grid;
-	grid-template-columns: repeat(3, minmax(0, 1fr));
-	gap: 12px;
-}
-
-.summary-card {
-	border: 1px solid #dbeafe;
-	background: linear-gradient(135deg, #f8fbff 0%, #eef6ff 100%);
-	border-radius: 12px;
-	padding: 12px 14px;
-}
-
-.summary-label {
-	font-size: 12px;
-	color: #6b7280;
-}
-
-.summary-value {
-	font-size: 22px;
-	font-weight: 600;
-	color: #0f172a;
 }
 
 #teams-body {
@@ -411,18 +342,6 @@ onMounted(async () => {
 }
 
 @media (max-width: 575.98px) {
-	.summary-row {
-		gap: 8px;
-	}
-
-	.summary-card {
-		padding: 10px;
-	}
-
-	.summary-value {
-		font-size: 18px;
-	}
-
 	.team-head {
 		grid-template-columns: auto 1fr;
 	}

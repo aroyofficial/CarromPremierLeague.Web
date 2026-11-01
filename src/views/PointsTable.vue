@@ -27,6 +27,7 @@
 							<th class="col-team" scope="col">Team</th>
 							<th scope="col"><abbr title="Played">P</abbr></th>
 							<th scope="col"><abbr title="Won">W</abbr></th>
+							<th scope="col"><abbr title="Drawn">D</abbr></th>
 							<th scope="col"><abbr title="Lost">L</abbr></th>
 							<th scope="col"><abbr title="Net coins">NET</abbr></th>
 							<th scope="col"><abbr title="Points">PTS</abbr></th>
@@ -49,8 +50,9 @@
 							</td>
 							<td>{{ row.matches_played }}</td>
 							<td>{{ row.wins }}</td>
+							<td>{{ row.draws || 0 }}</td>
 							<td>{{ row.losses }}</td>
-							<td :class="{ positive: row.net_points > 0 }">{{ row.net_points }}</td>
+							<td :class="{ positive: row.net_points > 0, negative: row.net_points < 0 }">{{ row.net_points }}</td>
 							<td class="col-pts">{{ row.points }}</td>
 						</tr>
 					</tbody>
@@ -62,6 +64,10 @@
 
 			<div v-if="standings.length && (isSeasonEnded() || isLeagueStageCompleted())" class="legend">
 				<span v-if="isSeasonEnded()"><i class="dot winner"></i>Champion</span>
+				<template v-else-if="standings.length > 4">
+					<span><i class="dot finalist"></i>Qualified for Final</span>
+					<span><i class="dot eliminator"></i>Eliminator</span>
+				</template>
 				<span v-else><i class="dot finalist"></i>Qualified for Final</span>
 			</div>
 		</div>
@@ -105,7 +111,7 @@ const fetchLeagueTable = async () => {
 		]);
 		const table = seasonStore.leagueTable;
 		(table?.standings || []).forEach((team) => {
-			team.losses = team.matches_played - team.wins;
+			team.losses = team.matches_played - team.wins - (team.draws || 0);
 		});
 		leagueTable.value = table;
 	} catch (error) {
@@ -133,12 +139,18 @@ const isLeagueStageCompleted = () => {
 
 const getRowClassName = (row, index) => {
 	if (isWinnerRow(row)) return "winner-row";
-	if (isLeagueStageCompleted() && index < 2) return "finalist-row";
+	if (!isLeagueStageCompleted()) return "";
+	if (standings.value.length > 4) {
+		if (index === 0) return "finalist-row";
+		if (index === 1 || index === 2) return "eliminator-row";
+		return "";
+	}
+	if (index < 2) return "finalist-row";
 	return "";
 };
 
 onMounted(() => {
-	seasons.value = seasonStore.seasons;
+	seasons.value = seasonStore.visibleSeasons;
 	selectedSeason.value = seasonStore.selectedSeason;
 	fetchLeagueTable();
 });
@@ -221,6 +233,10 @@ onMounted(() => {
 	.positive {
 		color: #15803d;
 	}
+
+	.negative {
+		color: #b91c1c;
+	}
 }
 
 .team-cell {
@@ -260,6 +276,14 @@ onMounted(() => {
 	box-shadow: inset 4px 0 0 #2f7fbf;
 }
 
+.eliminator-row td {
+	background: linear-gradient(90deg, #fff4e5 0%, #fff9f2 100%);
+}
+
+.eliminator-row td:first-child {
+	box-shadow: inset 4px 0 0 #d97706;
+}
+
 .legend {
 	display: flex;
 	gap: 16px;
@@ -284,6 +308,9 @@ onMounted(() => {
 	}
 	&.finalist {
 		background: #2f7fbf;
+	}
+	&.eliminator {
+		background: #d97706;
 	}
 }
 

@@ -238,7 +238,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, watch } from "vue";
 import { useSeasonStore } from "@/store/seasonStore";
 import { useTeamStore } from "@/store/teamStore";
 import { useMatchStore } from "@/store/matchStore";
@@ -310,6 +310,19 @@ const resetScheduleMatchDialog = () => {
 	};
 	showScheduleMatchDialog.value = false;
 };
+
+watch(
+	() => matchStore.matches,
+	(next) => {
+		if (!fixtureFilter.value.season) return;
+		if (
+			next.length === 0 ||
+			next.every((match) => match.season_id === fixtureFilter.value.season)
+		) {
+			matches.value = next;
+		}
+	},
+);
 
 const fetchMatches = async () => {
 	startLoader();
@@ -420,7 +433,7 @@ const scheduleMatch = async () => {
 };
 
 onMounted(() => {
-	seasons.value = seasonStore.seasons;
+	seasons.value = seasonStore.visibleSeasons;
 	teams.value = teamStore.teams;
 	fixtureFilter.value.season = seasonStore.selectedSeason;
 	matchObject.value.order = matchStore.nextMatchOrder;

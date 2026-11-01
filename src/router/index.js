@@ -42,7 +42,19 @@ const routes = [
 		path: Routes.STATS,
 		name: "stats",
 		component: () => import("@/views/Stats.vue"),
-		meta: { title: "Stats" },
+		meta: { title: "Golden Striker" },
+	},
+	{
+		path: Routes.PLAYER_STATS,
+		name: "player-stats",
+		component: () => import("@/views/PlayerStats.vue"),
+		meta: { title: "Player Stats" },
+	},
+	{
+		path: Routes.SCHEDULE,
+		name: "schedule",
+		component: () => import("@/views/Schedule.vue"),
+		meta: { title: "Schedule" },
 	},
 	{
 		path: Routes.FIXTURES,

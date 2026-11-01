@@ -4,18 +4,22 @@ const Routes = Object.freeze({
 	POINTS_TABLE: "/points-table",
 	RULES: "/rules",
 	FIXTURES: "/fixtures",
+	SCHEDULE: "/schedule",
 	TEAMS: "/teams",
 	PLAYERS: "/players",
 	STATS: "/stats",
+	PLAYER_STATS: "/stats/players",
 	LOGIN: "/login",
 });
 
 const NavItems = Object.freeze([
 	{ label: "Home", path: Routes.HOME },
+	{ label: "Schedule", path: Routes.SCHEDULE },
 	{ label: "Points Table", path: Routes.POINTS_TABLE },
 	{ label: "Rules", path: Routes.RULES },
 	{ label: "Teams", path: Routes.TEAMS },
 	{ label: "Players", path: Routes.PLAYERS },
+	{ label: "Stats", path: Routes.STATS },
 ]);
 
 const LEAGUE_TIMEZONE = "Asia/Kolkata";
@@ -61,6 +65,10 @@ const MatchCategory = Object.freeze([
 	{
 		id: 6,
 		name: "Friendly",
+	},
+	{
+		id: 7,
+		name: "Golden Strike",
 	},
 	{
 		id: 2,

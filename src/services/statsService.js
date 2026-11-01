@@ -12,4 +12,8 @@ export const statsService = {
 			`stats/season/${seasonId}/top-coin-potters?limit=${limit}`,
 		);
 	},
+
+	async getSeasonPlayerStats(seasonId) {
+		return await api.get(`stats/season/${seasonId}/players`);
+	},
 };

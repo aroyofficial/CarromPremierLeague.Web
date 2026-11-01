@@ -91,17 +91,24 @@ img {
 .page-filters {
 	display: flex;
 	flex-wrap: wrap;
+	flex-shrink: 0;
 	gap: 10px;
 }
 
-.page-filters > * {
-	width: 200px;
+.page-filters > *,
+.page-filters .el-select {
+	--el-select-width: 220px;
+	width: 220px;
+	flex: 0 0 auto;
 }
 
 @media (max-width: 767.98px) {
 	.page-filters,
-	.page-filters > * {
+	.page-filters > *,
+	.page-filters .el-select {
+		--el-select-width: 100%;
 		width: 100%;
+		flex: 1 1 auto;
 	}
 }
 
@@ -167,8 +174,16 @@ div,
 p,
 span,
 a,
-button {
-	font-family: "Poppins";
+button,
+strong,
+em,
+h1,
+h2,
+h3,
+h4,
+label,
+li {
+	font-family: "Poppins", sans-serif;
 }
 
 .team-logo {

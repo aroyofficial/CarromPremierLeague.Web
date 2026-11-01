@@ -11,7 +11,12 @@
 
 			<ul class="nav-links desktop-only">
 				<li v-for="item in NavItems" :key="item.path">
-					<router-link :to="item.path" class="nav-link" exact-active-class="is-active">
+					<router-link
+						:to="item.path"
+						class="nav-link"
+						:class="{ 'is-active': isStatsSection(item) }"
+						exact-active-class="is-active"
+					>
 						{{ item.label }}
 					</router-link>
 				</li>
@@ -49,6 +54,7 @@
 						<router-link
 							:to="item.path"
 							class="mobile-link"
+							:class="{ 'is-active': isStatsSection(item) }"
 							exact-active-class="is-active"
 							@click="closeMenu"
 						>
@@ -85,6 +91,10 @@ import { useAuthStore } from "@/store/authStore";
 
 const route = useRoute();
 const router = useRouter();
+
+const isStatsSection = (item) =>
+	item.path === Routes.STATS &&
+	(route.path === Routes.STATS || route.path.startsWith(`${Routes.STATS}/`));
 const authStore = useAuthStore();
 const isMenuOpen = ref(false);
 const isScrolled = ref(false);

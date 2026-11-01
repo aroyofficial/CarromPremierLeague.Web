@@ -113,27 +113,28 @@
 							final.
 						</li>
 					</ul>
-					<p>The first two conditions are checked step by step:</p>
+					<p>Teams on the same points are separated in this order:</p>
 					<ol>
 						<li>
-							<b>Head-to-Head Result</b> - The team that won the match between the tied teams ranks
-							higher.
+							<b>Net Coins</b> - The team with the superior net coins tally ranks higher. Wins add
+							the coin margin and losses subtract it.
 						</li>
 						<li>
-							<b>Net Coins Difference</b> - If the teams are still tied, the team with the superior
-							net coins tally ranks higher.
+							<b>Head-to-Head Result</b> - If the net coins are also level, the team that won the
+							league match between the tied teams ranks higher.
 						</li>
 					</ol>
 					<p>
-						If the position is still tied between the teams after both conditions, Golden Strike
-						decides the higher place.
+						If a knockout place is still tied after both checks, the system schedules Golden Strike
+						between those teams and assigns the place from that result.
 					</p>
 
 					<h3>Final / Eliminator Ties</h3>
 					<p>
 						If the final or the eliminator is tied after 15 minutes, with the same number of white and
 						black coins left, 5 more minutes are played. If the match is still tied after that extra
-						time, it goes to Golden Strike. These matches do not share 1 point.
+						time, the system schedules a Golden Strike between the same teams. These matches do not
+						share 1 point. The winner of that Golden Strike takes the knockout place.
 					</p>
 				</section>
 
@@ -160,11 +161,13 @@
 					<h2><span aria-hidden="true">🏁</span> Finals</h2>
 					<ul>
 						<li>
-							<b>Four teams:</b> The season goes straight to a final between the teams ranked #1 and
-							#2.
+							<b>Four teams:</b> When the league is complete, the system schedules a final between
+							#1 and #2. A tie for either place schedules Golden Strike first.
 						</li>
 						<li>
-							<b>More than four teams:</b> There is an eliminator between the teams ranked #2 and #3.
+							<b>More than four teams:</b> When the league is complete, the system schedules an
+							eliminator between #2 and #3, then a final between #1 and the eliminator winner. A tie
+							for #1 or for an eliminator place schedules Golden Strike first.
 						</li>
 					</ul>
 				</section>
