@@ -118,6 +118,7 @@
 					<div class="match-rule" aria-hidden="true"></div>
 					<div class="match-actions">
 						<button
+							v-if="isLive(match) || isPlayed(match)"
 							type="button"
 							class="action"
 							:class="{ 'is-on': openId === match.id }"
