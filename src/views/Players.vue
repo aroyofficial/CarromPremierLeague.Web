@@ -135,7 +135,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useSeasonStore } from "@/store/seasonStore";
 import { useTeamStore } from "@/store/teamStore";
 import { useRosterStore } from "@/store/rosterStore";
@@ -311,22 +311,27 @@ const playerMetrics = (player) => {
 	];
 };
 
-const fetchPlayersDirectory = async () => {
-	loading.value = true;
+let playersRequest = 0;
+let refreshTimer = null;
+
+const fetchPlayersDirectory = async (options) => {
+	const quiet = Boolean(options && options.quiet);
+	if (quiet && playersRequest) return;
+	const requestId = ++playersRequest;
+	if (!quiet) loading.value = true;
 	try {
-		const tasks = [playerStore.fetchPlayerProfiles(), countryStore.fetchCountries()];
+		const tasks = [playerStore.fetchPlayerProfiles(true), countryStore.fetchCountries()];
 		if (!isAllSeasons.value) {
 			tasks.push(
 				(async () => {
 					seasonStore.setSeason(selectedSeason.value);
-					if (!rosterStore.teams.has(selectedSeason.value)) {
-						await rosterStore.fetchTeamDetails(selectedSeason.value);
-					}
+					await rosterStore.fetchTeamDetails(selectedSeason.value);
 				})(),
 			);
 		}
 
 		const results = await Promise.allSettled(tasks);
+		if (requestId !== playersRequest) return;
 		const playersResult = results[0];
 		const countriesResult = results[1];
 		const rosterResult = !isAllSeasons.value ? results[2] : null;
@@ -339,7 +344,7 @@ const fetchPlayersDirectory = async () => {
 		}
 		if (!isAllSeasons.value && rosterResult?.status === "rejected") {
 			console.error("Failed to fetch season roster", rosterResult.reason);
-			seasonRosters.value = [];
+			if (!quiet) seasonRosters.value = [];
 		} else if (!isAllSeasons.value) {
 			seasonRosters.value = rosterStore.teams.get(selectedSeason.value) || [];
 		} else {
@@ -351,23 +356,36 @@ const fetchPlayersDirectory = async () => {
 			seasonPlayerStats.value = new Map();
 		} else {
 			const statsResult = await statsStore.fetchSeasonPlayerStats(selectedSeason.value, true);
+			if (requestId !== playersRequest) return;
 			seasonPlayerStats.value = new Map(
 				(statsResult?.players || []).map((row) => [row.player_id, row]),
 			);
 		}
 	} catch (error) {
 		console.error("Failed to fetch players directory", error);
-		seasonRosters.value = [];
+		if (!quiet && requestId === playersRequest) seasonRosters.value = [];
 	} finally {
-		loading.value = false;
+		if (requestId === playersRequest) playersRequest = 0;
+		if (!quiet) loading.value = false;
 	}
 };
 
-onMounted(async () => {
+const refreshPlayersIfVisible = () => {
+	if (document.visibilityState === "visible") fetchPlayersDirectory({ quiet: true });
+};
+
+onMounted(() => {
 	seasons.value = seasonStore.visibleSeasons;
 	teams.value = teamStore.teams;
 	selectedSeason.value = SEASON_FILTER_ALL;
-	await fetchPlayersDirectory();
+	fetchPlayersDirectory();
+	refreshTimer = setInterval(() => fetchPlayersDirectory({ quiet: true }), 5000);
+	document.addEventListener("visibilitychange", refreshPlayersIfVisible);
+});
+
+onUnmounted(() => {
+	clearInterval(refreshTimer);
+	document.removeEventListener("visibilitychange", refreshPlayersIfVisible);
 });
 </script>
 

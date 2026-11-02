@@ -521,13 +521,17 @@ const openStats = (match) => {
 	statsOpen.value = true;
 };
 
+let scheduleRequest = 0;
+
 const fetchSchedule = async (options) => {
 	const quiet = Boolean(options && options.quiet);
+	if (quiet && scheduleRequest) return;
 	if (!selectedSeason.value) {
 		matches.value = [];
 		openId.value = null;
 		return;
 	}
+	const requestId = ++scheduleRequest;
 	if (!quiet) {
 		loading.value = true;
 		errorMessage.value = "";
@@ -535,6 +539,7 @@ const fetchSchedule = async (options) => {
 	try {
 		seasonStore.setSeason(selectedSeason.value);
 		const response = await seasonService.getSchedule(selectedSeason.value);
+		if (requestId !== scheduleRequest) return;
 		const nextMatches = response.data?.matches || [];
 		matches.value = nextMatches;
 		if (statsMatch.value) {
@@ -544,14 +549,19 @@ const fetchSchedule = async (options) => {
 		if (!quiet) openId.value = null;
 	} catch (error) {
 		console.error("Failed to load schedule", error);
-		if (!quiet) {
+		if (!quiet && requestId === scheduleRequest) {
 			matches.value = [];
 			openId.value = null;
 			errorMessage.value = "Unable to load the schedule right now. Please try again.";
 		}
 	} finally {
+		if (requestId === scheduleRequest) scheduleRequest = 0;
 		if (!quiet) loading.value = false;
 	}
+};
+
+const refreshScheduleIfVisible = () => {
+	if (document.visibilityState === "visible") fetchSchedule({ quiet: true });
 };
 
 onMounted(() => {
@@ -559,6 +569,7 @@ onMounted(() => {
 	selectedSeason.value = seasonStore.selectedSeason;
 	fetchSchedule();
 	refreshTimer = setInterval(() => fetchSchedule({ quiet: true }), 5000);
+	document.addEventListener("visibilitychange", refreshScheduleIfVisible);
 });
 
 const clockTimer = setInterval(() => {
@@ -568,6 +579,7 @@ const clockTimer = setInterval(() => {
 onUnmounted(() => {
 	clearInterval(clockTimer);
 	clearInterval(refreshTimer);
+	document.removeEventListener("visibilitychange", refreshScheduleIfVisible);
 });
 </script>
 

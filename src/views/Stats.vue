@@ -85,7 +85,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, onUnmounted } from "vue";
 import { useSeasonStore } from "@/store/seasonStore";
 import { useStatsStore } from "@/store/statsStore";
 import { resolveAsset } from "@/utils/common";
@@ -117,7 +117,12 @@ const getPlayerAvatar = (player) =>
 		`public/assets/images/players/${toSlug(player.first_name)}-${toSlug(player.last_name)}.png`,
 	);
 
-const fetchTopCoinPotters = async () => {
+let statsRequest = 0;
+let refreshTimer = null;
+
+const fetchTopCoinPotters = async (options) => {
+	const quiet = Boolean(options && options.quiet);
+	if (quiet && statsRequest) return;
 	if (!selectedSeason.value) {
 		topCoinPotters.value = [];
 		isLeagueStageCompleted.value = false;
@@ -125,7 +130,8 @@ const fetchTopCoinPotters = async () => {
 		return;
 	}
 
-	loading.value = true;
+	const requestId = ++statsRequest;
+	if (!quiet) loading.value = true;
 	try {
 		seasonStore.setSeason(selectedSeason.value);
 		const result = await statsStore.fetchSeasonTopCoinPotters(
@@ -133,24 +139,39 @@ const fetchTopCoinPotters = async () => {
 			3,
 			true,
 		);
+		if (requestId !== statsRequest) return;
 		topCoinPotters.value = result.players || [];
 		isLeagueStageCompleted.value = result.isLeagueStageCompleted || false;
 		emptyMessage.value =
 			result.message || "Data is not available for this season.";
 	} catch (error) {
 		console.error("Failed to fetch golden striker stats", error);
-		topCoinPotters.value = [];
-		isLeagueStageCompleted.value = false;
-		emptyMessage.value = "Unable to load stats right now. Please try again.";
+		if (!quiet && requestId === statsRequest) {
+			topCoinPotters.value = [];
+			isLeagueStageCompleted.value = false;
+			emptyMessage.value = "Unable to load stats right now. Please try again.";
+		}
 	} finally {
-		loading.value = false;
+		if (requestId === statsRequest) statsRequest = 0;
+		if (!quiet) loading.value = false;
 	}
 };
 
-onMounted(async () => {
+const refreshStatsIfVisible = () => {
+	if (document.visibilityState === "visible") fetchTopCoinPotters({ quiet: true });
+};
+
+onMounted(() => {
 	seasons.value = seasonStore.visibleSeasons;
 	selectedSeason.value = seasonStore.selectedSeason;
-	await fetchTopCoinPotters();
+	fetchTopCoinPotters();
+	refreshTimer = setInterval(() => fetchTopCoinPotters({ quiet: true }), 5000);
+	document.addEventListener("visibilitychange", refreshStatsIfVisible);
+});
+
+onUnmounted(() => {
+	clearInterval(refreshTimer);
+	document.removeEventListener("visibilitychange", refreshStatsIfVisible);
 });
 </script>
 

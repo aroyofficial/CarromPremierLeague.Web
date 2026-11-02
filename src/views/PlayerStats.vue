@@ -65,7 +65,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, onUnmounted } from "vue";
 import { useSeasonStore } from "@/store/seasonStore";
 import { useStatsStore } from "@/store/statsStore";
 import { resolveAsset } from "@/utils/common";
@@ -91,7 +91,12 @@ const getPlayerAvatar = (player) =>
 		`public/assets/images/players/${toSlug(player.first_name)}-${toSlug(player.last_name)}.png`,
 	);
 
-const fetchPlayerStats = async () => {
+let statsRequest = 0;
+let refreshTimer = null;
+
+const fetchPlayerStats = async (options) => {
+	const quiet = Boolean(options && options.quiet);
+	if (quiet && statsRequest) return;
 	if (!selectedSeason.value) {
 		players.value = [];
 		dataAvailable.value = false;
@@ -99,10 +104,12 @@ const fetchPlayerStats = async () => {
 		return;
 	}
 
-	loading.value = true;
+	const requestId = ++statsRequest;
+	if (!quiet) loading.value = true;
 	try {
 		seasonStore.setSeason(selectedSeason.value);
 		const result = await statsStore.fetchSeasonPlayerStats(selectedSeason.value, true);
+		if (requestId !== statsRequest) return;
 		dataAvailable.value = result.dataAvailable;
 		players.value = result.dataAvailable ? result.players : [];
 		emptyMessage.value = result.dataAvailable
@@ -112,18 +119,32 @@ const fetchPlayerStats = async () => {
 			: "Data is not available for this season.";
 	} catch (error) {
 		console.error("Failed to fetch player stats", error);
-		players.value = [];
-		dataAvailable.value = false;
-		emptyMessage.value = "Unable to load stats right now. Please try again.";
+		if (!quiet && requestId === statsRequest) {
+			players.value = [];
+			dataAvailable.value = false;
+			emptyMessage.value = "Unable to load stats right now. Please try again.";
+		}
 	} finally {
-		loading.value = false;
+		if (requestId === statsRequest) statsRequest = 0;
+		if (!quiet) loading.value = false;
 	}
 };
 
-onMounted(async () => {
+const refreshPlayerStatsIfVisible = () => {
+	if (document.visibilityState === "visible") fetchPlayerStats({ quiet: true });
+};
+
+onMounted(() => {
 	seasons.value = seasonStore.visibleSeasons;
 	selectedSeason.value = seasonStore.selectedSeason;
-	await fetchPlayerStats();
+	fetchPlayerStats();
+	refreshTimer = setInterval(() => fetchPlayerStats({ quiet: true }), 5000);
+	document.addEventListener("visibilitychange", refreshPlayerStatsIfVisible);
+});
+
+onUnmounted(() => {
+	clearInterval(refreshTimer);
+	document.removeEventListener("visibilitychange", refreshPlayerStatsIfVisible);
 });
 </script>
 

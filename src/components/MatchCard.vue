@@ -65,108 +65,37 @@
 							<img :src="getTeamLogo(match.team1)" class="match-team-logo" />
 						</div>
 						<div class="team-scorecard mt-3 p-3 border rounded">
-							<div>
-								<div
-									class="mb-2 d-flex align-items-center justify-content-between"
-								>
-									<div style="width: 60px"></div>
-									<div
-										class="d-flex flex-column align-items-center justify-content-center"
-										style="width: 120px"
-									>
-										<div>
-											<img
-												:src="playerAt(match.team1, 0).avatar_url"
-												class="player-avatar border"
-											/>
-										</div>
-										<div>
-											{{ playerAt(match.team1, 0).first_name }}
-											{{ playerAt(match.team1, 0).last_name[0] }}
-										</div>
-									</div>
-									<div
-										class="d-flex flex-column align-items-center justify-content-center"
-										style="width: 120px"
-									>
-										<div>
-											<img
-												:src="playerAt(match.team1, 1).avatar_url"
-												class="player-avatar border"
-											/>
-										</div>
-										<div>
-											{{ playerAt(match.team1, 1).first_name }}
-											{{ playerAt(match.team1, 1).last_name[0] }}
-										</div>
-									</div>
+							<p v-if="!scorecard.team1.players.length" class="score-empty">No players are rostered for this team.</p>
+							<article
+								v-for="player in scorecard.team1.players"
+								:key="player.id || player.first_name"
+								class="score-player"
+							>
+								<div class="score-player-name">
+									<img :src="player.avatar_url" class="player-avatar border" alt="" />
+									<strong>{{ player.first_name }} {{ player.last_name }}</strong>
 								</div>
-								<div
-									class="mb-2 d-flex align-items-center justify-content-between"
-								>
-									<div style="width: 60px">Coins</div>
-									<div>
-										<el-input-number
-											v-model="scorecard.team1.players[0].coins"
-											size="small"
-											:min="0"
-											:max="coinMax(scorecard.team1.players, 0)"
-											:readonly="!live"
-										></el-input-number>
-									</div>
-									<div>
-										<el-input-number
-											v-model="scorecard.team1.players[1].coins"
-											size="small"
-											:min="0"
-											:max="coinMax(scorecard.team1.players, 1)"
-											:readonly="!live"
-										></el-input-number>
-									</div>
+								<div class="score-metric">
+									<span>Own coins pocketed</span>
+									<el-input-number v-model="player.coins" size="small" :min="0" :max="ownCoinMax('team1', player)" :readonly="!live" />
 								</div>
-								<div
-									class="mb-2 d-flex align-items-center justify-content-between"
-								>
-									<div style="width: 60px">Fines</div>
-									<div>
-										<el-input-number
-											v-model="scorecard.team1.players[0].fines"
-											size="small"
-											:min="0"
-											:readonly="!live"
-										></el-input-number>
-									</div>
-									<div>
-										<el-input-number
-											v-model="scorecard.team1.players[1].fines"
-											size="small"
-											:min="0"
-											:readonly="!live"
-										></el-input-number>
-									</div>
+								<div class="score-metric">
+									<span>Opponent coins pocketed</span>
+									<el-input-number v-model="player.opponent" size="small" :min="0" :max="opponentCoinMax('team1', player)" :readonly="!live" />
 								</div>
-								<div
-									class="mb-2 d-flex align-items-center justify-content-between"
-								>
-									<div style="width: 60px">Pockets</div>
-									<div>
-										<el-input-number
-											v-model="scorecard.team1.players[0].pockets"
-											size="small"
-											:min="0"
-											:readonly="!live"
-										></el-input-number>
-									</div>
-									<div>
-										<el-input-number
-											v-model="scorecard.team1.players[1].pockets"
-											size="small"
-											:min="0"
-											:readonly="!live"
-										></el-input-number>
-									</div>
+								<div class="score-metric">
+									<span>Single fines (1 coin)</span>
+									<el-input-number v-model="player.single" size="small" :min="0" :readonly="!live" />
 								</div>
-							</div>
+								<div class="score-metric">
+									<span>Double fines (2 coins)</span>
+									<el-input-number v-model="player.double" size="small" :min="0" :readonly="!live" />
+								</div>
+								<div class="score-metric">
+									<span>Strikers pocketed</span>
+									<el-input-number v-model="player.strikers" size="small" :min="0" :readonly="!live" />
+								</div>
+							</article>
 						</div>
 					</div>
 					<div
@@ -214,108 +143,37 @@
 							<img :src="getTeamLogo(match.team2)" class="match-team-logo" />
 						</div>
 						<div class="team-scorecard mt-3 p-3 border rounded">
-							<div>
-								<div
-									class="mb-2 d-flex align-items-center justify-content-between"
-								>
-									<div style="width: 60px"></div>
-									<div
-										class="d-flex flex-column align-items-center justify-content-center"
-										style="width: 120px"
-									>
-										<div>
-											<img
-												:src="playerAt(match.team2, 0).avatar_url"
-												class="player-avatar border"
-											/>
-										</div>
-										<div>
-											{{ playerAt(match.team2, 0).first_name }}
-											{{ playerAt(match.team2, 0).last_name[0] }}
-										</div>
-									</div>
-									<div
-										class="d-flex flex-column align-items-center justify-content-center"
-										style="width: 120px"
-									>
-										<div>
-											<img
-												:src="playerAt(match.team2, 1).avatar_url"
-												class="player-avatar border"
-											/>
-										</div>
-										<div>
-											{{ playerAt(match.team2, 1).first_name }}
-											{{ playerAt(match.team2, 1).last_name[0] }}
-										</div>
-									</div>
+							<p v-if="!scorecard.team2.players.length" class="score-empty">No players are rostered for this team.</p>
+							<article
+								v-for="player in scorecard.team2.players"
+								:key="player.id || player.first_name"
+								class="score-player"
+							>
+								<div class="score-player-name">
+									<img :src="player.avatar_url" class="player-avatar border" alt="" />
+									<strong>{{ player.first_name }} {{ player.last_name }}</strong>
 								</div>
-								<div
-									class="mb-2 d-flex align-items-center justify-content-between"
-								>
-									<div style="width: 60px">Coins</div>
-									<div>
-										<el-input-number
-											v-model="scorecard.team2.players[0].coins"
-											size="small"
-											:min="0"
-											:max="coinMax(scorecard.team2.players, 0)"
-											:readonly="!live"
-										></el-input-number>
-									</div>
-									<div>
-										<el-input-number
-											v-model="scorecard.team2.players[1].coins"
-											size="small"
-											:min="0"
-											:max="coinMax(scorecard.team2.players, 1)"
-											:readonly="!live"
-										></el-input-number>
-									</div>
+								<div class="score-metric">
+									<span>Own coins pocketed</span>
+									<el-input-number v-model="player.coins" size="small" :min="0" :max="ownCoinMax('team2', player)" :readonly="!live" />
 								</div>
-								<div
-									class="mb-2 d-flex align-items-center justify-content-between"
-								>
-									<div style="width: 60px">Fines</div>
-									<div>
-										<el-input-number
-											v-model="scorecard.team2.players[0].fines"
-											size="small"
-											:min="0"
-											:readonly="!live"
-										></el-input-number>
-									</div>
-									<div>
-										<el-input-number
-											v-model="scorecard.team2.players[1].fines"
-											size="small"
-											:min="0"
-											:readonly="!live"
-										></el-input-number>
-									</div>
+								<div class="score-metric">
+									<span>Opponent coins pocketed</span>
+									<el-input-number v-model="player.opponent" size="small" :min="0" :max="opponentCoinMax('team2', player)" :readonly="!live" />
 								</div>
-								<div
-									class="mb-2 d-flex align-items-center justify-content-between"
-								>
-									<div style="width: 60px">Pockets</div>
-									<div>
-										<el-input-number
-											v-model="scorecard.team2.players[0].pockets"
-											size="small"
-											:min="0"
-											:readonly="!live"
-										></el-input-number>
-									</div>
-									<div>
-										<el-input-number
-											v-model="scorecard.team2.players[1].pockets"
-											size="small"
-											:min="0"
-											:readonly="!live"
-										></el-input-number>
-									</div>
+								<div class="score-metric">
+									<span>Single fines (1 coin)</span>
+									<el-input-number v-model="player.single" size="small" :min="0" :readonly="!live" />
 								</div>
-							</div>
+								<div class="score-metric">
+									<span>Double fines (2 coins)</span>
+									<el-input-number v-model="player.double" size="small" :min="0" :readonly="!live" />
+								</div>
+								<div class="score-metric">
+									<span>Strikers pocketed</span>
+									<el-input-number v-model="player.strikers" size="small" :min="0" :readonly="!live" />
+								</div>
+							</article>
 						</div>
 					</div>
 				</div>
@@ -629,6 +487,7 @@ import {
 } from "../utils/common";
 import Countdown from "./Countdown.vue";
 import { matchService } from "@/services/matchService";
+import { localPlayerPhoto } from "@/utils/playerPhotos";
 
 const props = defineProps({
 	match: Object,
@@ -674,41 +533,22 @@ const hornStopTimeoutId = ref(null);
 const regulationDurationSeconds = 15 * 60;
 const extraDurationSeconds = 5 * 60;
 
+const blankMetricPlayer = (member, previous) => ({
+	id: member?.player_id ?? previous?.id ?? null,
+	first_name: member?.first_name || previous?.first_name || "Player",
+	last_name: member?.last_name || previous?.last_name || "",
+	avatar_url: (member && (localPlayerPhoto(member) || member.avatar_url)) || previous?.avatar_url || "",
+	coins: previous?.coins || 0,
+	opponent: previous?.opponent || 0,
+	single: previous?.single || 0,
+	double: previous?.double || 0,
+	strikers: previous?.strikers || 0,
+	shots: previous?.shots || 0,
+});
+
 const createInitialScorecard = () => ({
-	team1: {
-		netCoins: 0,
-		players: [
-			{
-				id: null,
-				coins: 0,
-				fines: 0,
-				pockets: 0,
-			},
-			{
-				id: null,
-				coins: 0,
-				fines: 0,
-				pockets: 0,
-			},
-		],
-	},
-	team2: {
-		netCoins: 0,
-		players: [
-			{
-				id: null,
-				coins: 0,
-				fines: 0,
-				pockets: 0,
-			},
-			{
-				id: null,
-				coins: 0,
-				fines: 0,
-				pockets: 0,
-			},
-		],
-	},
+	team1: { netCoins: 0, players: [] },
+	team2: { netCoins: 0, players: [] },
 });
 
 const scorecard = ref(createInitialScorecard());
@@ -811,48 +651,47 @@ const blockMatchManagement = () => {
 
 const COINS_PER_COLOR = 9;
 
-const coinMax = (players, index) => {
-	const other = Number(players[index === 0 ? 1 : 0]?.coins || 0);
-	return Math.max(0, COINS_PER_COLOR - other);
+const metricSum = (players, key, exceptId = undefined) =>
+	players.reduce((total, player) => total + (player.id === exceptId ? 0 : Number(player[key] || 0)), 0);
+
+const ownCoinMax = (side, player) => {
+	const otherSide = side === "team1" ? "team2" : "team1";
+	const used =
+		metricSum(scorecard.value[side].players, "coins", player.id) +
+		metricSum(scorecard.value[otherSide].players, "opponent");
+	return Math.max(0, COINS_PER_COLOR - used);
 };
 
-const colorCoinTotal = (players) =>
-	Number(players[0]?.coins || 0) + Number(players[1]?.coins || 0);
+const opponentCoinMax = (side, player) => {
+	const otherSide = side === "team1" ? "team2" : "team1";
+	const used =
+		metricSum(scorecard.value[side].players, "opponent", player.id) +
+		metricSum(scorecard.value[otherSide].players, "coins");
+	return Math.max(0, COINS_PER_COLOR - used);
+};
+
+const fineCoins = (player) => Number(player.single || 0) + 2 * Number(player.double || 0);
+
+const sideNet = (players) => players.reduce((total, player) => total + Number(player.coins || 0) - fineCoins(player), 0);
 
 const getInvalidCoinCount = () => {
-	const team1Coins = colorCoinTotal(scorecard.value.team1.players);
-	const team2Coins = colorCoinTotal(scorecard.value.team2.players);
-	if (team1Coins > COINS_PER_COLOR) {
-		return {
-			teamName: getTeam(props.match.team1)?.name || "Team 1",
-			coins: team1Coins,
-		};
+	const team1Own = metricSum(scorecard.value.team1.players, "coins");
+	const team2Own = metricSum(scorecard.value.team2.players, "coins");
+	const team1Opponent = metricSum(scorecard.value.team1.players, "opponent");
+	const team2Opponent = metricSum(scorecard.value.team2.players, "opponent");
+	if (team1Own + team2Opponent > COINS_PER_COLOR) {
+		return { teamName: getTeam(props.match.team1)?.name || "Team 1", coins: team1Own + team2Opponent };
 	}
-	if (team2Coins > COINS_PER_COLOR) {
-		return {
-			teamName: getTeam(props.match.team2)?.name || "Team 2",
-			coins: team2Coins,
-		};
+	if (team2Own + team1Opponent > COINS_PER_COLOR) {
+		return { teamName: getTeam(props.match.team2)?.name || "Team 2", coins: team2Own + team1Opponent };
 	}
 	return null;
 };
 
-const getTeamNetPoints = () => {
-	const team1NetPoints =
-		Number(scorecard.value.team1.players[0].coins || 0) +
-		Number(scorecard.value.team1.players[1].coins || 0) -
-		Number(scorecard.value.team1.players[0].fines || 0) -
-		Number(scorecard.value.team1.players[1].fines || 0);
-	const team2NetPoints =
-		Number(scorecard.value.team2.players[0].coins || 0) +
-		Number(scorecard.value.team2.players[1].coins || 0) -
-		Number(scorecard.value.team2.players[0].fines || 0) -
-		Number(scorecard.value.team2.players[1].fines || 0);
-	return {
-		team1NetPoints,
-		team2NetPoints,
-	};
-};
+const getTeamNetPoints = () => ({
+	team1NetPoints: sideNet(scorecard.value.team1.players),
+	team2NetPoints: sideNet(scorecard.value.team2.players),
+});
 
 const getInvalidTeamNetPoints = () => {
 	const { team1NetPoints, team2NetPoints } = getTeamNetPoints();
@@ -950,10 +789,13 @@ const getMatchStatsPayload = () => {
 		.filter((player) => player.id != null)
 		.map((player) => ({
 			player_id: player.id,
-			coins_pocketed: player.coins,
-			strikers_pocketed: player.pockets,
-			coins_fined: player.fines,
-			shots_taken: 0,
+			coins_pocketed: player.coins || 0,
+			opponent_coins_pocketed: player.opponent || 0,
+			single_fines: player.single || 0,
+			double_fines: player.double || 0,
+			strikers_pocketed: player.strikers || 0,
+			coins_fined: fineCoins(player),
+			shots_taken: player.shots || 0,
 		}));
 };
 
@@ -1306,21 +1148,31 @@ const getTeamMembers = (teamId) => {
 	return teamDetails.value?.find((td) => td.team_id === teamId)?.players || [];
 };
 
-const playerAt = (teamId, index) =>
-	getTeamMembers(teamId)[index] || {
-		avatar_url: "",
-		first_name: "Player",
-		last_name: "",
-		player_id: null,
-	};
+const syncScorecardSide = (side, teamId) => {
+	const previous = new Map(scorecard.value[side].players.filter((player) => player.id).map((player) => [player.id, player]));
+	const members = getTeamMembers(teamId);
+	if (!members.length) {
+		if (scorecard.value[side].players.length) scorecard.value[side].players = [];
+		return;
+	}
+	const nextIds = members.map((member) => member.player_id).join(",");
+	const currentIds = scorecard.value[side].players.map((player) => player.id).join(",");
+	if (members.length && nextIds === currentIds) {
+		members.forEach((member) => {
+			const player = previous.get(member.player_id);
+			if (!player) return;
+			player.first_name = member.first_name;
+			player.last_name = member.last_name;
+			player.avatar_url = localPlayerPhoto(member) || member.avatar_url || player.avatar_url;
+		});
+		return;
+	}
+	scorecard.value[side].players = members.map((member) => blankMetricPlayer(member, previous.get(member.player_id)));
+};
 
 const setScorecardPlayerIds = () => {
-	const team1Players = getTeamMembers(props.match.team1);
-	const team2Players = getTeamMembers(props.match.team2);
-	scorecard.value.team1.players[0].id = team1Players[0]?.player_id ?? null;
-	scorecard.value.team1.players[1].id = team1Players[1]?.player_id ?? null;
-	scorecard.value.team2.players[0].id = team2Players[0]?.player_id ?? null;
-	scorecard.value.team2.players[1].id = team2Players[1]?.player_id ?? null;
+	syncScorecardSide("team1", props.match.team1);
+	syncScorecardSide("team2", props.match.team2);
 };
 
 const resumeMatch = () => {
@@ -1376,8 +1228,11 @@ const loadScorecard = async () => {
 		const stat = saved.get(player.id);
 		if (!stat) return;
 		player.coins = stat.coins_pocketed || 0;
-		player.fines = stat.coins_fined || 0;
-		player.pockets = stat.strikers_pocketed || 0;
+		player.opponent = stat.opponent_coins_pocketed || 0;
+		player.single = stat.single_fines || (!stat.double_fines ? stat.coins_fined || 0 : 0);
+		player.double = stat.double_fines || 0;
+		player.strikers = stat.strikers_pocketed || 0;
+		player.shots = stat.shots_taken || 0;
 	});
 };
 
@@ -1527,12 +1382,23 @@ const finishMatch = async (forcefully = false) => {
 	}
 };
 
-onUpdated(async () => {
-	teamDetails.value = rosterStore.teams
-		.get(props.match.season_id)
-		?.filter(
-			(t) => t.team_id === props.match.team1 || t.team_id === props.match.team2,
+onUpdated(() => {
+	const next =
+		rosterStore.teams
+			.get(props.match.season_id)
+			?.filter((team) => team.team_id === props.match.team1 || team.team_id === props.match.team2) || [];
+	const current = teamDetails.value || [];
+	const same =
+		next.length === current.length &&
+		next.every(
+			(team, index) =>
+				team.team_id === current[index]?.team_id && team.players?.length === current[index]?.players?.length,
 		);
+	if (!same) teamDetails.value = next;
+});
+
+watch(teamDetails, () => {
+	if (showMatchManager.value) setScorecardPlayerIds();
 });
 </script>
 
@@ -1662,10 +1528,38 @@ onUpdated(async () => {
 }
 
 .team-scorecard {
-	width: 350px;
+	width: min(100%, 440px);
+	max-height: calc(100vh - 280px);
+	overflow: auto;
 	border-radius: 12px;
 	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
 	transition: all 0.3s ease;
+}
+
+.score-player + .score-player {
+	margin-top: 12px;
+	padding-top: 12px;
+	border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.score-player-name {
+	display: flex;
+	align-items: center;
+	margin-bottom: 8px;
+}
+
+.score-metric {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	margin-top: 6px;
+	font-size: 13px;
+}
+
+.score-empty {
+	margin: 0;
+	color: #6c757d;
 }
 
 .team-scorecard:hover {
@@ -1771,7 +1665,8 @@ onUpdated(async () => {
 	}
 
 	.team-scorecard {
-		width: min(100%, 350px);
+		width: min(100%, 440px);
+		max-height: none;
 		padding: 0.75rem !important;
 	}
 

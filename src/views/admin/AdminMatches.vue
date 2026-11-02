@@ -62,13 +62,9 @@
 				</el-table-column>
 				<el-table-column label="Actions" width="250" align="right" fixed="right">
 					<template #default="{ row }">
-						<el-tooltip :disabled="row.status !== 3" content="Played matches are locked" placement="top">
-							<span>
-								<el-button size="small" type="primary" plain :disabled="row.status === 3" @click="openEdit(row)">
-									<el-icon class="me-1"><Edit /></el-icon>Edit
-								</el-button>
-							</span>
-						</el-tooltip>
+						<el-button size="small" type="primary" plain @click="openEdit(row)">
+							<el-icon class="me-1"><Edit /></el-icon>Edit
+						</el-button>
 						<el-button size="small" class="ms-1" :disabled="!row.team1 || !row.team2" @click="openStats(row)">
 							<el-icon class="me-1"><Document /></el-icon>Stats
 						</el-button>
@@ -80,20 +76,20 @@
 			</el-table>
 		</div>
 
-		<el-dialog v-model="dialogOpen" :title="editingMatch ? `Edit match #${editingMatch.order}` : 'New match'" width="min(640px, 94vw)">
+		<el-dialog v-model="dialogOpen" :title="editingMatch ? `Edit match #${editingMatch.order}` : 'New match'" width="min(1080px, 96vw)">
 			<el-form ref="formRef" :model="form" :rules="rules" label-position="top" class="admin-form-grid" @submit.prevent>
 				<el-form-item label="Team 1" prop="team1">
-					<el-select v-model="form.team1" clearable placeholder="Team 1">
+					<el-select v-model="form.team1" clearable placeholder="Team 1" :disabled="playedLocked">
 						<el-option v-for="team in teamOptions" :key="team.id" :label="team.name" :value="team.id" />
 					</el-select>
 				</el-form-item>
 				<el-form-item label="Team 2" prop="team2">
-					<el-select v-model="form.team2" clearable placeholder="Team 2">
+					<el-select v-model="form.team2" clearable placeholder="Team 2" :disabled="playedLocked">
 						<el-option v-for="team in teamOptions" :key="team.id" :label="team.name" :value="team.id" />
 					</el-select>
 				</el-form-item>
 				<el-form-item label="Scheduled date" prop="scheduled_date">
-					<el-date-picker v-model="form.scheduled_date" type="date" value-format="YYYY-MM-DD" />
+					<el-date-picker v-model="form.scheduled_date" type="date" value-format="YYYY-MM-DD" :disabled="playedLocked" />
 				</el-form-item>
 				<el-form-item v-if="!editingMatch" label="Category" prop="category">
 					<el-select v-model="form.category">
@@ -111,6 +107,41 @@
 					:title="form.category === 1 ? 'League: 15-minute regulation only.' : 'Knockout: 15-minute regulation, five-minute extra time for a tie, then Golden Strike.'"
 				/>
 			</el-form>
+			<div v-if="editingMatch" class="span-2 scorecard-editor">
+				<h2>Player metrics</h2>
+				<div v-loading="editScoreLoading">
+					<el-alert
+						v-if="!editScoreRows.length && !editScoreLoading"
+						type="info"
+						:closable="false"
+						show-icon
+						title="No players are on these teams' rosters for this season."
+					/>
+					<el-table v-else :data="editScoreRows" size="small">
+						<el-table-column label="Player" min-width="180">
+							<template #default="{ row }">
+								<div>{{ row.name }}</div>
+								<small class="text-muted">{{ row.team_name }}</small>
+							</template>
+						</el-table-column>
+						<el-table-column label="Own coins" width="140">
+							<template #default="{ row }"><el-input-number v-model="row.coins_pocketed" :min="0" :max="9" size="small" /></template>
+						</el-table-column>
+						<el-table-column label="Opponent coins" width="150">
+							<template #default="{ row }"><el-input-number v-model="row.opponent_coins_pocketed" :min="0" :max="9" size="small" /></template>
+						</el-table-column>
+						<el-table-column label="Single fines" width="140">
+							<template #default="{ row }"><el-input-number v-model="row.single_fines" :min="0" :max="255" size="small" /></template>
+						</el-table-column>
+						<el-table-column label="Double fines" width="140">
+							<template #default="{ row }"><el-input-number v-model="row.double_fines" :min="0" :max="255" size="small" /></template>
+						</el-table-column>
+						<el-table-column label="Strikers" width="130">
+							<template #default="{ row }"><el-input-number v-model="row.strikers_pocketed" :min="0" :max="255" size="small" /></template>
+						</el-table-column>
+					</el-table>
+				</div>
+			</div>
 			<el-alert
 				v-if="form.status === 3"
 				type="warning"
@@ -124,7 +155,7 @@
 			</template>
 		</el-dialog>
 
-		<el-dialog v-model="statsOpen" :title="statsTitle" width="min(860px, 96vw)">
+		<el-dialog v-model="statsOpen" :title="statsTitle" width="min(1080px, 96vw)">
 			<div v-loading="statsLoading">
 				<el-alert
 					v-if="!statsRows.length && !statsLoading"
@@ -140,25 +171,20 @@
 							<small class="text-muted">{{ row.team_name }}</small>
 						</template>
 					</el-table-column>
-					<el-table-column label="Coins pocketed" width="140">
-						<template #default="{ row }">
-							<el-input-number v-model="row.coins_pocketed" :min="0" :max="9" size="small" />
-						</template>
+					<el-table-column label="Own coins" width="140">
+						<template #default="{ row }"><el-input-number v-model="row.coins_pocketed" :min="0" :max="9" size="small" /></template>
 					</el-table-column>
-					<el-table-column label="Strikers pocketed" width="140">
-						<template #default="{ row }">
-							<el-input-number v-model="row.strikers_pocketed" :min="0" :max="255" size="small" />
-						</template>
+					<el-table-column label="Opponent coins" width="150">
+						<template #default="{ row }"><el-input-number v-model="row.opponent_coins_pocketed" :min="0" :max="9" size="small" /></template>
 					</el-table-column>
-					<el-table-column label="Coins fined" width="140">
-						<template #default="{ row }">
-							<el-input-number v-model="row.coins_fined" :min="0" :max="255" size="small" />
-						</template>
+					<el-table-column label="Single fines" width="140">
+						<template #default="{ row }"><el-input-number v-model="row.single_fines" :min="0" :max="255" size="small" /></template>
 					</el-table-column>
-					<el-table-column label="Shots taken" width="140">
-						<template #default="{ row }">
-							<el-input-number v-model="row.shots_taken" :min="0" :max="255" size="small" />
-						</template>
+					<el-table-column label="Double fines" width="140">
+						<template #default="{ row }"><el-input-number v-model="row.double_fines" :min="0" :max="255" size="small" /></template>
+					</el-table-column>
+					<el-table-column label="Strikers" width="130">
+						<template #default="{ row }"><el-input-number v-model="row.strikers_pocketed" :min="0" :max="255" size="small" /></template>
 					</el-table-column>
 				</el-table>
 			</div>
@@ -173,7 +199,8 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
+import { ElMessage } from "element-plus";
 import { Delete, Document, Edit, Plus, VideoPlay } from "@element-plus/icons-vue";
 import { useRouter } from "vue-router";
 import { adminApi } from "@/services/adminService";
@@ -238,6 +265,10 @@ const saving = ref(false);
 const editingMatch = ref(null);
 const formRef = ref(null);
 const form = reactive({});
+const editScoreRows = ref([]);
+const editScoreLoading = ref(false);
+const seasonRoster = ref([]);
+const playedLocked = computed(() => editingMatch.value?.status === 3);
 
 const nextOrder = () => matches.value.reduce((max, match) => Math.max(max, match.order || 0), 0) + 1;
 
@@ -270,6 +301,7 @@ const rules = {
 
 const openCreate = () => {
 	editingMatch.value = null;
+	editScoreRows.value = [];
 	const season = seasons.value.find((item) => item.id === seasonId.value);
 	Object.keys(form).forEach((key) => delete form[key]);
 	Object.assign(form, {
@@ -286,8 +318,65 @@ const openCreate = () => {
 	formRef.value?.clearValidate();
 };
 
-const openEdit = (match) => {
+const metricRows = (match, roster, existingStats) => {
+	const existing = new Map((existingStats || []).map((stat) => [stat.player_id, stat]));
+	return roster
+		.filter((item) => [match.team1, match.team2].includes(item.team_id))
+		.sort((left, right) => (left.team_id === right.team_id ? 0 : left.team_id === match.team1 ? -1 : 1))
+		.map((item) => {
+			const stat = existing.get(item.player_id) || {};
+			return {
+				player_id: item.player_id,
+				team_id: item.team_id,
+				name: `${item.first_name} ${item.last_name}`,
+				team_name: item.team_name,
+				coins_pocketed: stat.coins_pocketed ?? 0,
+				opponent_coins_pocketed: stat.opponent_coins_pocketed ?? 0,
+				single_fines: stat.single_fines || (!stat.double_fines ? stat.coins_fined || 0 : 0),
+				double_fines: stat.double_fines ?? 0,
+				strikers_pocketed: stat.strikers_pocketed ?? 0,
+				shots_taken: stat.shots_taken ?? 0,
+			};
+		});
+};
+
+const statsPayload = (rows) =>
+	rows.map((row) => ({
+		player_id: row.player_id,
+		coins_pocketed: row.coins_pocketed ?? 0,
+		opponent_coins_pocketed: row.opponent_coins_pocketed ?? 0,
+		single_fines: row.single_fines ?? 0,
+		double_fines: row.double_fines ?? 0,
+		strikers_pocketed: row.strikers_pocketed ?? 0,
+		coins_fined: (row.single_fines || 0) + 2 * (row.double_fines || 0),
+		shots_taken: row.shots_taken ?? 0,
+	}));
+
+const colorOverflow = (rows) => {
+	const teams = [...new Set(rows.map((row) => row.team_id))];
+	for (const teamId of teams) {
+		const own = rows.filter((row) => row.team_id === teamId).reduce((sum, row) => sum + (row.coins_pocketed || 0), 0);
+		const otherOpponent = rows
+			.filter((row) => row.team_id !== teamId)
+			.reduce((sum, row) => sum + (row.opponent_coins_pocketed || 0), 0);
+		if (own + otherOpponent > 9) return teamName(teamId);
+	}
+	return "";
+};
+
+const loadMetricRows = async (match) => {
+	const { ok, result } = await runAction(() =>
+		Promise.all([adminApi.rosters.season(match.season_id), adminApi.matches.stats(match.id)]),
+	);
+	if (!ok) return null;
+	seasonRoster.value = unwrap(result[0])?.rosters || [];
+	return metricRows(match, seasonRoster.value, unwrap(result[1]) || []);
+};
+
+const openEdit = async (match) => {
 	editingMatch.value = match;
+	editScoreRows.value = [];
+	seasonRoster.value = [];
 	Object.keys(form).forEach((key) => delete form[key]);
 	Object.assign(form, {
 		team1: match.team1,
@@ -297,20 +386,49 @@ const openEdit = (match) => {
 	});
 	dialogOpen.value = true;
 	formRef.value?.clearValidate();
+	editScoreLoading.value = true;
+	const rows = await loadMetricRows(match);
+	if (rows) editScoreRows.value = rows;
+	editScoreLoading.value = false;
 };
+
+watch(
+	() => [form.team1, form.team2],
+	() => {
+		if (!dialogOpen.value || !editingMatch.value || !seasonRoster.value.length) return;
+		const previous = new Map(editScoreRows.value.map((row) => [row.player_id, row]));
+		const match = { ...editingMatch.value, team1: form.team1, team2: form.team2 };
+		editScoreRows.value = metricRows(match, seasonRoster.value, []).map((row) => previous.get(row.player_id) || row);
+	},
+);
 
 const save = async () => {
 	const valid = await formRef.value.validate().catch(() => false);
 	if (!valid) return;
+	const rows = editingMatch.value ? editScoreRows.value : [];
+	const overflow = colorOverflow(rows);
+	if (overflow) {
+		ElMessage.error(`${overflow} would have more than 9 coins of one colour.`);
+		return;
+	}
 	saving.value = true;
-	const payload = { ...form };
-	const { ok } = await runAction(
-		() =>
-			editingMatch.value
-				? adminApi.matches.update(editingMatch.value.id, payload)
-				: adminApi.matches.create({ ...payload, season_id: seasonId.value }),
-		editingMatch.value ? "Match updated" : "Match scheduled",
-	);
+	let ok = true;
+	if (!playedLocked.value) {
+		const payload = { ...form };
+		({ ok } = await runAction(
+			() =>
+				editingMatch.value
+					? adminApi.matches.update(editingMatch.value.id, payload)
+					: adminApi.matches.create({ ...payload, season_id: seasonId.value }),
+			editingMatch.value ? "Match updated" : "Match scheduled",
+		));
+	}
+	if (ok && editingMatch.value && rows.length) {
+		({ ok } = await runAction(
+			() => adminApi.matches.saveStats(editingMatch.value.id, statsPayload(rows)),
+			playedLocked.value ? "Scorecard saved" : undefined,
+		));
+	}
 	saving.value = false;
 	if (ok) {
 		dialogOpen.value = false;
@@ -341,40 +459,19 @@ const openStats = async (match) => {
 	statsRows.value = [];
 	statsOpen.value = true;
 	statsLoading.value = true;
-	const { ok, result } = await runAction(() =>
-		Promise.all([adminApi.rosters.season(match.season_id), adminApi.matches.stats(match.id)]),
-	);
-	if (ok) {
-		const roster = (unwrap(result[0])?.rosters || []).filter((item) => [match.team1, match.team2].includes(item.team_id));
-		const existing = new Map((unwrap(result[1]) || []).map((stat) => [stat.player_id, stat]));
-		statsRows.value = roster
-			.sort((a, b) => (a.team_id === b.team_id ? 0 : a.team_id === match.team1 ? -1 : 1))
-			.map((item) => {
-				const stat = existing.get(item.player_id) || {};
-				return {
-					player_id: item.player_id,
-					name: `${item.first_name} ${item.last_name}`,
-					team_name: item.team_name,
-					coins_pocketed: stat.coins_pocketed ?? 0,
-					strikers_pocketed: stat.strikers_pocketed ?? 0,
-					coins_fined: stat.coins_fined ?? 0,
-					shots_taken: stat.shots_taken ?? 0,
-				};
-			});
-	}
+	const rows = await loadMetricRows(match);
+	if (rows) statsRows.value = rows;
 	statsLoading.value = false;
 };
 
 const saveStats = async () => {
+	const overflow = colorOverflow(statsRows.value);
+	if (overflow) {
+		ElMessage.error(`${overflow} would have more than 9 coins of one colour.`);
+		return;
+	}
 	statsSaving.value = true;
-	const stats = statsRows.value.map(({ player_id, coins_pocketed, strikers_pocketed, coins_fined, shots_taken }) => ({
-		player_id,
-		coins_pocketed: coins_pocketed ?? 0,
-		strikers_pocketed: strikers_pocketed ?? 0,
-		coins_fined: coins_fined ?? 0,
-		shots_taken: shots_taken ?? 0,
-	}));
-	const { ok } = await runAction(() => adminApi.matches.saveStats(statsMatch.value.id, stats), "Scorecard saved");
+	const { ok } = await runAction(() => adminApi.matches.saveStats(statsMatch.value.id, statsPayload(statsRows.value)), "Scorecard saved");
 	statsSaving.value = false;
 	if (ok) statsOpen.value = false;
 };
@@ -390,3 +487,14 @@ onMounted(async () => {
 	}
 });
 </script>
+
+<style scoped>
+.scorecard-editor {
+	margin-top: 8px;
+}
+
+.scorecard-editor h2 {
+	margin: 0 0 12px;
+	font-size: 16px;
+}
+</style>

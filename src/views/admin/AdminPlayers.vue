@@ -19,7 +19,13 @@
 				<el-table-column label="Player" min-width="220">
 					<template #default="{ row }">
 						<div class="d-flex align-items-center gap-2">
-							<img v-if="row.avatar_url" :src="assetUrl(row.avatar_url)" class="admin-thumb" alt="" />
+							<img
+								v-if="photoFor(row)"
+								:src="photoFor(row)"
+								class="admin-thumb"
+								:alt="`${row.first_name} ${row.last_name}`"
+								@error="hidePhoto(row.id)"
+							/>
 							<el-avatar v-else :size="36">{{ row.first_name.charAt(0) }}{{ row.last_name.charAt(0) }}</el-avatar>
 							<strong>{{ row.first_name }} {{ row.last_name }}</strong>
 						</div>
@@ -66,6 +72,13 @@
 						<el-option v-for="country in countries" :key="country.id" :label="country.name" :value="country.id" />
 					</el-select>
 				</el-form-item>
+				<el-form-item label="Profile photo" class="span-2">
+					<div class="d-flex align-items-center gap-2">
+						<img v-if="formPhoto" :src="formPhoto" class="admin-thumb" alt="" />
+						<el-avatar v-else :size="36">{{ (form.first_name || "?").charAt(0) }}{{ (form.last_name || "").charAt(0) }}</el-avatar>
+						<span>Uses the local file matching this player’s name.</span>
+					</div>
+				</el-form-item>
 				<el-form-item label="Avatar URL" prop="avatar_url" class="span-2">
 					<el-input v-model="form.avatar_url" placeholder="https://… (optional)" />
 				</el-form-item>
@@ -82,7 +95,8 @@
 import { computed, onMounted, reactive, ref } from "vue";
 import { Delete, Edit, Plus, Search } from "@element-plus/icons-vue";
 import { adminApi } from "@/services/adminService";
-import { assetUrl, blankToNull, confirmDelete, matchesSearch, runAction, unwrap } from "@/utils/adminHelpers";
+import { blankToNull, confirmDelete, matchesSearch, runAction, unwrap } from "@/utils/adminHelpers";
+import { localPlayerPhoto } from "@/utils/playerPhotos";
 
 const players = ref([]);
 const countries = ref([]);
@@ -97,6 +111,13 @@ const filtered = computed(() =>
 		matchesSearch(search.value, player.first_name, player.last_name, `${player.first_name} ${player.last_name}`, player.id),
 	),
 );
+
+const hiddenPhotos = ref(new Set());
+const photoFor = (player) => (hiddenPhotos.value.has(player.id) ? "" : localPlayerPhoto(player));
+const hidePhoto = (id) => {
+	hiddenPhotos.value = new Set([...hiddenPhotos.value, id]);
+};
+const formPhoto = computed(() => localPlayerPhoto(form));
 
 const load = async () => {
 	loading.value = true;
