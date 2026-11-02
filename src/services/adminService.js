@@ -24,6 +24,7 @@ export const adminApi = {
 		create: (payload) => api.post("matches", payload),
 		update: (id, payload) => api.patch(`matches/${id}`, payload),
 		remove: (id) => api.delete(`matches/${id}`),
+		reset: (id) => api.post(`matches/${id}/reset`),
 		stats: (id) => api.get(`matches/${id}/stats`),
 		saveStats: (id, stats) => api.put(`matches/${id}/stats`, { stats }),
 	},

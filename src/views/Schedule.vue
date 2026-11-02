@@ -341,11 +341,13 @@ const tally = (match, teamId) =>
 
 const COINS_PER_COLOR = 9;
 
+// A fine puts a pocketed coin back on the board, so a team can pocket more than 9 of its coins
+// once fines are counted; what stays off the board never exceeds 9.
 const creditedCoins = (match, teamId) => {
 	const mine = tally(match, teamId);
 	const otherId = teamId === match.team1_id ? match.team2_id : match.team1_id;
 	const other = otherId ? tally(match, otherId) : { opponent: 0 };
-	const room = Math.max(0, COINS_PER_COLOR - Math.min(COINS_PER_COLOR, other.opponent || 0));
+	const room = Math.max(0, COINS_PER_COLOR - Math.min(COINS_PER_COLOR, other.opponent || 0)) + mine.fines;
 	return Math.min(mine.coins, room);
 };
 

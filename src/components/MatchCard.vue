@@ -77,19 +77,23 @@
 								</div>
 								<div class="score-metric">
 									<span>Own coins pocketed</span>
-									<el-input-number v-model="player.coins" size="small" :min="playerBounds(player, match.team1).ownMin" :max="playerBounds(player, match.team1).ownMax" :readonly="!live" />
+									<el-input-number v-model="player.coins" size="small" :min="playerBounds(player).ownMin" :max="playerBounds(player).ownMax" :readonly="!live" />
+									<small class="score-limit">{{ limitText(playerBounds(player).ownMin, playerBounds(player).ownMax) }}</small>
 								</div>
 								<div class="score-metric">
 									<span>Opponent coins pocketed</span>
-									<el-input-number v-model="player.opponent" size="small" :min="playerBounds(player, match.team1).opponentMin" :max="playerBounds(player, match.team1).opponentMax" :readonly="!live" />
+									<el-input-number v-model="player.opponent" size="small" :min="playerBounds(player).opponentMin" :max="playerBounds(player).opponentMax" :readonly="!live" />
+									<small class="score-limit">{{ limitText(playerBounds(player).opponentMin, playerBounds(player).opponentMax) }}</small>
 								</div>
 								<div class="score-metric">
 									<span>Single fines (1 coin)</span>
-									<el-input-number v-model="player.single" size="small" :min="0" :readonly="!live" />
+									<el-input-number v-model="player.single" size="small" :min="playerBounds(player).singleMin" :max="playerBounds(player).singleMax" :readonly="!live" />
+									<small v-if="playerBounds(player).singleMin" class="score-limit">At least {{ playerBounds(player).singleMin }}</small>
 								</div>
 								<div class="score-metric">
 									<span>Double fines (2 coins)</span>
-									<el-input-number v-model="player.double" size="small" :min="0" :readonly="!live" />
+									<el-input-number v-model="player.double" size="small" :min="playerBounds(player).doubleMin" :max="playerBounds(player).doubleMax" :readonly="!live" />
+									<small v-if="playerBounds(player).doubleMin" class="score-limit">At least {{ playerBounds(player).doubleMin }}</small>
 								</div>
 								<div class="score-metric">
 									<span>Strikers pocketed</span>
@@ -155,19 +159,23 @@
 								</div>
 								<div class="score-metric">
 									<span>Own coins pocketed</span>
-									<el-input-number v-model="player.coins" size="small" :min="playerBounds(player, match.team2).ownMin" :max="playerBounds(player, match.team2).ownMax" :readonly="!live" />
+									<el-input-number v-model="player.coins" size="small" :min="playerBounds(player).ownMin" :max="playerBounds(player).ownMax" :readonly="!live" />
+									<small class="score-limit">{{ limitText(playerBounds(player).ownMin, playerBounds(player).ownMax) }}</small>
 								</div>
 								<div class="score-metric">
 									<span>Opponent coins pocketed</span>
-									<el-input-number v-model="player.opponent" size="small" :min="playerBounds(player, match.team2).opponentMin" :max="playerBounds(player, match.team2).opponentMax" :readonly="!live" />
+									<el-input-number v-model="player.opponent" size="small" :min="playerBounds(player).opponentMin" :max="playerBounds(player).opponentMax" :readonly="!live" />
+									<small class="score-limit">{{ limitText(playerBounds(player).opponentMin, playerBounds(player).opponentMax) }}</small>
 								</div>
 								<div class="score-metric">
 									<span>Single fines (1 coin)</span>
-									<el-input-number v-model="player.single" size="small" :min="0" :readonly="!live" />
+									<el-input-number v-model="player.single" size="small" :min="playerBounds(player).singleMin" :max="playerBounds(player).singleMax" :readonly="!live" />
+									<small v-if="playerBounds(player).singleMin" class="score-limit">At least {{ playerBounds(player).singleMin }}</small>
 								</div>
 								<div class="score-metric">
 									<span>Double fines (2 coins)</span>
-									<el-input-number v-model="player.double" size="small" :min="0" :readonly="!live" />
+									<el-input-number v-model="player.double" size="small" :min="playerBounds(player).doubleMin" :max="playerBounds(player).doubleMax" :readonly="!live" />
+									<small v-if="playerBounds(player).doubleMin" class="score-limit">At least {{ playerBounds(player).doubleMin }}</small>
 								</div>
 								<div class="score-metric">
 									<span>Strikers pocketed</span>
@@ -273,6 +281,14 @@
 					>
 					<template v-else>
 						<el-button
+							v-if="!editingResult"
+							type="danger"
+							plain
+							size="large"
+							@click="requestReset()"
+							>Reset match</el-button
+						>
+						<el-button
 							type="primary"
 							size="large"
 							@click="requestFinish()"
@@ -286,6 +302,14 @@
 						Sign in as an admin to start and record this match.
 					</span>
 					<el-button @click="hideMatchManagementDialog()">Cancel</el-button>
+					<el-button
+						v-if="showResetBtn()"
+						type="danger"
+						plain
+						@click="requestReset()"
+					>
+						Reset match
+					</el-button>
 					<el-button
 						v-if="showResumeBtn()"
 						type="warning"
@@ -313,7 +337,6 @@
 					</el-button>
 				</div>
 			</template>
-			<Countdown :start="showCountdown" />
 		</el-dialog>
 		<el-dialog
 			v-model="showRegulationDecisionDialog"
@@ -460,7 +483,7 @@
 </template>
 
 <script setup>
-import { computed, ref, onUpdated, watch } from "vue";
+import { computed, nextTick, ref, onUpdated, watch } from "vue";
 import { useSeasonStore } from "@/store/seasonStore";
 import { useTeamStore } from "@/store/teamStore";
 import { useMatchStore } from "@/store/matchStore";
@@ -485,10 +508,11 @@ import {
 	takeFullScreen,
 	exitFullScreen,
 } from "../utils/common";
-import Countdown from "./Countdown.vue";
+import { ElMessage, ElMessageBox } from "element-plus";
 import { matchService } from "@/services/matchService";
 import { localPlayerPhoto } from "@/utils/playerPhotos";
-import { coinBounds } from "@/utils/coinLimits";
+import { COINS_PER_COLOR, coinBounds, colourOverflow, fineCoins as fineCoinCount, teamScore } from "@/utils/coinLimits";
+import { matchQueue } from "@/utils/requestQueue";
 
 const props = defineProps({
 	match: Object,
@@ -508,7 +532,6 @@ const matchObject = ref({
 	toss_outcome: null,
 });
 const lock = ref(false);
-const showCountdown = ref(false);
 const matchStarted = ref(false);
 const regulationTimer = ref(0);
 const regulationTimeExhausted = ref(false);
@@ -583,7 +606,6 @@ const resetMatchModalState = () => {
 		toss_outcome: null,
 	};
 	lock.value = false;
-	showCountdown.value = false;
 	matchStarted.value = false;
 	regulationTimer.value = 0;
 	timerFrozenAtZero.value = false;
@@ -608,7 +630,6 @@ watch(showMatchManagementDialog, async (open) => {
 	resetMatchModalState();
 	await Promise.all([
 		pauseBgm(BackgroundMusic.Match, 300),
-		pauseBgm(BackgroundMusic.Countdown, 300),
 		pauseBgm(BackgroundMusic.Horn, 300),
 	]);
 });
@@ -650,72 +671,57 @@ const blockMatchManagement = () => {
 	// return !dayjs(props.match.scheduled_date).isSame(dayjs(), 'day');
 };
 
-const COINS_PER_COLOR = 9;
-
-const metricSum = (players, key, exceptId = undefined) =>
-	players.reduce((total, player) => total + (player.id === exceptId ? 0 : Number(player[key] || 0)), 0);
+const toLimitRow = (player, teamId) => ({
+	id: player.id,
+	teamId,
+	own: player.coins,
+	opponent: player.opponent,
+	single: player.single,
+	double: player.double,
+});
 
 const limitRows = () => [
-	...scorecard.value.team1.players.map((player) => ({
-		id: player.id,
-		teamId: props.match.team1,
-		own: player.coins,
-		opponent: player.opponent,
-		single: player.single,
-		double: player.double,
-	})),
-	...scorecard.value.team2.players.map((player) => ({
-		id: player.id,
-		teamId: props.match.team2,
-		own: player.coins,
-		opponent: player.opponent,
-		single: player.single,
-		double: player.double,
-	})),
+	...scorecard.value.team1.players.map((player) => toLimitRow(player, props.match.team1)),
+	...scorecard.value.team2.players.map((player) => toLimitRow(player, props.match.team2)),
 ];
 
-const playerBounds = (player, teamId) =>
-	coinBounds(limitRows(), {
-		id: player.id,
-		teamId,
-		own: player.coins,
-		opponent: player.opponent,
-		single: player.single,
-		double: player.double,
-	});
+const playerTeamId = (player) =>
+	scorecard.value.team1.players.includes(player) ? props.match.team1 : props.match.team2;
 
-const fineCoins = (player) => Number(player.single || 0) + 2 * Number(player.double || 0);
+const playerBounds = (player) => coinBounds(limitRows(), toLimitRow(player, playerTeamId(player)));
 
-const sideNet = (players) => players.reduce((total, player) => total + Number(player.coins || 0) - fineCoins(player), 0);
+const limitText = (min, max) => (min > 0 ? `${min} to ${max}` : `Up to ${max}`);
+
+const fineCoins = (player) => fineCoinCount(player.single, player.double);
 
 const getInvalidCoinCount = () => {
-	const team1Own = metricSum(scorecard.value.team1.players, "coins");
-	const team2Own = metricSum(scorecard.value.team2.players, "coins");
-	const team1Opponent = metricSum(scorecard.value.team1.players, "opponent");
-	const team2Opponent = metricSum(scorecard.value.team2.players, "opponent");
-	if (team1Own + team2Opponent > COINS_PER_COLOR) {
-		return { teamName: getTeam(props.match.team1)?.name || "Team 1", coins: team1Own + team2Opponent };
-	}
-	if (team2Own + team1Opponent > COINS_PER_COLOR) {
-		return { teamName: getTeam(props.match.team2)?.name || "Team 2", coins: team2Own + team1Opponent };
+	const rows = limitRows();
+	for (const teamId of [props.match.team1, props.match.team2]) {
+		const overflow = colourOverflow(rows, teamId);
+		if (overflow) {
+			return { teamName: getTeam(teamId)?.name || "A team", coins: COINS_PER_COLOR + overflow };
+		}
 	}
 	return null;
 };
 
-const getTeamNetPoints = () => ({
-	team1NetPoints: sideNet(scorecard.value.team1.players),
-	team2NetPoints: sideNet(scorecard.value.team2.players),
-});
+const getTeamNetPoints = () => {
+	const rows = limitRows();
+	return {
+		team1NetPoints: teamScore(rows, props.match.team1),
+		team2NetPoints: teamScore(rows, props.match.team2),
+	};
+};
 
 const getInvalidTeamNetPoints = () => {
 	const { team1NetPoints, team2NetPoints } = getTeamNetPoints();
-	if (team1NetPoints < 0 || team1NetPoints > 9) {
+	if (team1NetPoints > COINS_PER_COLOR) {
 		return {
 			teamName: getTeam(props.match.team1)?.name || "Team 1",
 			netPoints: team1NetPoints,
 		};
 	}
-	if (team2NetPoints < 0 || team2NetPoints > 9) {
+	if (team2NetPoints > COINS_PER_COLOR) {
 		return {
 			teamName: getTeam(props.match.team2)?.name || "Team 2",
 			netPoints: team2NetPoints,
@@ -823,7 +829,48 @@ const syncMatchCardFromApi = (updatedMatch) => {
 	props.match.net_points = updatedMatch.net_points;
 	props.match.golden_strike = updatedMatch.golden_strike;
 	props.match.toss_outcome = updatedMatch.toss_outcome;
+	props.match.duration = updatedMatch.duration;
+	props.match.extra = updatedMatch.extra;
+	props.match.started_at = updatedMatch.started_at;
+	props.match.extra_started_at = updatedMatch.extra_started_at;
 };
+
+const apiMessage = (error, fallback) => error?.message || error?.detail || fallback;
+
+// Every write for this match goes through one queue, so the server sees changes in the order they were made.
+const persistMatch = (payload, what) =>
+	matchQueue(props.match.id).enqueue(async () => {
+		try {
+			const updatedMatch = await matchStore.updateMatch(props.match.id, payload);
+			syncMatchCardFromApi(updatedMatch);
+			return updatedMatch;
+		} catch (error) {
+			ElMessage.error(apiMessage(error, `The ${what} could not be saved.`));
+			throw error;
+		}
+	});
+
+const persistStats = () =>
+	matchQueue(props.match.id).enqueue(async () => {
+		const payload = getMatchStatsPayload();
+		if (!payload.length) return null;
+		try {
+			return await matchStore.updateMatchStats(props.match.id, payload);
+		} catch (error) {
+			ElMessage.error(apiMessage(error, "The scorecard could not be saved."));
+			throw error;
+		}
+	}, "stats");
+
+const scorecardLoading = ref(false);
+
+watch(
+	() => JSON.stringify(getMatchStatsPayload()),
+	(next, previous) => {
+		if (next === previous || !live.value || !matchStarted.value || editingResult.value || scorecardLoading.value) return;
+		persistStats().catch(() => undefined);
+	},
+);
 
 const playHorn = async () => {
 	await playBgm(BackgroundMusic.Horn);
@@ -906,19 +953,21 @@ const getElapsedMatchTime = () => {
 const startExtraTime = async () => {
 	showRegulationDecisionDialog.value = false;
 	extraTimeStarted.value = true;
-	try {
-		await matchStore.updateMatch(props.match.id, { extra: 0 });
-	} catch (error) {
-		console.error("Failed to start extra time", error);
-	}
 	enableFinishBtn.value = false;
 	timerFrozenAtZero.value = false;
 	timerPaused.value = false;
 	pausedTimerSeconds.value = 0;
 	showSaveBtn.value = false;
 	goldenStrikeTaken.value = false;
-	// regulationTimer.value = dayjs().add(5, "minute").valueOf();
 	regulationTimer.value = dayjs().add(extraDurationSeconds, "second").valueOf();
+	try {
+		const updatedMatch = await persistMatch({ extra: 0 }, "extra time start");
+		if (updatedMatch?.extra_started_at) {
+			regulationTimer.value = dayjs(updatedMatch.extra_started_at).valueOf() + extraDurationSeconds * 1000;
+		}
+	} catch (error) {
+		console.error("Failed to start extra time", error);
+	}
 };
 
 const acknowledgeRegulation = () => {
@@ -1030,8 +1079,13 @@ const getStatusText = () => {
 	}
 };
 
+const tossDecided = (value) => value != null && value !== TossOutcome.NotDecided;
+
 const scaleDialog = () => {
-	if (matchObject.value.toss_outcome === null) {
+	if (matchObject.value.toss_outcome == null && tossDecided(props.match.toss_outcome)) {
+		matchObject.value.toss_outcome = props.match.toss_outcome;
+	}
+	if (matchObject.value.toss_outcome == null) {
 		showTossDialog.value = true;
 		return;
 	}
@@ -1039,6 +1093,9 @@ const scaleDialog = () => {
 	showMatchManager.value = true;
 	takeFullScreen();
 	setScorecardPlayerIds();
+	if (matchObject.value.toss_outcome !== props.match.toss_outcome) {
+		persistMatch({ toss_outcome: matchObject.value.toss_outcome }, "toss result").catch(() => undefined);
+	}
 };
 
 const emptyHeadToHead = () => ({
@@ -1075,6 +1132,9 @@ const back = () => {
 	showMatchManager.value = false;
 	matchObject.value.toss_outcome = null;
 	exitFullScreen();
+	if (props.match.status === scheduledStatus() && tossDecided(props.match.toss_outcome)) {
+		persistMatch({ toss_outcome: TossOutcome.NotDecided }, "toss reset").catch(() => undefined);
+	}
 };
 
 const closeTossDialog = () => {
@@ -1099,52 +1159,53 @@ const openGoldenStrikeDialog = () => {
 	showGoldenStrikeDialog.value = true;
 };
 
+const statusId = (name) => MatchStatus.find((status) => status.name === name)?.id;
+const scheduledStatus = () => statusId("Scheduled");
+
 const startMatch = async () => {
 	pauseBgm();
 	clearMatchTimeouts();
 	lock.value = true;
-	showCountdown.value = true;
-	startMatchTimeoutId.value = setTimeout(async () => {
-		startMatchTimeoutId.value = null;
-		await playBgm(BackgroundMusic.Horn);
-		await pauseBgm(BackgroundMusic.Countdown);
-		matchStarted.value = true;
-		live.value = true;
-		try {
-			const inProgressStatus = MatchStatus.find((status) => status.name === "In Progress")?.id;
-			const updatedMatch = await matchStore.updateMatch(props.match.id, {
-				status: inProgressStatus,
+	matchStarted.value = true;
+	live.value = true;
+	enableFinishBtn.value = false;
+	goldenStrikeTaken.value = false;
+	timerFrozenAtZero.value = false;
+	timerPaused.value = false;
+	pausedTimerSeconds.value = 0;
+	showSaveBtn.value = false;
+	extraTimeStarted.value = false;
+	regulationTimeExhausted.value = false;
+	extraTimeExhausted.value = false;
+	const goldenStrike = isGoldenStrikeCategory(props.match.category);
+	if (goldenStrike) {
+		live.value = false;
+		timerFrozenAtZero.value = true;
+		enableFinishBtn.value = true;
+		openGoldenStrikeDialog();
+	} else {
+		regulationTimer.value = dayjs().add(regulationDurationSeconds, "second").valueOf();
+	}
+	playHorn();
+	try {
+		const updatedMatch = await persistMatch(
+			{
+				status: statusId("In Progress"),
 				toss_outcome: matchObject.value.toss_outcome ?? props.match.toss_outcome,
-			});
-			syncMatchCardFromApi(updatedMatch);
-		} catch (error) {
-			console.error("Failed to mark the match live", error);
+			},
+			"match start",
+		);
+		if (!goldenStrike && updatedMatch?.started_at) {
+			regulationTimer.value = dayjs(updatedMatch.started_at).valueOf() + regulationDurationSeconds * 1000;
 		}
-		enableFinishBtn.value = false;
-		goldenStrikeTaken.value = false;
-		timerFrozenAtZero.value = false;
-		timerPaused.value = false;
-		pausedTimerSeconds.value = 0;
-		showSaveBtn.value = false;
-		extraTimeStarted.value = false;
-		if (isGoldenStrikeCategory(props.match.category)) {
-			live.value = false;
-			timerFrozenAtZero.value = true;
-			enableFinishBtn.value = true;
-			openGoldenStrikeDialog();
-			showCountdown.value = false;
-			return;
-		}
-		// regulationTimer.value = dayjs().add(15, "minute").valueOf();
-		regulationTimer.value = dayjs()
-			.add(regulationDurationSeconds, "second")
-			.valueOf();
-		hornStopTimeoutId.value = setTimeout(async () => {
-			hornStopTimeoutId.value = null;
-			await pauseBgm(BackgroundMusic.Horn);
-		}, 4000);
-		showCountdown.value = false;
-	}, 10500);
+	} catch (error) {
+		console.error("Failed to mark the match live", error);
+		lock.value = false;
+		matchStarted.value = false;
+		live.value = false;
+		showGoldenStrikeDialog.value = false;
+		regulationTimer.value = 0;
+	}
 };
 
 const showEditBtn = () =>
@@ -1212,42 +1273,118 @@ const showResumeBtn = () =>
 	authStore.isAuthenticated &&
 	props.match.status === MatchStatus.find((status) => status.name === "In Progress")?.id;
 
-const resumeLiveMatch = () => {
-	showMatchManager.value = true;
-	lock.value = true;
-	matchStarted.value = true;
-	live.value = true;
-	matchObject.value.toss_outcome = props.match.toss_outcome;
-	setScorecardPlayerIds();
-	takeFullScreen();
-
+// The clock always comes from the start time stored on the server, so it keeps running while nobody has the page open.
+const restoreClock = () => {
 	const now = dayjs().valueOf();
 	const regulationStartedAt = props.match.started_at ? dayjs(props.match.started_at).valueOf() : now;
 	const extraStartedAt = props.match.extra_started_at ? dayjs(props.match.extra_started_at).valueOf() : null;
-	extraTimeStarted.value = Boolean(extraStartedAt);
-	regulationTimeExhausted.value = Boolean(extraStartedAt) || regulationStartedAt + regulationDurationSeconds * 1000 <= now;
-	extraTimeExhausted.value = Boolean(extraStartedAt && extraStartedAt + extraDurationSeconds * 1000 <= now);
-	regulationTimer.value = extraStartedAt
-		? extraStartedAt + extraDurationSeconds * 1000
-		: regulationStartedAt + regulationDurationSeconds * 1000;
-	timerFrozenAtZero.value = extraTimeExhausted.value;
-	enableFinishBtn.value = timerFrozenAtZero.value;
+	const regulationEnd = regulationStartedAt + regulationDurationSeconds * 1000;
+	timerPaused.value = false;
+	pausedTimerSeconds.value = 0;
+
+	if (isGoldenStrikeCategory(props.match.category)) {
+		live.value = false;
+		timerFrozenAtZero.value = true;
+		enableFinishBtn.value = true;
+		openGoldenStrikeDialog();
+		return;
+	}
+
+	if (extraStartedAt) {
+		const extraEnd = extraStartedAt + extraDurationSeconds * 1000;
+		regulationTimeExhausted.value = true;
+		extraTimeStarted.value = true;
+		regulationTimer.value = extraEnd;
+		if (extraEnd <= now) {
+			extraTimeExhausted.value = true;
+			timerFrozenAtZero.value = true;
+			enableFinishBtn.value = false;
+			showExtraDecisionDialog.value = true;
+		}
+		return;
+	}
+
+	regulationTimer.value = regulationEnd;
+	if (regulationEnd <= now) {
+		regulationTimeExhausted.value = true;
+		timerFrozenAtZero.value = true;
+		enableFinishBtn.value = false;
+		if (isKnockoutCategory(props.match.category)) {
+			showRegulationDecisionDialog.value = true;
+		} else {
+			showRegulationCompleteDialog.value = true;
+		}
+	}
+};
+
+const resumeLiveMatch = async () => {
+	startLoader("Loading the live match...");
+	try {
+		const response = await matchService.getById(props.match.id);
+		syncMatchCardFromApi(response.data);
+		showMatchManager.value = true;
+		lock.value = true;
+		matchStarted.value = true;
+		live.value = true;
+		matchObject.value.toss_outcome = props.match.toss_outcome;
+		restoreClock();
+		takeFullScreen();
+		await loadScorecard();
+	} catch (error) {
+		console.error("Failed to resume the live match", error);
+		ElMessage.error(apiMessage(error, "The live match could not be loaded."));
+	} finally {
+		pauseLoader();
+	}
 };
 
 const loadScorecard = async () => {
-	setScorecardPlayerIds();
-	const response = await matchService.getStats(props.match.id);
-	const saved = new Map((response.data || []).map((item) => [item.player_id, item]));
-	[...scorecard.value.team1.players, ...scorecard.value.team2.players].forEach((player) => {
-		const stat = saved.get(player.id);
-		if (!stat) return;
-		player.coins = stat.coins_pocketed || 0;
-		player.opponent = stat.opponent_coins_pocketed || 0;
-		player.single = stat.single_fines || (!stat.double_fines ? stat.coins_fined || 0 : 0);
-		player.double = stat.double_fines || 0;
-		player.strikers = stat.strikers_pocketed || 0;
-		player.shots = stat.shots_taken || 0;
-	});
+	scorecardLoading.value = true;
+	try {
+		setScorecardPlayerIds();
+		const response = await matchService.getStats(props.match.id);
+		const saved = new Map((response.data || []).map((item) => [item.player_id, item]));
+		[...scorecard.value.team1.players, ...scorecard.value.team2.players].forEach((player) => {
+			const stat = saved.get(player.id);
+			if (!stat) return;
+			player.coins = stat.coins_pocketed || 0;
+			player.opponent = stat.opponent_coins_pocketed || 0;
+			player.single = stat.single_fines || (!stat.double_fines ? stat.coins_fined || 0 : 0);
+			player.double = stat.double_fines || 0;
+			player.strikers = stat.strikers_pocketed || 0;
+			player.shots = stat.shots_taken || 0;
+		});
+		await nextTick();
+	} finally {
+		scorecardLoading.value = false;
+	}
+};
+
+const showResetBtn = () => authStore.isAuthenticated && props.match.status !== scheduledStatus();
+
+const requestReset = async () => {
+	try {
+		await ElMessageBox.confirm(
+			"This clears the toss, the clock, the result and every player's scorecard, and puts the match back to Scheduled.",
+			"Reset this match?",
+			{ confirmButtonText: "Reset match", cancelButtonText: "Keep it", type: "warning" },
+		);
+	} catch {
+		return;
+	}
+	startLoader("Resetting the match...");
+	try {
+		const resetMatch = await matchQueue(props.match.id).enqueue(() => matchStore.resetMatch(props.match.id));
+		syncMatchCardFromApi(resetMatch);
+		showMatchManagementDialog.value = false;
+		await matchStore.fetchMatches(props.match.season_id);
+		ElMessage.success("The match is back to Scheduled.");
+	} catch (error) {
+		console.error("Failed to reset the match", error);
+		ElMessage.error(apiMessage(error, "The match could not be reset."));
+	} finally {
+		pauseLoader();
+	}
 };
 
 const editScores = async () => {
@@ -1279,14 +1416,14 @@ const requestFinish = () => {
 	const invalidCoinCount = getInvalidCoinCount();
 	if (invalidCoinCount) {
 		window.alert(
-			`${invalidCoinCount.teamName} has ${invalidCoinCount.coins} coins pocketed. Each colour has only 9 coins.`,
+			`${invalidCoinCount.teamName}'s colour has ${invalidCoinCount.coins} coins off the board after fines. Each colour has only 9 coins.`,
 		);
 		return;
 	}
 	const invalidTeamNetPoints = getInvalidTeamNetPoints();
 	if (invalidTeamNetPoints) {
 		window.alert(
-			`${invalidTeamNetPoints.teamName} net points must be between 0 and 9. Current value: ${invalidTeamNetPoints.netPoints}.`,
+			`${invalidTeamNetPoints.teamName} cannot score more than 9 net coins. Current value: ${invalidTeamNetPoints.netPoints}.`,
 		);
 		return;
 	}
@@ -1320,14 +1457,14 @@ const finishMatch = async (forcefully = false) => {
 	const invalidCoinCount = getInvalidCoinCount();
 	if (invalidCoinCount) {
 		window.alert(
-			`${invalidCoinCount.teamName} has ${invalidCoinCount.coins} coins pocketed. Each colour has only 9 coins.`,
+			`${invalidCoinCount.teamName}'s colour has ${invalidCoinCount.coins} coins off the board after fines. Each colour has only 9 coins.`,
 		);
 		return;
 	}
 	const invalidTeamNetPoints = getInvalidTeamNetPoints();
 	if (invalidTeamNetPoints) {
 		window.alert(
-			`${invalidTeamNetPoints.teamName} net points must be between 0 and 9. Current value: ${invalidTeamNetPoints.netPoints}.`,
+			`${invalidTeamNetPoints.teamName} cannot score more than 9 net coins. Current value: ${invalidTeamNetPoints.netPoints}.`,
 		);
 		return;
 	}
@@ -1369,23 +1506,24 @@ const finishMatch = async (forcefully = false) => {
 			props.match.toss_outcome ??
 			TossOutcome.NotDecided;
 
-		const updatedMatch = await matchStore.updateMatch(props.match.id, {
-			status: playedStatus,
-			outcome: finishedMatchMetadata.outcome,
-			net_points: finishedMatchMetadata.netPoints,
-			golden_strike: finishedMatchMetadata.goldenStrike,
-			toss_outcome: tossOutcome,
-			duration: elapsedMatchTime.duration,
-			extra: elapsedMatchTime.extra,
+		await matchQueue(props.match.id).enqueue(async () => {
+			const matchStatsPayload = getMatchStatsPayload();
+			if (matchStatsPayload.length > 0) {
+				await matchStore.updateMatchStats(props.match.id, matchStatsPayload);
+			}
+			const updatedMatch = await matchStore.updateMatch(props.match.id, {
+				status: playedStatus,
+				outcome: finishedMatchMetadata.outcome,
+				net_points: finishedMatchMetadata.netPoints,
+				golden_strike: finishedMatchMetadata.goldenStrike,
+				toss_outcome: tossOutcome,
+				duration: elapsedMatchTime.duration,
+				extra: elapsedMatchTime.extra,
+			});
+			syncMatchCardFromApi(updatedMatch);
 		});
 
-		const matchStatsPayload = getMatchStatsPayload();
-		if (matchStatsPayload.length > 0) {
-			await matchStore.updateMatchStats(props.match.id, matchStatsPayload);
-		}
-
 		winnerTeamId.value = finishedMatchMetadata.winnerTeamId;
-		syncMatchCardFromApi(updatedMatch);
 		await matchStore.fetchMatches(props.match.season_id);
 		showMatchManagementDialog.value = false;
 	} catch (error) {
@@ -1563,12 +1701,18 @@ watch(teamDetails, () => {
 }
 
 .score-metric {
-	display: flex;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto 78px;
 	align-items: center;
-	justify-content: space-between;
 	gap: 8px;
 	margin-top: 6px;
 	font-size: 13px;
+}
+
+.score-limit {
+	color: #6c757d;
+	font-size: 11px;
+	white-space: nowrap;
 }
 
 .score-empty {

@@ -25,6 +25,10 @@ export const matchService = {
 		return await api.put(`matches/${matchId}/stats`, { stats });
 	},
 
+	async reset(matchId) {
+		return await api.post(`matches/${matchId}/reset`);
+	},
+
 	async getStats(matchId) {
 		return await api.get(`matches/${matchId}/stats`);
 	},

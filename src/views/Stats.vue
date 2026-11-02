@@ -7,14 +7,14 @@
 					<div class="stats-title-row">
 						<div class="stats-header poppins-semibold">Golden Striker</div>
 						<el-tooltip
-							content="Tie-break order: fewer fines, then fewer striker pockets."
+							content="Ranked by net coins (coins pocketed minus fined coins), then coins pocketed, fewer double fines, fewer single fines, fewer opponent coins, fewer striker pockets, then name."
 							placement="top"
 						>
 							<el-icon class="info-icon"><InfoFilled /></el-icon>
 						</el-tooltip>
 					</div>
 					<div class="stats-subtitle">
-						The player who pocketed the most coins in this season's league-stage matches
+						The player with the most net coins in this season's league-stage matches
 					</div>
 				</div>
 				<div class="stats-controls">
@@ -63,15 +63,25 @@
 						<div class="player-team">
 							{{ player.team_name || "Team unavailable" }}
 						</div>
-						<div class="coins-pill poppins-semibold">Coins: {{ player.coins_pocketed }}</div>
+						<div class="coins-pill poppins-semibold">Net coins: {{ player.net_coins ?? player.coins_pocketed - (player.coins_fined || 0) }}</div>
 						<div class="metric-row">
 							<div class="metric-box">
-								<div class="metric-label">Fines</div>
-								<div class="metric-value">{{ player.coins_fined || 0 }}</div>
+								<div class="metric-label">Coins</div>
+								<div class="metric-value">{{ player.coins_pocketed || 0 }}</div>
 							</div>
 							<div class="metric-box">
-								<div class="metric-label">Pockets</div>
-								<div class="metric-value">{{ player.strikers_pocketed || 0 }}</div>
+								<div class="metric-label">Opp. coins</div>
+								<div class="metric-value">{{ player.opponent_coins_pocketed || 0 }}</div>
+							</div>
+						</div>
+						<div class="metric-row">
+							<div class="metric-box">
+								<div class="metric-label">Single fines</div>
+								<div class="metric-value">{{ player.single_fines || 0 }}</div>
+							</div>
+							<div class="metric-box">
+								<div class="metric-label">Double fines</div>
+								<div class="metric-value">{{ player.double_fines || 0 }}</div>
 							</div>
 						</div>
 					</div>

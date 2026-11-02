@@ -27,6 +27,7 @@
 				<table class="standings">
 					<thead>
 						<tr>
+							<th scope="col"><abbr title="Rank by net coins, then coins, fewer double fines, fewer single fines, fewer opponent coins, fewer striker pockets">#</abbr></th>
 							<th class="col-player" scope="col">Player</th>
 							<th class="col-team" scope="col">Team</th>
 							<th scope="col"><abbr title="Matches with a recorded scorecard">Matches</abbr></th>
@@ -35,10 +36,12 @@
 							<th scope="col"><abbr title="Strikers pocketed">S</abbr></th>
 							<th scope="col"><abbr title="Single fines">SF</abbr></th>
 							<th scope="col"><abbr title="Double fines">DF</abbr></th>
+							<th scope="col"><abbr title="Net coins: coins pocketed minus fined coins">Net</abbr></th>
 						</tr>
 					</thead>
 					<tbody>
 						<tr v-for="(player, index) in players" :key="player.player_id" :style="{ '--i': index }">
+							<td>{{ index + 1 }}</td>
 							<td class="col-player">
 								<div class="player-cell">
 									<img :src="getPlayerAvatar(player)" alt="" class="avatar" />
@@ -52,6 +55,7 @@
 							<td>{{ player.strikers_pocketed }}</td>
 							<td>{{ player.single_fines }}</td>
 							<td>{{ player.double_fines }}</td>
+							<td class="col-coins">{{ player.net_coins ?? player.coins_pocketed - (player.coins_fined || 0) }}</td>
 						</tr>
 					</tbody>
 				</table>

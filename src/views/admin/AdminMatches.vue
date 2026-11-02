@@ -60,13 +60,24 @@
 				<el-table-column label="Result" min-width="150">
 					<template #default="{ row }">{{ resultText(row) }}</template>
 				</el-table-column>
-				<el-table-column label="Actions" width="250" align="right" fixed="right">
+				<el-table-column label="Actions" width="330" align="right" fixed="right">
 					<template #default="{ row }">
 						<el-button size="small" type="primary" plain @click="openEdit(row)">
 							<el-icon class="me-1"><Edit /></el-icon>Edit
 						</el-button>
 						<el-button size="small" class="ms-1" :disabled="!row.team1 || !row.team2" @click="openStats(row)">
 							<el-icon class="me-1"><Document /></el-icon>Stats
+						</el-button>
+						<el-button
+							v-if="row.status !== 1"
+							size="small"
+							type="warning"
+							plain
+							class="ms-1"
+							:aria-label="`Reset match ${row.order}`"
+							@click="reset(row)"
+						>
+							<el-icon class="me-1"><RefreshLeft /></el-icon>Reset
 						</el-button>
 						<el-button size="small" type="danger" plain @click="remove(row)">
 							<el-icon><Delete /></el-icon>
@@ -131,10 +142,10 @@
 							<template #default="{ row }"><el-input-number v-model="row.opponent_coins_pocketed" :min="bounds(editScoreRows, row).opponentMin" :max="bounds(editScoreRows, row).opponentMax" size="small" /></template>
 						</el-table-column>
 						<el-table-column label="Single fines" width="140">
-							<template #default="{ row }"><el-input-number v-model="row.single_fines" :min="0" :max="255" size="small" /></template>
+							<template #default="{ row }"><el-input-number v-model="row.single_fines" :min="bounds(editScoreRows, row).singleMin" :max="bounds(editScoreRows, row).singleMax" size="small" /></template>
 						</el-table-column>
 						<el-table-column label="Double fines" width="140">
-							<template #default="{ row }"><el-input-number v-model="row.double_fines" :min="0" :max="255" size="small" /></template>
+							<template #default="{ row }"><el-input-number v-model="row.double_fines" :min="bounds(editScoreRows, row).doubleMin" :max="bounds(editScoreRows, row).doubleMax" size="small" /></template>
 						</el-table-column>
 						<el-table-column label="Strikers" width="130">
 							<template #default="{ row }"><el-input-number v-model="row.strikers_pocketed" :min="0" :max="255" size="small" /></template>
@@ -178,10 +189,10 @@
 						<template #default="{ row }"><el-input-number v-model="row.opponent_coins_pocketed" :min="bounds(statsRows, row).opponentMin" :max="bounds(statsRows, row).opponentMax" size="small" /></template>
 					</el-table-column>
 					<el-table-column label="Single fines" width="140">
-						<template #default="{ row }"><el-input-number v-model="row.single_fines" :min="0" :max="255" size="small" /></template>
+						<template #default="{ row }"><el-input-number v-model="row.single_fines" :min="bounds(statsRows, row).singleMin" :max="bounds(statsRows, row).singleMax" size="small" /></template>
 					</el-table-column>
 					<el-table-column label="Double fines" width="140">
-						<template #default="{ row }"><el-input-number v-model="row.double_fines" :min="0" :max="255" size="small" /></template>
+						<template #default="{ row }"><el-input-number v-model="row.double_fines" :min="bounds(statsRows, row).doubleMin" :max="bounds(statsRows, row).doubleMax" size="small" /></template>
 					</el-table-column>
 					<el-table-column label="Strikers" width="130">
 						<template #default="{ row }"><el-input-number v-model="row.strikers_pocketed" :min="0" :max="255" size="small" /></template>
@@ -200,13 +211,13 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from "vue";
-import { ElMessage } from "element-plus";
-import { Delete, Document, Edit, Plus, VideoPlay } from "@element-plus/icons-vue";
+import { ElMessage, ElMessageBox } from "element-plus";
+import { Delete, Document, Edit, Plus, RefreshLeft, VideoPlay } from "@element-plus/icons-vue";
 import { useRouter } from "vue-router";
 import { adminApi } from "@/services/adminService";
 import { confirmDelete, defaultSeasonId, runAction, unwrap } from "@/utils/adminHelpers";
 import { MatchCategory, MatchOutcome, MatchStatus, Routes } from "@/utils/constants";
-import { coinBounds } from "@/utils/coinLimits";
+import { coinBounds, colourOverflow } from "@/utils/coinLimits";
 
 const router = useRouter();
 const seasons = ref([]);
@@ -365,13 +376,10 @@ const limitRow = (row) => ({
 const bounds = (rows, row) => coinBounds(rows.map(limitRow), limitRow(row));
 
 const colorOverflow = (rows) => {
+	const limits = rows.map(limitRow);
 	const teams = [...new Set(rows.map((row) => row.team_id))];
 	for (const teamId of teams) {
-		const own = rows.filter((row) => row.team_id === teamId).reduce((sum, row) => sum + (row.coins_pocketed || 0), 0);
-		const otherOpponent = rows
-			.filter((row) => row.team_id !== teamId)
-			.reduce((sum, row) => sum + (row.opponent_coins_pocketed || 0), 0);
-		if (own + otherOpponent > 9) return teamName(teamId);
+		if (colourOverflow(limits, teamId)) return teamName(teamId);
 	}
 	return "";
 };
@@ -420,7 +428,7 @@ const save = async () => {
 	const rows = editingMatch.value ? editScoreRows.value : [];
 	const overflow = colorOverflow(rows);
 	if (overflow) {
-		ElMessage.error(`${overflow} would have more than 9 coins of one colour.`);
+		ElMessage.error(`${overflow}'s colour would have more than 9 coins off the board after fines.`);
 		return;
 	}
 	saving.value = true;
@@ -446,6 +454,19 @@ const save = async () => {
 		dialogOpen.value = false;
 		await loadSeason();
 	}
+};
+
+const reset = async (match) => {
+	const confirmed = await ElMessageBox.confirm(
+		`Reset match #${match.order} (${teamName(match.team1)} vs ${teamName(match.team2)})? This clears the toss, the clock, the result and every player's scorecard, and puts the match back to Scheduled.`,
+		"Reset match",
+		{ confirmButtonText: "Reset match", cancelButtonText: "Cancel", type: "warning", confirmButtonClass: "el-button--danger" },
+	)
+		.then(() => true)
+		.catch(() => false);
+	if (!confirmed) return;
+	const { ok } = await runAction(() => adminApi.matches.reset(match.id), "Match reset to Scheduled");
+	if (ok) await loadSeason();
 };
 
 const remove = async (match) => {
@@ -479,7 +500,7 @@ const openStats = async (match) => {
 const saveStats = async () => {
 	const overflow = colorOverflow(statsRows.value);
 	if (overflow) {
-		ElMessage.error(`${overflow} would have more than 9 coins of one colour.`);
+		ElMessage.error(`${overflow}'s colour would have more than 9 coins off the board after fines.`);
 		return;
 	}
 	statsSaving.value = true;
