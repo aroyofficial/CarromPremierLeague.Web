@@ -1,11 +1,23 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { ElMessage } from "element-plus";
-import { Routes } from "../utils/constants";
+import { AdminSections, Routes } from "../utils/constants";
+import { authToken } from "../utils/authToken";
 import { useSeasonStore } from "@/store/seasonStore";
 import { useTeamStore } from "@/store/teamStore";
 import { useMatchStore } from "@/store/matchStore";
 import { useRosterStore } from "@/store/rosterStore";
 import { startLoader, pauseLoader } from "../utils/common";
+
+const adminViews = {
+	"admin-dashboard": () => import("@/views/admin/AdminDashboard.vue"),
+	"admin-seasons": () => import("@/views/admin/AdminSeasons.vue"),
+	"admin-teams": () => import("@/views/admin/AdminTeams.vue"),
+	"admin-players": () => import("@/views/admin/AdminPlayers.vue"),
+	"admin-rosters": () => import("@/views/admin/AdminRosters.vue"),
+	"admin-matches": () => import("@/views/admin/AdminMatches.vue"),
+	"admin-countries": () => import("@/views/admin/AdminCountries.vue"),
+	"admin-users": () => import("@/views/admin/AdminUsers.vue"),
+};
 
 const routes = [
 	{
@@ -69,6 +81,17 @@ const routes = [
 		meta: { title: "Admin Login", skipPreload: true },
 	},
 	{
+		path: Routes.ADMIN,
+		component: () => import("@/views/admin/AdminLayout.vue"),
+		meta: { requiresAuth: true, skipPreload: true },
+		children: AdminSections.map((section) => ({
+			path: section.path,
+			name: section.name,
+			component: adminViews[section.name],
+			meta: { title: `Admin · ${section.label}`, requiresAuth: true, skipPreload: true },
+		})),
+	},
+	{
 		path: Routes.NOT_FOUND,
 		name: "not-found",
 		component: () => import("@/views/NotFound.vue"),
@@ -89,6 +112,9 @@ const router = createRouter({
 });
 
 router.beforeEach(async (to) => {
+	if (to.matched.some((record) => record.meta.requiresAuth) && !authToken.get()) {
+		return { path: Routes.LOGIN, query: { redirect: to.fullPath } };
+	}
 	if (to.meta.skipPreload) return true;
 
 	startLoader();

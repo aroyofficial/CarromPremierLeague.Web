@@ -10,7 +10,19 @@ const Routes = Object.freeze({
 	STATS: "/stats",
 	PLAYER_STATS: "/stats/players",
 	LOGIN: "/login",
+	ADMIN: "/admin",
 });
+
+const AdminSections = Object.freeze([
+	{ name: "admin-dashboard", path: "", label: "Overview", icon: "DataBoard" },
+	{ name: "admin-seasons", path: "seasons", label: "Seasons", icon: "Calendar" },
+	{ name: "admin-teams", path: "teams", label: "Teams", icon: "Flag" },
+	{ name: "admin-players", path: "players", label: "Players", icon: "User" },
+	{ name: "admin-rosters", path: "rosters", label: "Rosters", icon: "Connection" },
+	{ name: "admin-matches", path: "matches", label: "Matches", icon: "Trophy" },
+	{ name: "admin-countries", path: "countries", label: "Countries", icon: "Location" },
+	{ name: "admin-users", path: "users", label: "Admin Users", icon: "Lock" },
+]);
 
 const NavItems = Object.freeze([
 	{ label: "Home", path: Routes.HOME },
@@ -97,6 +109,7 @@ const BackgroundMusic = Object.freeze({
 export {
 	Routes,
 	NavItems,
+	AdminSections,
 	LEAGUE_TIMEZONE,
 	MatchStatus,
 	MatchCategory,

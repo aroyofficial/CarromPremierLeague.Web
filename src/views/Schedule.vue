@@ -423,7 +423,7 @@ const formatClock = (totalSeconds) => {
 
 const isKnockout = (match) => {
 	const name = categoryName(match.category);
-	return name === "Final" || name === "Eliminator";
+	return ["Eliminator", "Qualifier 1", "Qualifier 2", "Final"].includes(name);
 };
 
 const clockState = (match) => {
@@ -1484,6 +1484,12 @@ onUnmounted(() => {
 }
 
 @media (max-width: 767.98px) {
+	.action {
+		min-height: 40px;
+		padding-right: 16px;
+		padding-left: 16px;
+	}
+
 	.drawer-grid,
 	.player-columns {
 		grid-template-columns: 1fr;

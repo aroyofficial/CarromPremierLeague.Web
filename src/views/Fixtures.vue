@@ -239,6 +239,7 @@
 
 <script setup>
 import { ref, onMounted, watch } from "vue";
+import { useRoute } from "vue-router";
 import { useSeasonStore } from "@/store/seasonStore";
 import { useTeamStore } from "@/store/teamStore";
 import { useMatchStore } from "@/store/matchStore";
@@ -251,6 +252,7 @@ import MatchCard from "../components/MatchCard.vue";
 import { startLoader, pauseLoader } from "../utils/common";
 
 const seasonStore = useSeasonStore();
+const route = useRoute();
 const teamStore = useTeamStore();
 const matchStore = useMatchStore();
 const rosterStore = useRosterStore();
@@ -432,12 +434,16 @@ const scheduleMatch = async () => {
 	}
 };
 
-onMounted(() => {
+onMounted(async () => {
 	seasons.value = seasonStore.visibleSeasons;
 	teams.value = teamStore.teams;
-	fixtureFilter.value.season = seasonStore.selectedSeason;
+	const requestedSeason = Number(route.query.season);
+	fixtureFilter.value.season = seasons.value.some((season) => season.id === requestedSeason)
+		? requestedSeason
+		: seasonStore.selectedSeason;
 	matchObject.value.order = matchStore.nextMatchOrder;
 	matches.value = matchStore.matches;
+	if (fixtureFilter.value.season) await fetchMatches();
 });
 </script>
 
@@ -453,10 +459,42 @@ onMounted(() => {
 #fixtures-filter {
 	padding: 0px 15%;
 	margin-bottom: 20px;
+	flex-wrap: wrap;
 }
 
 #fixtures-paginated-table {
 	padding: 0px 15%;
 	min-height: calc(100vh - 216px);
+}
+
+@media (max-width: 991.98px) {
+	#fixtures-filter,
+	#fixtures-paginated-table {
+		padding-right: 5%;
+		padding-left: 5%;
+	}
+}
+
+@media (max-width: 575.98px) {
+	#fixtures-wrapper {
+		margin-top: 1.5rem !important;
+	}
+
+	#fixtures-filter {
+		display: grid !important;
+		grid-template-columns: 1fr;
+		padding-right: 16px;
+		padding-left: 16px;
+		gap: 10px !important;
+
+		> * {
+			width: 100% !important;
+		}
+	}
+
+	#fixtures-paginated-table {
+		padding-right: 12px;
+		padding-left: 12px;
+	}
 }
 </style>

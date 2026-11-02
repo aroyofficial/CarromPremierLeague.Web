@@ -24,6 +24,9 @@
 
 			<div class="nav-actions desktop-only">
 				<template v-if="authStore.isAuthenticated">
+					<router-link :to="Routes.ADMIN" class="btn-gold">
+						<el-icon><Setting /></el-icon>Admin
+					</router-link>
 					<span class="admin-chip">
 						<el-icon><UserFilled /></el-icon>{{ authStore.username }}
 					</span>
@@ -64,6 +67,9 @@
 				</ul>
 				<div class="mobile-actions">
 					<template v-if="authStore.isAuthenticated">
+						<router-link :to="Routes.ADMIN" class="btn-gold w-100" @click="closeMenu">
+							<el-icon><Setting /></el-icon>Admin Console
+						</router-link>
 						<span class="admin-chip">
 							<el-icon><UserFilled /></el-icon>{{ authStore.username }}
 						</span>
@@ -84,7 +90,7 @@
 <script setup>
 import { ref, watch, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { Lock, UserFilled } from "@element-plus/icons-vue";
+import { Lock, Setting, UserFilled } from "@element-plus/icons-vue";
 import { NavItems, Routes } from "@/utils/constants";
 import { resolveAsset } from "@/utils/common";
 import { useAuthStore } from "@/store/authStore";

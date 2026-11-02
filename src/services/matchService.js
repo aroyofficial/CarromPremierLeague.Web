@@ -24,4 +24,8 @@ export const matchService = {
 	async updateStats(matchId, stats) {
 		return await api.put(`matches/${matchId}/stats`, { stats });
 	},
+
+	async getStats(matchId) {
+		return await api.get(`matches/${matchId}/stats`);
+	},
 };
