@@ -125,10 +125,10 @@
 							</template>
 						</el-table-column>
 						<el-table-column label="Own coins" width="140">
-							<template #default="{ row }"><el-input-number v-model="row.coins_pocketed" :min="0" :max="9" size="small" /></template>
+							<template #default="{ row }"><el-input-number v-model="row.coins_pocketed" :min="bounds(editScoreRows, row).ownMin" :max="bounds(editScoreRows, row).ownMax" size="small" /></template>
 						</el-table-column>
 						<el-table-column label="Opponent coins" width="150">
-							<template #default="{ row }"><el-input-number v-model="row.opponent_coins_pocketed" :min="0" :max="9" size="small" /></template>
+							<template #default="{ row }"><el-input-number v-model="row.opponent_coins_pocketed" :min="bounds(editScoreRows, row).opponentMin" :max="bounds(editScoreRows, row).opponentMax" size="small" /></template>
 						</el-table-column>
 						<el-table-column label="Single fines" width="140">
 							<template #default="{ row }"><el-input-number v-model="row.single_fines" :min="0" :max="255" size="small" /></template>
@@ -172,10 +172,10 @@
 						</template>
 					</el-table-column>
 					<el-table-column label="Own coins" width="140">
-						<template #default="{ row }"><el-input-number v-model="row.coins_pocketed" :min="0" :max="9" size="small" /></template>
+						<template #default="{ row }"><el-input-number v-model="row.coins_pocketed" :min="bounds(statsRows, row).ownMin" :max="bounds(statsRows, row).ownMax" size="small" /></template>
 					</el-table-column>
 					<el-table-column label="Opponent coins" width="150">
-						<template #default="{ row }"><el-input-number v-model="row.opponent_coins_pocketed" :min="0" :max="9" size="small" /></template>
+						<template #default="{ row }"><el-input-number v-model="row.opponent_coins_pocketed" :min="bounds(statsRows, row).opponentMin" :max="bounds(statsRows, row).opponentMax" size="small" /></template>
 					</el-table-column>
 					<el-table-column label="Single fines" width="140">
 						<template #default="{ row }"><el-input-number v-model="row.single_fines" :min="0" :max="255" size="small" /></template>
@@ -206,6 +206,7 @@ import { useRouter } from "vue-router";
 import { adminApi } from "@/services/adminService";
 import { confirmDelete, defaultSeasonId, runAction, unwrap } from "@/utils/adminHelpers";
 import { MatchCategory, MatchOutcome, MatchStatus, Routes } from "@/utils/constants";
+import { coinBounds } from "@/utils/coinLimits";
 
 const router = useRouter();
 const seasons = ref([]);
@@ -351,6 +352,17 @@ const statsPayload = (rows) =>
 		coins_fined: (row.single_fines || 0) + 2 * (row.double_fines || 0),
 		shots_taken: row.shots_taken ?? 0,
 	}));
+
+const limitRow = (row) => ({
+	id: row.player_id,
+	teamId: row.team_id,
+	own: row.coins_pocketed,
+	opponent: row.opponent_coins_pocketed,
+	single: row.single_fines,
+	double: row.double_fines,
+});
+
+const bounds = (rows, row) => coinBounds(rows.map(limitRow), limitRow(row));
 
 const colorOverflow = (rows) => {
 	const teams = [...new Set(rows.map((row) => row.team_id))];

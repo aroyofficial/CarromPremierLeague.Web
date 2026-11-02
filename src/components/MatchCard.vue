@@ -77,11 +77,11 @@
 								</div>
 								<div class="score-metric">
 									<span>Own coins pocketed</span>
-									<el-input-number v-model="player.coins" size="small" :min="0" :max="ownCoinMax('team1', player)" :readonly="!live" />
+									<el-input-number v-model="player.coins" size="small" :min="playerBounds(player, match.team1).ownMin" :max="playerBounds(player, match.team1).ownMax" :readonly="!live" />
 								</div>
 								<div class="score-metric">
 									<span>Opponent coins pocketed</span>
-									<el-input-number v-model="player.opponent" size="small" :min="0" :max="opponentCoinMax('team1', player)" :readonly="!live" />
+									<el-input-number v-model="player.opponent" size="small" :min="playerBounds(player, match.team1).opponentMin" :max="playerBounds(player, match.team1).opponentMax" :readonly="!live" />
 								</div>
 								<div class="score-metric">
 									<span>Single fines (1 coin)</span>
@@ -155,11 +155,11 @@
 								</div>
 								<div class="score-metric">
 									<span>Own coins pocketed</span>
-									<el-input-number v-model="player.coins" size="small" :min="0" :max="ownCoinMax('team2', player)" :readonly="!live" />
+									<el-input-number v-model="player.coins" size="small" :min="playerBounds(player, match.team2).ownMin" :max="playerBounds(player, match.team2).ownMax" :readonly="!live" />
 								</div>
 								<div class="score-metric">
 									<span>Opponent coins pocketed</span>
-									<el-input-number v-model="player.opponent" size="small" :min="0" :max="opponentCoinMax('team2', player)" :readonly="!live" />
+									<el-input-number v-model="player.opponent" size="small" :min="playerBounds(player, match.team2).opponentMin" :max="playerBounds(player, match.team2).opponentMax" :readonly="!live" />
 								</div>
 								<div class="score-metric">
 									<span>Single fines (1 coin)</span>
@@ -488,6 +488,7 @@ import {
 import Countdown from "./Countdown.vue";
 import { matchService } from "@/services/matchService";
 import { localPlayerPhoto } from "@/utils/playerPhotos";
+import { coinBounds } from "@/utils/coinLimits";
 
 const props = defineProps({
 	match: Object,
@@ -654,21 +655,34 @@ const COINS_PER_COLOR = 9;
 const metricSum = (players, key, exceptId = undefined) =>
 	players.reduce((total, player) => total + (player.id === exceptId ? 0 : Number(player[key] || 0)), 0);
 
-const ownCoinMax = (side, player) => {
-	const otherSide = side === "team1" ? "team2" : "team1";
-	const used =
-		metricSum(scorecard.value[side].players, "coins", player.id) +
-		metricSum(scorecard.value[otherSide].players, "opponent");
-	return Math.max(0, COINS_PER_COLOR - used);
-};
+const limitRows = () => [
+	...scorecard.value.team1.players.map((player) => ({
+		id: player.id,
+		teamId: props.match.team1,
+		own: player.coins,
+		opponent: player.opponent,
+		single: player.single,
+		double: player.double,
+	})),
+	...scorecard.value.team2.players.map((player) => ({
+		id: player.id,
+		teamId: props.match.team2,
+		own: player.coins,
+		opponent: player.opponent,
+		single: player.single,
+		double: player.double,
+	})),
+];
 
-const opponentCoinMax = (side, player) => {
-	const otherSide = side === "team1" ? "team2" : "team1";
-	const used =
-		metricSum(scorecard.value[side].players, "opponent", player.id) +
-		metricSum(scorecard.value[otherSide].players, "coins");
-	return Math.max(0, COINS_PER_COLOR - used);
-};
+const playerBounds = (player, teamId) =>
+	coinBounds(limitRows(), {
+		id: player.id,
+		teamId,
+		own: player.coins,
+		opponent: player.opponent,
+		single: player.single,
+		double: player.double,
+	});
 
 const fineCoins = (player) => Number(player.single || 0) + 2 * Number(player.double || 0);
 
