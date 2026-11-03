@@ -352,9 +352,11 @@ const creditedCoins = (match, teamId) => {
 };
 
 const teamScore = (match, teamId) => {
-	const totals = tally(match, teamId);
-	// A due fine can take owned coins below zero. The result shows 0.
-	return Math.max(0, creditedCoins(match, teamId) - totals.fines);
+	const mine = tally(match, teamId);
+	const otherId = teamId === match.team1_id ? match.team2_id : match.team1_id;
+	const other = otherId ? tally(match, otherId) : { opponent: 0 };
+	// Coins of this colour the other team pocketed count in the score. A due fine floors own coins at zero.
+	return Math.max(0, mine.coins - mine.fines) + (other.opponent || 0);
 };
 
 const teamRows = (match) => {
@@ -396,7 +398,7 @@ const tossSide = (match) => {
 	return "";
 };
 
-const showToss = (match) => (isLive(match) || isPlayed(match)) && tossSide(match) !== "";
+const showToss = (match) => tossSide(match) !== "";
 
 const showChance = (match) => (isScheduled(match) || isLive(match)) && match.win_probability;
 

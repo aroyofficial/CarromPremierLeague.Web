@@ -83,7 +83,7 @@
 								<div class="score-metric">
 									<span>Opponent coins pocketed</span>
 									<el-input-number v-model="player.opponent" size="small" :min="playerBounds(player).opponentMin" :max="playerBounds(player).opponentMax" :readonly="!live" />
-									<small class="score-limit">{{ limitText(playerBounds(player).opponentMin, playerBounds(player).opponentMax) }}</small>
+									<small class="score-limit">{{ opponentLimitText(player) }}</small>
 								</div>
 								<div class="score-metric">
 									<span>Single fines (1 coin)</span>
@@ -165,7 +165,7 @@
 								<div class="score-metric">
 									<span>Opponent coins pocketed</span>
 									<el-input-number v-model="player.opponent" size="small" :min="playerBounds(player).opponentMin" :max="playerBounds(player).opponentMax" :readonly="!live" />
-									<small class="score-limit">{{ limitText(playerBounds(player).opponentMin, playerBounds(player).opponentMax) }}</small>
+									<small class="score-limit">{{ opponentLimitText(player) }}</small>
 								</div>
 								<div class="score-metric">
 									<span>Single fines (1 coin)</span>
@@ -273,6 +273,14 @@
 						>Back</el-button
 					>
 					<el-button
+						v-if="!lock && showResetTossBtn()"
+						type="warning"
+						plain
+						size="large"
+						@click="resetToss()"
+						>Reset toss</el-button
+					>
+					<el-button
 						v-if="!lock"
 						@click="startMatch()"
 						size="large"
@@ -302,6 +310,14 @@
 						Sign in as an admin to start and record this match.
 					</span>
 					<el-button @click="hideMatchManagementDialog()">Cancel</el-button>
+					<el-button
+						v-if="showResetTossBtn()"
+						type="warning"
+						plain
+						@click="resetToss()"
+					>
+						Reset toss
+					</el-button>
 					<el-button
 						v-if="showResetBtn()"
 						type="danger"
@@ -691,6 +707,8 @@ const playerTeamId = (player) =>
 const playerBounds = (player) => coinBounds(limitRows(), toLimitRow(player, playerTeamId(player)));
 
 const limitText = (min, max) => (min > 0 ? `${min} to ${max}` : `Up to ${max}`);
+
+const opponentLimitText = (player) => `Up to ${playerBounds(player).opponentCap}`;
 
 const fineCoins = (player) => fineCoinCount(player.single, player.double);
 
@@ -1361,6 +1379,36 @@ const loadScorecard = async () => {
 };
 
 const showResetBtn = () => authStore.isAuthenticated && props.match.status !== scheduledStatus();
+
+const showResetTossBtn = () =>
+	authStore.isAuthenticated &&
+	props.match.status === scheduledStatus() &&
+	tossDecided(props.match.toss_outcome);
+
+const resetToss = async () => {
+	try {
+		await ElMessageBox.confirm(
+			"Clear the toss? The match stays scheduled, and the toss can be called again.",
+			"Reset the toss?",
+			{ confirmButtonText: "Reset toss", cancelButtonText: "Keep it", type: "warning" },
+		);
+	} catch {
+		return;
+	}
+	const returnToToss = showMatchManager.value && !lock.value;
+	try {
+		await persistMatch({ toss_outcome: TossOutcome.NotDecided }, "toss reset");
+		matchObject.value.toss_outcome = null;
+		ElMessage.success("The toss has been cleared.");
+		if (returnToToss) {
+			showMatchManager.value = false;
+			exitFullScreen();
+			showTossDialog.value = true;
+		}
+	} catch (error) {
+		console.error("Failed to reset the toss", error);
+	}
+};
 
 const requestReset = async () => {
 	try {

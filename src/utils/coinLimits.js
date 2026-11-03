@@ -24,10 +24,11 @@ export const teamTotals = (rows, teamId) => {
 	return { mine, other };
 };
 
-// Net coins scored by a team; a due fine floors the score at zero.
+// Score is the coins of this colour off the board. A due fine floors the team's own
+// pockets at zero, and coins of this colour pocketed by the other team still count.
 export const teamScore = (rows, teamId) => {
-	const { mine } = teamTotals(rows, teamId);
-	return Math.max(0, mine.own - mine.fines);
+	const { mine, other } = teamTotals(rows, teamId);
+	return offBoard(mine, other);
 };
 
 export const colourOverflow = (rows, teamId) => {
@@ -47,10 +48,10 @@ export const coinBounds = (rows, row) => {
 	const { mine, other } = teamTotals(rows, row.teamId);
 
 	const ownMax = Math.max(0, COINS_PER_COLOR + mine.fines - other.opponent - (mine.own - own));
-	const opponentMax = Math.max(
-		0,
-		COINS_PER_COLOR - Math.max(0, other.own - other.fines) - (mine.opponent - opponent),
-	);
+	// The other colour still free is one number for the whole team. Each player's counter
+	// then stops early once a teammate has already pocketed some of those coins.
+	const opponentCap = Math.max(0, COINS_PER_COLOR - Math.max(0, other.own - other.fines));
+	const opponentMax = Math.max(0, opponentCap - (mine.opponent - opponent));
 
 	const finesNeeded = Math.max(0, mine.own + other.opponent - COINS_PER_COLOR);
 	const otherFines = mine.fines - fineCoins(single, double);
@@ -67,6 +68,7 @@ export const coinBounds = (rows, row) => {
 		ownMax: ownLimits.max,
 		opponentMin: opponentLimits.min,
 		opponentMax: opponentLimits.max,
+		opponentCap,
 		singleMin: singleLimits.min,
 		singleMax: singleLimits.max,
 		doubleMin: doubleLimits.min,

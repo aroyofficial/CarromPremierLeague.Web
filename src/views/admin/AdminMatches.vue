@@ -57,10 +57,10 @@
 						<el-tag :type="statusTag(row.status)" size="small">{{ statusName(row.status) }}</el-tag>
 					</template>
 				</el-table-column>
-				<el-table-column label="Result" min-width="150">
+				<el-table-column label="Result" min-width="170">
 					<template #default="{ row }">{{ resultText(row) }}</template>
 				</el-table-column>
-				<el-table-column label="Actions" width="330" align="right" fixed="right">
+				<el-table-column label="Actions" width="430" align="right" fixed="right">
 					<template #default="{ row }">
 						<el-button size="small" type="primary" plain @click="openEdit(row)">
 							<el-icon class="me-1"><Edit /></el-icon>Edit
@@ -78,6 +78,17 @@
 							@click="reset(row)"
 						>
 							<el-icon class="me-1"><RefreshLeft /></el-icon>Reset
+						</el-button>
+						<el-button
+							v-if="canResetToss(row)"
+							size="small"
+							type="warning"
+							plain
+							class="ms-1"
+							:aria-label="`Reset toss for match ${row.order}`"
+							@click="resetToss(row)"
+						>
+							Reset toss
 						</el-button>
 						<el-button size="small" type="danger" plain @click="remove(row)">
 							<el-icon><Delete /></el-icon>
@@ -216,7 +227,7 @@ import { Delete, Document, Edit, Plus, RefreshLeft, VideoPlay } from "@element-p
 import { useRouter } from "vue-router";
 import { adminApi } from "@/services/adminService";
 import { confirmDelete, defaultSeasonId, runAction, unwrap } from "@/utils/adminHelpers";
-import { MatchCategory, MatchOutcome, MatchStatus, Routes } from "@/utils/constants";
+import { MatchCategory, MatchOutcome, MatchStatus, Routes, TossOutcome } from "@/utils/constants";
 import { coinBounds, colourOverflow } from "@/utils/coinLimits";
 
 const router = useRouter();
@@ -250,12 +261,22 @@ const filteredMatches = computed(() =>
 	statusFilter.value ? matches.value.filter((match) => match.status === statusFilter.value) : matches.value,
 );
 
+const tossWinnerName = (match) => {
+	if (match.toss_outcome === TossOutcome.Team1Won) return teamName(match.team1);
+	if (match.toss_outcome === TossOutcome.Team2Won) return teamName(match.team2);
+	return "";
+};
+
+const canResetToss = (match) => match.status === 1 && tossWinnerName(match) !== "";
+
 const resultText = (match) => {
 	if (match.outcome === MatchOutcome.Team1Won || match.outcome === MatchOutcome.Team2Won) {
 		const winner = match.outcome === MatchOutcome.Team1Won ? match.team1 : match.team2;
 		const points = match.net_points != null ? ` by ${match.net_points}` : "";
 		return `${teamName(winner)} won${points}`;
 	}
+	const tossWinner = tossWinnerName(match);
+	if (match.status === 1 && tossWinner) return `${tossWinner} won the toss`;
 	return match.status === 3 ? "No result" : "–";
 };
 
@@ -454,6 +475,23 @@ const save = async () => {
 		dialogOpen.value = false;
 		await loadSeason();
 	}
+};
+
+const resetToss = async (match) => {
+	const winner = tossWinnerName(match);
+	const confirmed = await ElMessageBox.confirm(
+		`Reset the toss for match #${match.order}? ${winner} won the toss, and the match has not started. The fixture stays Scheduled.`,
+		"Reset toss",
+		{ confirmButtonText: "Reset toss", cancelButtonText: "Cancel", type: "warning" },
+	)
+		.then(() => true)
+		.catch(() => false);
+	if (!confirmed) return;
+	const { ok } = await runAction(
+		() => adminApi.matches.update(match.id, { toss_outcome: TossOutcome.NotDecided }),
+		"Toss reset",
+	);
+	if (ok) await loadSeason();
 };
 
 const reset = async (match) => {
