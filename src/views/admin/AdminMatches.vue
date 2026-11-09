@@ -32,67 +32,53 @@
 				title="Match timing is enforced"
 				description="League matches run for 15 minutes only. Eliminator, Qualifier 1, Qualifier 2 and Final run 15 minutes; a tie runs five minutes of extra time, then Golden Strike."
 			/>
-			<el-table :data="filteredMatches" v-loading="loading" empty-text="No matches in this season yet" stripe>
-				<el-table-column prop="order" label="#" width="60" />
-				<el-table-column label="Date" width="115">
+			<el-table class="matches-table" :data="filteredMatches" v-loading="loading" empty-text="No matches in this season yet" stripe>
+				<el-table-column prop="order" label="#" width="52" />
+				<el-table-column label="Date" width="112">
 					<template #default="{ row }">{{ row.scheduled_date }}</template>
 				</el-table-column>
-				<el-table-column label="Category" width="130">
+				<el-table-column label="Category" width="110">
 					<template #default="{ row }">{{ categoryName(row.category) }}</template>
 				</el-table-column>
-				<el-table-column label="Format" min-width="175">
+				<el-table-column label="Format" width="168">
 					<template #default="{ row }">
 						<el-tag size="small" effect="plain">{{ matchFormat(row.category) }}</el-tag>
 					</template>
 				</el-table-column>
-				<el-table-column label="Fixture" min-width="240">
+				<el-table-column label="Fixture" min-width="220">
 					<template #default="{ row }">
-						<span :class="{ 'fw-bold': row.outcome === MatchOutcome.Team1Won }">{{ teamName(row.team1) }}</span>
-						<span class="text-muted mx-1">vs</span>
-						<span :class="{ 'fw-bold': row.outcome === MatchOutcome.Team2Won }">{{ teamName(row.team2) }}</span>
+						<span class="fixture-line">
+							<span :class="{ 'fw-bold': row.outcome === MatchOutcome.Team1Won }">{{ teamName(row.team1) }}</span>
+							<span class="text-muted mx-1">vs</span>
+							<span :class="{ 'fw-bold': row.outcome === MatchOutcome.Team2Won }">{{ teamName(row.team2) }}</span>
+						</span>
 					</template>
 				</el-table-column>
-				<el-table-column label="Status" width="120">
+				<el-table-column label="Status" width="108">
 					<template #default="{ row }">
 						<el-tag :type="statusTag(row.status)" size="small">{{ statusName(row.status) }}</el-tag>
 					</template>
 				</el-table-column>
-				<el-table-column label="Result" min-width="170">
+				<el-table-column label="Result" min-width="160">
 					<template #default="{ row }">{{ resultText(row) }}</template>
 				</el-table-column>
-				<el-table-column label="Actions" width="430" align="right" fixed="right">
+				<el-table-column label="" width="118" align="right">
 					<template #default="{ row }">
-						<el-button size="small" type="primary" plain @click="openEdit(row)">
-							<el-icon class="me-1"><Edit /></el-icon>Edit
-						</el-button>
-						<el-button size="small" class="ms-1" :disabled="!row.team1 || !row.team2" @click="openStats(row)">
-							<el-icon class="me-1"><Document /></el-icon>Stats
-						</el-button>
-						<el-button
-							v-if="row.status !== 1"
-							size="small"
-							type="warning"
-							plain
-							class="ms-1"
-							:aria-label="`Reset match ${row.order}`"
-							@click="reset(row)"
-						>
-							<el-icon class="me-1"><RefreshLeft /></el-icon>Reset
-						</el-button>
-						<el-button
-							v-if="canResetToss(row)"
-							size="small"
-							type="warning"
-							plain
-							class="ms-1"
-							:aria-label="`Reset toss for match ${row.order}`"
-							@click="resetToss(row)"
-						>
-							Reset toss
-						</el-button>
-						<el-button size="small" type="danger" plain @click="remove(row)">
-							<el-icon><Delete /></el-icon>
-						</el-button>
+						<div class="row-actions">
+							<el-button size="small" type="primary" plain @click="openEdit(row)">Edit</el-button>
+							<el-dropdown trigger="click" @command="(command) => runRowCommand(command, row)">
+								<el-button size="small" :aria-label="`More actions for match ${row.order}`">
+									<el-icon><MoreFilled /></el-icon>
+								</el-button>
+								<template #dropdown>
+									<el-dropdown-menu>
+										<el-dropdown-item v-if="row.status !== 1" command="reset">Reset match</el-dropdown-item>
+										<el-dropdown-item v-if="canResetToss(row)" command="reset-toss">Reset toss</el-dropdown-item>
+										<el-dropdown-item command="delete" divided>Delete match</el-dropdown-item>
+									</el-dropdown-menu>
+								</template>
+							</el-dropdown>
+						</div>
 					</template>
 				</el-table-column>
 			</el-table>
@@ -177,53 +163,13 @@
 			</template>
 		</el-dialog>
 
-		<el-dialog v-model="statsOpen" :title="statsTitle" width="min(1080px, 96vw)">
-			<div v-loading="statsLoading">
-				<el-alert
-					v-if="!statsRows.length && !statsLoading"
-					type="info"
-					:closable="false"
-					show-icon
-					title="No players are on these teams' rosters for this season. Assign players on the Rosters page."
-				/>
-				<el-table v-else :data="statsRows" size="small">
-					<el-table-column label="Player" min-width="180">
-						<template #default="{ row }">
-							<div>{{ row.name }}</div>
-							<small class="text-muted">{{ row.team_name }}</small>
-						</template>
-					</el-table-column>
-					<el-table-column label="Own coins" width="140">
-						<template #default="{ row }"><el-input-number v-model="row.coins_pocketed" :min="bounds(statsRows, row).ownMin" :max="bounds(statsRows, row).ownMax" size="small" /></template>
-					</el-table-column>
-					<el-table-column label="Opponent coins" width="150">
-						<template #default="{ row }"><el-input-number v-model="row.opponent_coins_pocketed" :min="bounds(statsRows, row).opponentMin" :max="bounds(statsRows, row).opponentMax" size="small" /></template>
-					</el-table-column>
-					<el-table-column label="Single fines" width="140">
-						<template #default="{ row }"><el-input-number v-model="row.single_fines" :min="bounds(statsRows, row).singleMin" :max="bounds(statsRows, row).singleMax" size="small" /></template>
-					</el-table-column>
-					<el-table-column label="Double fines" width="140">
-						<template #default="{ row }"><el-input-number v-model="row.double_fines" :min="bounds(statsRows, row).doubleMin" :max="bounds(statsRows, row).doubleMax" size="small" /></template>
-					</el-table-column>
-					<el-table-column label="Strikers" width="130">
-						<template #default="{ row }"><el-input-number v-model="row.strikers_pocketed" :min="0" :max="255" size="small" /></template>
-					</el-table-column>
-				</el-table>
-			</div>
-			<template #footer>
-				<el-button @click="statsOpen = false">Cancel</el-button>
-				<el-button type="primary" :disabled="!statsRows.length" :loading="statsSaving" @click="saveStats">
-					Save scorecard
-				</el-button>
-			</template>
-		</el-dialog>
 	</div>
 </template>
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { Delete, Document, Edit, Plus, RefreshLeft, VideoPlay } from "@element-plus/icons-vue";
+import { MoreFilled, Plus, VideoPlay } from "@element-plus/icons-vue";
 import { useRouter } from "vue-router";
 import { adminApi } from "@/services/adminService";
 import { confirmDelete, defaultSeasonId, runAction, unwrap } from "@/utils/adminHelpers";
@@ -513,38 +459,10 @@ const remove = async (match) => {
 	if (ok) await loadSeason();
 };
 
-const statsOpen = ref(false);
-const statsLoading = ref(false);
-const statsSaving = ref(false);
-const statsMatch = ref(null);
-const statsRows = ref([]);
-
-const statsTitle = computed(() =>
-	statsMatch.value
-		? `Scorecard · ${teamName(statsMatch.value.team1)} vs ${teamName(statsMatch.value.team2)}`
-		: "Scorecard",
-);
-
-const openStats = async (match) => {
-	statsMatch.value = match;
-	statsRows.value = [];
-	statsOpen.value = true;
-	statsLoading.value = true;
-	const rows = await loadMetricRows(match);
-	if (rows) statsRows.value = rows;
-	statsLoading.value = false;
-};
-
-const saveStats = async () => {
-	const overflow = colorOverflow(statsRows.value);
-	if (overflow) {
-		ElMessage.error(`${overflow}'s colour would have more than 9 coins off the board after fines.`);
-		return;
-	}
-	statsSaving.value = true;
-	const { ok } = await runAction(() => adminApi.matches.saveStats(statsMatch.value.id, statsPayload(statsRows.value)), "Scorecard saved");
-	statsSaving.value = false;
-	if (ok) statsOpen.value = false;
+const runRowCommand = (command, match) => {
+	if (command === "reset") reset(match);
+	else if (command === "reset-toss") resetToss(match);
+	else if (command === "delete") remove(match);
 };
 
 onMounted(async () => {
@@ -567,5 +485,19 @@ onMounted(async () => {
 .scorecard-editor h2 {
 	margin: 0 0 12px;
 	font-size: 16px;
+}
+
+.matches-table {
+	width: 100%;
+}
+
+.fixture-line {
+	line-height: 1.35;
+}
+
+.row-actions {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
 }
 </style>
