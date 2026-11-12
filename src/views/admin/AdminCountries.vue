@@ -15,7 +15,7 @@
 
 		<div class="admin-card">
 			<el-table :data="paged" v-loading="loading" empty-text="No countries found" stripe>
-				<el-table-column prop="id" label="ID" width="70" />
+				<el-table-column prop="id" label="ID" :width="isPhone ? 48 : 70" />
 				<el-table-column prop="name" label="Name" min-width="180" />
 				<el-table-column prop="iso_code2" label="ISO 2" width="80" />
 				<el-table-column prop="iso_code3" label="ISO 3" width="80" />
@@ -28,12 +28,12 @@
 				<el-table-column label="Continent" min-width="130">
 					<template #default="{ row }">{{ row.continent || "–" }}</template>
 				</el-table-column>
-				<el-table-column label="Actions" width="170" align="right" fixed="right">
+				<el-table-column label="Actions" :width="isPhone ? 112 : 170" align="right" fixed="right" class-name="actions-col">
 					<template #default="{ row }">
-						<el-button size="small" type="primary" plain @click="openEdit(row)">
-							<el-icon class="me-1"><Edit /></el-icon>Edit
+						<el-button size="small" type="primary" plain aria-label="Edit" @click="openEdit(row)">
+							<el-icon class="me-1"><Edit /></el-icon><span class="btn-label">Edit</span>
 						</el-button>
-						<el-button size="small" type="danger" plain @click="remove(row)">
+						<el-button size="small" type="danger" plain aria-label="Delete" @click="remove(row)">
 							<el-icon><Delete /></el-icon>
 						</el-button>
 					</template>
@@ -86,6 +86,9 @@ import { computed, onMounted, reactive, ref, watch } from "vue";
 import { Delete, Edit, Plus, Search } from "@element-plus/icons-vue";
 import { adminApi } from "@/services/adminService";
 import { blankToNull, confirmDelete, matchesSearch, runAction, unwrap } from "@/utils/adminHelpers";
+import { useIsPhone } from "@/utils/viewport";
+
+const isPhone = useIsPhone();
 
 const continents = ["Africa", "Antarctica", "Asia", "Europe", "North America", "Oceania", "South America"];
 

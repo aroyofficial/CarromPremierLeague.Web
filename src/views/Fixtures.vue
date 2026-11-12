@@ -94,7 +94,7 @@
 		<el-dialog
 			v-model="showScheduleMatchDialog"
 			title="Schedule New Match"
-			style="width: max-content"
+			style="width: max-content; max-width: 94vw"
 			align-center
 			@close="resetScheduleMatchDialog()"
 			:close-on-click-modal="false"
@@ -473,6 +473,15 @@ onMounted(async () => {
 		padding-right: 5%;
 		padding-left: 5%;
 	}
+
+	#fixtures-filter {
+		display: grid !important;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+
+		> * {
+			width: 100% !important;
+		}
+	}
 }
 
 @media (max-width: 575.98px) {
@@ -493,8 +502,8 @@ onMounted(async () => {
 	}
 
 	#fixtures-paginated-table {
-		padding-right: 12px;
-		padding-left: 12px;
+		padding-right: 16px;
+		padding-left: 16px;
 	}
 }
 </style>

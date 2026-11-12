@@ -209,11 +209,34 @@ let resizeObserver = null;
 let lockActive = false;
 let lockTimer = null;
 
+// Must match the media query that enables the panel layout in the styles below.
+const panelQuery = window.matchMedia("(min-width: 992px) and (min-height: 601px)");
+const usesPageScroll = () => !panelQuery.matches;
+
+const stuckIndexBottom = () => {
+	const header = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--app-header-height")) || 64;
+	return header + (indexRef.value?.offsetHeight || 0);
+};
+
+const markerTop = () => {
+	if (usesPageScroll()) return stuckIndexBottom() + 28;
+	return (contentRef.value?.getBoundingClientRect().top || 0) + 28;
+};
+
 const syncScrollEnd = () => {
 	const scroller = contentRef.value;
 	const spacer = scroller?.querySelector(".rules-scroll-end");
 	if (!scroller || !spacer) return;
-	spacer.style.height = `${Math.max(scroller.clientHeight - 120, 24)}px`;
+	if (!usesPageScroll()) {
+		spacer.style.height = `${Math.max(scroller.clientHeight - 120, 24)}px`;
+		return;
+	}
+	const last = document.getElementById(sections[sections.length - 1].id);
+	if (!last) return;
+	const lastTop = last.getBoundingClientRect().top + window.scrollY;
+	const targetScroll = lastTop - stuckIndexBottom() - 8;
+	const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+	spacer.style.height = `${Math.max(spacer.offsetHeight + targetScroll - maxScroll, 24)}px`;
 };
 
 const scrollChipIntoView = (id) => {
@@ -231,9 +254,8 @@ const scrollChipIntoView = (id) => {
 
 const updateActiveFromScroll = () => {
 	if (lockActive) return;
-	const scroller = contentRef.value;
-	if (!scroller) return;
-	const marker = scroller.getBoundingClientRect().top + 28;
+	if (!contentRef.value) return;
+	const marker = markerTop();
 	let current = sections[0].id;
 	for (const section of sections) {
 		const el = document.getElementById(section.id);
@@ -243,14 +265,17 @@ const updateActiveFromScroll = () => {
 };
 
 const scrollTo = (id) => {
-	const scroller = contentRef.value;
+	const panel = contentRef.value;
 	const target = document.getElementById(id);
-	if (!scroller || !target) return;
-	const top =
-		target.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
+	if (!panel || !target) return;
+	const pageScroll = usesPageScroll();
+	const scroller = pageScroll ? window : panel;
+	const top = pageScroll
+		? target.getBoundingClientRect().top + window.scrollY - stuckIndexBottom() - 8
+		: target.getBoundingClientRect().top - panel.getBoundingClientRect().top + panel.scrollTop - 4;
 	lockActive = true;
 	activeId.value = id;
-	scroller.scrollTo({ top: Math.max(top - 4, 0), behavior: "smooth" });
+	scroller.scrollTo({ top: Math.max(top, 0), behavior: "smooth" });
 	clearTimeout(lockTimer);
 	const release = () => {
 		lockActive = false;
@@ -266,47 +291,77 @@ onMounted(() => {
 	syncScrollEnd();
 	resizeObserver = new ResizeObserver(syncScrollEnd);
 	contentRef.value?.addEventListener("scroll", updateActiveFromScroll, { passive: true });
+	window.addEventListener("scroll", updateActiveFromScroll, { passive: true });
+	panelQuery.addEventListener("change", syncScrollEnd);
 	if (contentRef.value) resizeObserver.observe(contentRef.value);
+	resizeObserver.observe(document.documentElement);
 });
 
 onUnmounted(() => {
 	clearTimeout(lockTimer);
 	contentRef.value?.removeEventListener("scroll", updateActiveFromScroll);
+	window.removeEventListener("scroll", updateActiveFromScroll);
+	panelQuery.removeEventListener("change", syncScrollEnd);
 	resizeObserver?.disconnect();
 	document.getElementById("app")?.classList.remove("rules-screen");
 });
 </script>
 
 <style scoped lang="scss">
-:global(html:has(#app.rules-screen)),
-:global(body:has(#app.rules-screen)) {
-	height: 100%;
-	overflow: hidden;
-}
+/* Panel layout (viewport-locked, content scrolls inside) only where there is room for it;
+   the breakpoint must match panelQuery in the script. */
+@media (min-width: 992px) and (min-height: 601px) {
+	:global(html:has(#app.rules-screen)),
+	:global(body:has(#app.rules-screen)) {
+		height: 100%;
+		overflow: hidden;
+	}
 
-:global(#app.rules-screen) {
-	height: 100dvh;
-	max-height: 100dvh;
-	overflow: hidden;
-}
+	:global(#app.rules-screen) {
+		height: 100dvh;
+		max-height: 100dvh;
+		overflow: hidden;
+	}
 
-:global(#app.rules-screen #app-content) {
-	display: flex;
-	flex: 1 1 auto;
-	flex-direction: column;
-	min-width: 0;
-	min-height: 0;
-	overflow: hidden;
+	:global(#app.rules-screen #app-content) {
+		display: flex;
+		flex: 1 1 auto;
+		flex-direction: column;
+		min-width: 0;
+		min-height: 0;
+		overflow: hidden;
+	}
+
+	.rules-page {
+		display: flex;
+		flex: 1 1 auto;
+		flex-direction: column;
+		min-height: 0;
+		overflow: hidden;
+	}
+
+	.rules-layout {
+		flex: 1 1 auto;
+		min-height: 0;
+		overflow: hidden;
+	}
+
+	.rules-index {
+		min-height: 0;
+		overflow-y: auto;
+		overscroll-behavior: contain;
+	}
+
+	.rules-content {
+		min-height: 0;
+		overflow-y: auto;
+		overscroll-behavior: contain;
+	}
 }
 
 .rules-page {
-	display: flex;
-	flex: 1 1 auto;
-	flex-direction: column;
 	width: 100%;
 	min-width: 0;
-	min-height: 0;
-	overflow: hidden;
 	padding-top: clamp(12px, 2.5vw, 28px);
 	padding-bottom: clamp(12px, 2vw, 20px);
 }
@@ -318,13 +373,10 @@ onUnmounted(() => {
 
 .rules-layout {
 	display: grid;
-	flex: 1 1 auto;
 	grid-template-columns: minmax(168px, 220px) minmax(0, 1fr);
 	gap: clamp(12px, 2vw, 28px);
 	align-items: stretch;
 	min-width: 0;
-	min-height: 0;
-	overflow: hidden;
 }
 
 .rules-index {
@@ -333,10 +385,7 @@ onUnmounted(() => {
 	gap: 4px;
 	align-self: stretch;
 	min-width: 0;
-	min-height: 0;
 	overflow-x: hidden;
-	overflow-y: auto;
-	overscroll-behavior: contain;
 
 	a {
 		display: flex;
@@ -368,10 +417,7 @@ onUnmounted(() => {
 	gap: 18px;
 	align-self: stretch;
 	min-width: 0;
-	min-height: 0;
 	overflow-x: hidden;
-	overflow-y: auto;
-	overscroll-behavior: contain;
 	padding-right: 4px;
 	padding-bottom: 8px;
 }
@@ -466,6 +512,19 @@ onUnmounted(() => {
 	margin-top: 6px;
 }
 
+@media (max-width: 991.98px), (max-height: 600px) {
+	.rules-index {
+		position: sticky;
+		top: var(--app-header-height);
+		z-index: 5;
+		align-self: start;
+	}
+
+	.rule-card {
+		scroll-margin-top: calc(var(--app-header-height) + 64px);
+	}
+}
+
 @media (max-width: 991.98px) {
 	.rules-layout {
 		grid-template-columns: minmax(0, 1fr);
@@ -474,14 +533,14 @@ onUnmounted(() => {
 	}
 
 	.rules-index {
-		z-index: 5;
 		flex-direction: row;
 		align-self: stretch;
 		overflow-x: auto;
 		overflow-y: hidden;
-		margin: 0;
-		padding: 2px 0 8px;
-		background: transparent;
+		margin: 0 calc(-1 * var(--page-gutter));
+		padding: 8px var(--page-gutter);
+		background: var(--cpl-surface-muted);
+		box-shadow: 0 6px 12px -10px rgba(15, 23, 42, 0.35);
 		scrollbar-width: none;
 
 		&::-webkit-scrollbar {
@@ -500,11 +559,26 @@ onUnmounted(() => {
 
 @media (max-width: 575.98px) {
 	.points-grid {
-		grid-template-columns: 1fr;
+		gap: 8px;
+	}
+
+	.points-tile {
+		padding: 14px 6px;
 	}
 
 	.points-value {
-		font-size: 32px;
+		font-size: 30px;
+	}
+
+	.points-label {
+		font-size: 12px;
+		line-height: 1.3;
+	}
+}
+
+@media (max-width: 339.98px) {
+	.points-grid {
+		grid-template-columns: 1fr;
 	}
 }
 </style>

@@ -27,7 +27,7 @@
 				<table class="standings">
 					<thead>
 						<tr>
-							<th scope="col"><abbr title="Rank by net coins, then coins, fewer double fines, fewer single fines, fewer opponent coins, fewer striker pockets">#</abbr></th>
+							<th class="col-rank" scope="col"><abbr title="Rank by net coins, then coins, fewer double fines, fewer single fines, fewer opponent coins, fewer striker pockets">#</abbr></th>
 							<th class="col-player" scope="col">Player</th>
 							<th class="col-team" scope="col">Team</th>
 							<th scope="col"><abbr title="Matches with a recorded scorecard">Matches</abbr></th>
@@ -41,7 +41,7 @@
 					</thead>
 					<tbody>
 						<tr v-for="(player, index) in players" :key="player.player_id" :style="{ '--i': index }">
-							<td>{{ index + 1 }}</td>
+							<td class="col-rank">{{ index + 1 }}</td>
 							<td class="col-player">
 								<div class="player-cell">
 									<img :src="getPlayerAvatar(player)" alt="" class="avatar" />
@@ -164,6 +164,10 @@ onUnmounted(() => {
 
 .table-scroll {
 	overflow-x: auto;
+	-webkit-overflow-scrolling: touch;
+	background:
+		linear-gradient(to left, #fff 30%, rgba(255, 255, 255, 0)) right / 40px 100% no-repeat local,
+		radial-gradient(farthest-side at 100% 50%, rgba(15, 23, 42, 0.16), transparent) right / 14px 100% no-repeat scroll;
 }
 
 .standings {
@@ -267,12 +271,44 @@ onUnmounted(() => {
 
 	.player-cell {
 		gap: 8px;
-		min-width: 140px;
+		min-width: 132px;
 	}
 
 	.avatar {
 		width: 28px;
 		height: 28px;
+	}
+}
+
+@media (max-width: 767.98px) {
+	.standings {
+		--rank-col: 34px;
+
+		.col-rank,
+		.col-player {
+			position: sticky;
+			z-index: 1;
+			background: #fff;
+		}
+
+		.col-rank {
+			left: 0;
+			box-sizing: border-box;
+			width: var(--rank-col);
+			min-width: var(--rank-col);
+			padding-right: 2px;
+			padding-left: 2px;
+		}
+
+		.col-player {
+			left: var(--rank-col);
+			box-shadow: 6px 0 8px -8px rgba(15, 23, 42, 0.35);
+		}
+
+		tbody tr:hover .col-rank,
+		tbody tr:hover .col-player {
+			background: #f8fafc;
+		}
 	}
 }
 

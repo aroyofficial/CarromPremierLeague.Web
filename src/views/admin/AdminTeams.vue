@@ -15,7 +15,7 @@
 
 		<div class="admin-card">
 			<el-table :data="filtered" v-loading="loading" empty-text="No teams yet" stripe>
-				<el-table-column prop="id" label="ID" width="70" />
+				<el-table-column prop="id" label="ID" :width="isPhone ? 48 : 70" />
 				<el-table-column label="Team" min-width="220">
 					<template #default="{ row }">
 						<div class="d-flex align-items-center gap-2">
@@ -28,12 +28,12 @@
 				<el-table-column label="Slogan" min-width="200">
 					<template #default="{ row }">{{ row.slogan || "–" }}</template>
 				</el-table-column>
-				<el-table-column label="Actions" width="170" align="right" fixed="right">
+				<el-table-column label="Actions" :width="isPhone ? 112 : 170" align="right" fixed="right" class-name="actions-col">
 					<template #default="{ row }">
-						<el-button size="small" type="primary" plain @click="openEdit(row)">
-							<el-icon class="me-1"><Edit /></el-icon>Edit
+						<el-button size="small" type="primary" plain aria-label="Edit" @click="openEdit(row)">
+							<el-icon class="me-1"><Edit /></el-icon><span class="btn-label">Edit</span>
 						</el-button>
-						<el-button size="small" type="danger" plain @click="remove(row)">
+						<el-button size="small" type="danger" plain aria-label="Delete" @click="remove(row)">
 							<el-icon><Delete /></el-icon>
 						</el-button>
 					</template>
@@ -70,6 +70,9 @@ import { computed, onMounted, reactive, ref } from "vue";
 import { Delete, Edit, Plus, Search } from "@element-plus/icons-vue";
 import { adminApi } from "@/services/adminService";
 import { assetUrl, blankToNull, confirmDelete, matchesSearch, runAction, unwrap } from "@/utils/adminHelpers";
+import { useIsPhone } from "@/utils/viewport";
+
+const isPhone = useIsPhone();
 import { useTeamStore } from "@/store/teamStore";
 
 const teamStore = useTeamStore();

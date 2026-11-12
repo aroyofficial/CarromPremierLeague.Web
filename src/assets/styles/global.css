@@ -49,6 +49,25 @@ img {
 	max-width: 100%;
 }
 
+.el-dialog:not(.is-fullscreen),
+.el-message-box {
+	max-width: calc(100vw - 16px);
+}
+
+.el-dialog__body {
+	overflow-wrap: break-word;
+}
+
+@media (max-width: 575.98px) {
+	.el-dialog:not(.is-fullscreen) {
+		--el-dialog-padding-primary: 14px;
+	}
+
+	.el-message-box {
+		width: calc(100vw - 24px);
+	}
+}
+
 .page-container {
 	width: 100%;
 	max-width: 1200px;

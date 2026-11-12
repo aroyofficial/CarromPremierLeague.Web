@@ -54,6 +54,7 @@
 			:close-on-press-escape="false"
 			:show-close="false"
 			:fullscreen="showMatchManager"
+			width="min(720px, 94vw)"
 			align-center
 		>
 			<div v-if="showMatchManager" class="match-manager">
@@ -195,8 +196,8 @@
 						MatchCategory.find((mc) => mc.name === 'Final').id,
 				}"
 			>
-				<div class="row d-flex">
-					<div class="col-4 d-flex align-items-center flex-column">
+				<div class="row d-flex match-info-grid">
+					<div class="col-4 d-flex align-items-center flex-column info-team">
 						<div class="mb-2">
 							<img :src="getTeamLogo(match.team1)" class="team-logo" />
 						</div>
@@ -216,7 +217,7 @@
 						</div>
 					</div>
 					<div
-						class="col-4 d-flex flex-column justify-content-center align-items-center"
+						class="col-4 d-flex flex-column justify-content-center align-items-center text-center info-center"
 					>
 						<div>Head To Head Wins</div>
 						<div class="mb-2">
@@ -242,7 +243,7 @@
 						</div>
 						<div class="text-center">{{ getStatusText() }}</div>
 					</div>
-					<div class="col-4 d-flex align-items-center flex-column">
+					<div class="col-4 d-flex align-items-center flex-column info-team">
 						<div class="mb-2">
 							<img :src="getTeamLogo(match.team2)" class="team-logo" />
 						</div>
@@ -1622,7 +1623,35 @@ watch(teamDetails, () => {
 .fixtures-team-logo {
 	width: 60px;
 	height: 60px;
+	max-width: none;
+	flex-shrink: 0;
+	object-fit: cover;
 	border-radius: 50%;
+}
+
+@media (min-width: 768px) {
+	.match-card {
+		display: grid;
+		grid-template-columns: 60px minmax(0, 1fr) minmax(140px, auto) minmax(0, 1fr) 60px;
+		align-items: center;
+		column-gap: 12px;
+		margin: 0;
+
+		> * {
+			width: auto !important;
+			max-width: none;
+			padding-right: 0;
+			padding-left: 0;
+		}
+	}
+
+	.fixture-team-name {
+		overflow-wrap: break-word;
+	}
+
+	.match-card > :nth-child(4) {
+		text-align: right;
+	}
 }
 
 .versus-text,
@@ -1835,13 +1864,56 @@ watch(teamDetails, () => {
 
 @media (max-width: 767.98px) {
 	.match-card {
-		padding: 1rem !important;
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr) minmax(0, 1fr);
+		grid-template-rows: auto auto;
+		align-items: center;
+		gap: 6px 8px;
+		margin: 0;
+		padding: 0.9rem 0.6rem !important;
+	}
+
+	.match-card > * {
+		width: auto !important;
+		max-width: none;
+		padding: 0 !important;
+		display: flex;
+		justify-content: center !important;
+		text-align: center;
+	}
+
+	.match-card > :nth-child(1) {
+		grid-column: 1;
+		grid-row: 1;
+	}
+
+	.match-card > :nth-child(2) {
+		grid-column: 1;
+		grid-row: 2;
+		align-self: start;
+	}
+
+	.match-card > :nth-child(3) {
+		grid-column: 2;
+		grid-row: 1 / span 2;
+	}
+
+	.match-card > :nth-child(4) {
+		grid-column: 3;
+		grid-row: 2;
+		align-self: start;
+	}
+
+	.match-card > :nth-child(5) {
+		grid-column: 3;
+		grid-row: 1;
 	}
 
 	.fixture-team-name {
-		font-size: 12px;
-		padding: 0 0.35rem !important;
-		text-align: center;
+		font-size: 13px;
+		font-weight: 500;
+		line-height: 1.25;
+		overflow-wrap: anywhere;
 	}
 
 	.fixtures-team-logo {
@@ -1852,6 +1924,71 @@ watch(teamDetails, () => {
 	.match-info .team-logo {
 		width: 110px;
 		height: 110px;
+	}
+
+	.match-info {
+		margin: 0.5rem 0 !important;
+	}
+
+	.match-info-grid {
+		display: grid !important;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 14px 10px;
+		margin: 0;
+
+		> .col-4 {
+			width: auto;
+			padding: 0;
+		}
+
+		.info-center {
+			grid-column: 1 / -1;
+			grid-row: 1;
+			padding: 10px;
+			border-radius: 10px;
+			background: rgba(15, 23, 42, 0.04);
+			font-size: 13px;
+		}
+
+		.info-team {
+			grid-row: 2;
+		}
+
+		.team-logo {
+			width: 84px;
+			height: 84px;
+		}
+
+		.team-members {
+			width: 100%;
+			padding: 10px !important;
+			font-size: 13px;
+			line-height: 1.3;
+		}
+
+		.player-avatar {
+			flex-shrink: 0;
+			width: 26px;
+			height: 26px;
+			margin-right: 8px;
+		}
+	}
+
+	.dialog-footer:not(.match-started) {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: flex-end;
+		align-items: center;
+		gap: 8px;
+
+		.el-button + .el-button {
+			margin-left: 0;
+		}
+	}
+
+	.match-access-note {
+		flex: 1 1 100%;
+		text-align: left;
 	}
 
 	#match-live-info {
@@ -1876,6 +2013,27 @@ watch(teamDetails, () => {
 		padding: 0.75rem !important;
 	}
 
+	.score-metric {
+		grid-template-columns: minmax(0, 1fr) auto;
+		grid-template-areas:
+			"label input"
+			"limit input";
+		row-gap: 0;
+		line-height: 1.3;
+
+		> span {
+			grid-area: label;
+		}
+
+		> .el-input-number {
+			grid-area: input;
+		}
+
+		> .score-limit {
+			grid-area: limit;
+		}
+	}
+
 	#stopwatch {
 		width: 180px;
 		height: 180px;
@@ -1896,56 +2054,19 @@ watch(teamDetails, () => {
 }
 
 @media (max-width: 420px) {
-	.match-card {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		row-gap: 8px;
-		padding: 0.8rem !important;
-	}
-
-	.match-card > :nth-child(1) {
-		grid-column: 1;
-		grid-row: 2;
-		width: auto;
-		justify-content: center !important;
-	}
-
-	.match-card > :nth-child(2) {
-		grid-column: 1;
-		grid-row: 3;
-		width: auto;
-		justify-content: center !important;
-	}
-
-	.match-card > :nth-child(3) {
-		grid-column: 1 / -1;
-		grid-row: 1;
-		width: auto;
-	}
-
-	.match-card > :nth-child(4) {
-		grid-column: 2;
-		grid-row: 3;
-		width: auto;
-		justify-content: center !important;
-	}
-
-	.match-card > :nth-child(5) {
-		grid-column: 2;
-		grid-row: 2;
-		width: auto;
-		justify-content: center !important;
-	}
-
 	.fixtures-team-logo {
-		width: 34px;
-		height: 34px;
+		width: 38px;
+		height: 38px;
+	}
+
+	.fixture-team-name {
+		font-size: 12px;
 	}
 
 	.versus-text,
 	.toss-text,
 	.match-status-text {
-		font-size: 10px;
+		font-size: 11px;
 	}
 }
 </style>

@@ -12,7 +12,7 @@
 
 		<div class="admin-card">
 			<el-table :data="admins" v-loading="loading" empty-text="No admins found" stripe>
-				<el-table-column prop="id" label="ID" width="70" />
+				<el-table-column prop="id" label="ID" :width="isPhone ? 48 : 70" />
 				<el-table-column label="Username" min-width="200">
 					<template #default="{ row }">
 						<strong>{{ row.username }}</strong>
@@ -30,12 +30,12 @@
 						/>
 					</template>
 				</el-table-column>
-				<el-table-column label="Actions" width="250" align="right" fixed="right">
+				<el-table-column label="Actions" :width="isPhone ? 112 : 250" align="right" fixed="right" class-name="actions-col">
 					<template #default="{ row }">
-						<el-button size="small" type="primary" plain @click="openEdit(row)">
-							<el-icon class="me-1"><Key /></el-icon>Edit / password
+						<el-button size="small" type="primary" plain aria-label="Edit / password" @click="openEdit(row)">
+							<el-icon class="me-1"><Key /></el-icon><span class="btn-label">Edit / password</span>
 						</el-button>
-						<el-button size="small" type="danger" plain :disabled="row.id === currentId" @click="remove(row)">
+						<el-button size="small" type="danger" plain aria-label="Delete" :disabled="row.id === currentId" @click="remove(row)">
 							<el-icon><Delete /></el-icon>
 						</el-button>
 					</template>
@@ -77,6 +77,9 @@ import { ElMessage } from "element-plus";
 import { Delete, Key, Plus } from "@element-plus/icons-vue";
 import { adminApi } from "@/services/adminService";
 import { confirmDelete, runAction, unwrap } from "@/utils/adminHelpers";
+import { useIsPhone } from "@/utils/viewport";
+
+const isPhone = useIsPhone();
 import { useAuthStore } from "@/store/authStore";
 import { Routes } from "@/utils/constants";
 

@@ -237,6 +237,7 @@ onUnmounted(() => {
 .nav-link {
 	position: relative;
 	display: block;
+	white-space: nowrap;
 	padding: 8px 14px;
 	color: rgba(255, 255, 255, 0.78);
 	text-decoration: none;
@@ -502,7 +503,25 @@ onUnmounted(() => {
 	display: none;
 }
 
-@media (max-width: 991.98px) {
+@media (max-width: 1399.98px) {
+	.nav-inner {
+		gap: 16px;
+	}
+
+	.nav-link {
+		padding: 8px 11px;
+	}
+
+	.nav-actions .admin-chip {
+		padding-right: 6px;
+	}
+
+	.nav-actions .admin-name {
+		display: none;
+	}
+}
+
+@media (max-width: 1199.98px) {
 	.desktop-only {
 		display: none !important;
 	}

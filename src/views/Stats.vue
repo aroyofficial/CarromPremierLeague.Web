@@ -332,6 +332,7 @@ onUnmounted(() => {
 .player-name {
 	font-size: 17px;
 	text-align: center;
+	overflow-wrap: break-word;
 	color: #0f172a;
 }
 
@@ -402,6 +403,20 @@ onUnmounted(() => {
 	.status-row {
 		flex-direction: column;
 		align-items: flex-start;
+	}
+
+	.top-players-grid {
+		gap: 10px;
+	}
+
+	.player-card {
+		padding: 14px 10px;
+	}
+}
+
+@media (max-width: 575.98px) {
+	#stats-body {
+		padding: 14px;
 	}
 
 	.top-players-grid {

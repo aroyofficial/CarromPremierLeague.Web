@@ -187,6 +187,10 @@ body:has(.admin-shell) .el-message-box {
 	flex-wrap: wrap;
 	gap: 10px;
 	align-items: center;
+
+	.el-button + .el-button {
+		margin-left: 0;
+	}
 }
 
 .admin-card {
@@ -245,12 +249,15 @@ body:has(.admin-shell) .el-message-box {
 		position: fixed;
 		left: 0;
 		z-index: 1050;
-		width: 260px;
+		width: min(260px, 85vw);
 		transform: translateX(-100%);
-		transition: transform 0.25s ease;
+		visibility: hidden;
+		transition: transform 0.25s ease, visibility 0s linear 0.25s;
 
 		&.is-open {
 			transform: none;
+			visibility: visible;
+			transition: transform 0.25s ease;
 		}
 	}
 
@@ -302,6 +309,36 @@ body:has(.admin-shell) .el-message-box {
 		min-height: 40px;
 		padding-right: 10px;
 		padding-left: 10px;
+	}
+
+	.admin-card .el-table .actions-col {
+		.btn-label {
+			display: none;
+		}
+
+		.el-icon.me-1 {
+			margin-right: 0 !important;
+		}
+
+		.el-button + .el-button {
+			margin-left: 8px;
+		}
+	}
+
+	.admin-page-head > .el-button {
+		width: 100%;
+	}
+
+	.admin-toolbar {
+		width: 100%;
+
+		> .el-select,
+		> .el-input,
+		> .el-button {
+			flex: 1 1 100%;
+			width: auto !important;
+			min-width: 0;
+		}
 	}
 
 	.admin-card .el-pagination__total,
