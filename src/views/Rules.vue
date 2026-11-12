@@ -122,8 +122,8 @@
 							#2, and #3.
 						</li>
 						<li>
-							<b>Final:</b> When four teams are playing, they decide the #1 and #2 ranking for the
-							final.
+							<b>Final:</b> When four or fewer teams are playing, they decide the #1 and #2 ranking
+							for the final.
 						</li>
 					</ul>
 					<p>Teams on the same points are separated in this order:</p>
@@ -174,13 +174,15 @@
 					<h2><span aria-hidden="true">🏁</span> Finals</h2>
 					<ul>
 						<li>
-							<b>Four teams:</b> When the league is complete, the system schedules a final between
-							#1 and #2. A tie for either place schedules Golden Strike first.
+							<b>Four or fewer teams:</b> When the league is complete, the system schedules a final
+							between #1 and #2. Until both teams are known the final is shown as TBD against TBD. A tie
+							for either place schedules Golden Strike first.
 						</li>
 						<li>
 							<b>More than four teams:</b> When the league is complete, the system schedules an
-							eliminator between #2 and #3, then a final between #1 and the eliminator winner. A tie
-							for #1 or for an eliminator place schedules Golden Strike first.
+							eliminator between #2 and #3, then a final between #1 and the eliminator winner. The
+							eliminator and the final are shown as TBD against TBD until both of their teams are
+							known. A tie for #1 or for an eliminator place schedules Golden Strike first.
 						</li>
 					</ul>
 				</section>

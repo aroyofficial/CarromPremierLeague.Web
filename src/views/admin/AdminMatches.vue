@@ -30,7 +30,7 @@
 				:closable="false"
 				show-icon
 				title="Match timing is enforced"
-				description="League matches run for 15 minutes only. Eliminator, Qualifier 1, Qualifier 2 and Final run 15 minutes; a tie runs five minutes of extra time, then Golden Strike."
+				description="Saving the last league result schedules the knockout. Four or fewer teams get a Final between 1st and 2nd. More than four get an Eliminator between 2nd and 3rd, then a Final between 1st and the eliminator winner. A place that is still tied gets a Golden Strike first, and a match stays TBD against TBD until both teams are known."
 			/>
 			<el-table class="matches-table" :data="filteredMatches" v-loading="loading" empty-text="No matches in this season yet" stripe>
 				<el-table-column prop="order" label="#" width="52" />
@@ -112,7 +112,7 @@
 					type="warning"
 					:closable="false"
 					show-icon
-					:title="form.category === 1 ? 'League: 15-minute regulation only.' : 'Knockout: 15-minute regulation, five-minute extra time for a tie, then Golden Strike.'"
+					:title="form.category === 1 ? 'League: 15-minute regulation only.' : form.category === 7 ? 'Golden Strike: record the winner. It does not use the match clock.' : 'Knockout: 15-minute regulation, five-minute extra time for a tie, then Golden Strike.'"
 				/>
 			</el-form>
 			<div v-if="editingMatch" class="span-2 scorecard-editor">

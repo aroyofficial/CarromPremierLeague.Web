@@ -67,9 +67,9 @@
 								<span v-if="isLive(match)" class="match-meta">
 									<span class="clock-time" :class="{ 'is-extra': clockState(match).extra }">{{ clockState(match).time }}</span>
 									<span v-if="clockState(match).extra" class="extra-label">Extra</span>
-									<span class="match-label">Match {{ match.order }}</span>
+									<span class="match-label">{{ matchLabel(match) }}</span>
 								</span>
-								<span v-else class="match-label">Match {{ match.order }}</span>
+								<span v-else class="match-label">{{ matchLabel(match) }}</span>
 							</div>
 
 							<div class="club club-away" :class="[sideState(match, match.team2_id), favored(match, match.team2_id)]">
@@ -126,8 +126,8 @@
 							<div class="tally">
 								<div class="tally-row tally-names">
 									<span></span>
-									<span>{{ match.team1_name || "Team 1" }}</span>
-									<span>{{ match.team2_name || "Team 2" }}</span>
+									<span>{{ match.team1_name || "TBD" }}</span>
+									<span>{{ match.team2_name || "TBD" }}</span>
 								</div>
 								<div class="tally-row tally-score">
 									<span>Score</span>
@@ -179,11 +179,11 @@
 								<div class="chance-readout">
 									<div>
 										<strong>{{ match.win_probability.team1_percent }}%</strong>
-										<span>{{ match.team1_name || "Team 1" }}</span>
+										<span>{{ match.team1_name || "TBD" }}</span>
 									</div>
 									<div class="chance-readout-right">
 										<strong>{{ match.win_probability.team2_percent }}%</strong>
-										<span>{{ match.team2_name || "Team 2" }}</span>
+										<span>{{ match.team2_name || "TBD" }}</span>
 									</div>
 								</div>
 							</section>
@@ -231,12 +231,12 @@
 
 		<el-dialog v-model="statsOpen" :title="statsTitle" width="min(560px, 92vw)" align-center append-to-body>
 			<p v-if="statsMatch && !statsMatch.head_to_head.matches_played" class="history-note">
-				{{ statsMatch.team1_name }} and {{ statsMatch.team2_name }} have not played each other before.
+				{{ statsMatch.team1_name || "TBD" }} and {{ statsMatch.team2_name || "TBD" }} have not played each other before.
 			</p>
 			<div v-else-if="statsMatch" class="h2h">
 				<div class="h2h-cell">
 					<strong>{{ statsMatch.head_to_head.team1_wins }}</strong>
-					<span>{{ statsMatch.team1_name }} wins</span>
+					<span>{{ statsMatch.team1_name || "TBD" }} wins</span>
 					<em>{{ statsMatch.head_to_head.team1_coins }} coins pocketed</em>
 				</div>
 				<div class="h2h-cell h2h-draw">
@@ -246,7 +246,7 @@
 				</div>
 				<div class="h2h-cell">
 					<strong>{{ statsMatch.head_to_head.team2_wins }}</strong>
-					<span>{{ statsMatch.team2_name }} wins</span>
+					<span>{{ statsMatch.team2_name || "TBD" }} wins</span>
 					<em>{{ statsMatch.head_to_head.team2_coins }} coins pocketed</em>
 				</div>
 			</div>
@@ -276,7 +276,7 @@ const statsOpen = ref(false);
 const statsMatch = ref(null);
 const statsTitle = computed(() => {
 	if (!statsMatch.value) return "Stats";
-	return `${statsMatch.value.team1_name} vs ${statsMatch.value.team2_name}`;
+	return `${statsMatch.value.team1_name || "TBD"} vs ${statsMatch.value.team2_name || "TBD"}`;
 });
 const dropdownPopperOptions = ref({
 	placement: "bottom-start",
@@ -304,6 +304,11 @@ const groups = computed(() => {
 const emptyLabel = computed(() => errorMessage.value || "No matches have been scheduled for this season.");
 
 const categoryName = (category) => MatchCategory.find((item) => item.id === category)?.name || "Match";
+
+const matchLabel = (match) => {
+	const name = categoryName(match.category);
+	return name === "League" ? `Match ${match.order}` : `${name} · Match ${match.order}`;
+};
 
 const dateParts = (value) => {
 	const date = value ? dayjs(value) : null;

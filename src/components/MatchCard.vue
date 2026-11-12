@@ -673,14 +673,8 @@ const getTeam = (teamId) => {
 };
 
 const getTeamLogo = (teamId) => {
-	if (
-		props.match.category ===
-			MatchCategory.find((mc) => mc.name === "Final").id &&
-		!teamId
-	) {
-		return resolveAsset("public/assets/images/teams/tbd.png");
-	}
-	return getTeam(teamId).logo_url;
+	if (!teamId) return resolveAsset("public/assets/images/teams/tbd.png");
+	return getTeam(teamId)?.logo_url || resolveAsset("public/assets/images/teams/tbd.png");
 };
 
 const blockMatchManagement = () => {
