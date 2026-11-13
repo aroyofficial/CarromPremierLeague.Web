@@ -7,14 +7,14 @@
 					<div class="stats-title-row">
 						<div class="stats-header poppins-semibold">Golden Striker</div>
 						<el-tooltip
-							content="Tie-break order: fewer fines, then fewer striker pockets."
+							content="Ranked by net coins (coins pocketed minus fined coins), then coins pocketed, fewer double fines, fewer single fines, fewer opponent coins, fewer striker pockets, then name."
 							placement="top"
 						>
 							<el-icon class="info-icon"><InfoFilled /></el-icon>
 						</el-tooltip>
 					</div>
 					<div class="stats-subtitle">
-						The player who pocketed the most coins in this season's league-stage matches
+						The player with the most net coins in this season's league-stage matches
 					</div>
 				</div>
 				<div class="stats-controls">
@@ -63,15 +63,25 @@
 						<div class="player-team">
 							{{ player.team_name || "Team unavailable" }}
 						</div>
-						<div class="coins-pill poppins-semibold">Coins: {{ player.coins_pocketed }}</div>
+						<div class="coins-pill poppins-semibold">Net coins: {{ player.net_coins ?? player.coins_pocketed - (player.coins_fined || 0) }}</div>
 						<div class="metric-row">
 							<div class="metric-box">
-								<div class="metric-label">Fines</div>
-								<div class="metric-value">{{ player.coins_fined || 0 }}</div>
+								<div class="metric-label">Coins</div>
+								<div class="metric-value">{{ player.coins_pocketed || 0 }}</div>
 							</div>
 							<div class="metric-box">
-								<div class="metric-label">Pockets</div>
-								<div class="metric-value">{{ player.strikers_pocketed || 0 }}</div>
+								<div class="metric-label">Opp. coins</div>
+								<div class="metric-value">{{ player.opponent_coins_pocketed || 0 }}</div>
+							</div>
+						</div>
+						<div class="metric-row">
+							<div class="metric-box">
+								<div class="metric-label">Single fines</div>
+								<div class="metric-value">{{ player.single_fines || 0 }}</div>
+							</div>
+							<div class="metric-box">
+								<div class="metric-label">Double fines</div>
+								<div class="metric-value">{{ player.double_fines || 0 }}</div>
 							</div>
 						</div>
 					</div>
@@ -85,7 +95,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, onUnmounted } from "vue";
 import { useSeasonStore } from "@/store/seasonStore";
 import { useStatsStore } from "@/store/statsStore";
 import { resolveAsset } from "@/utils/common";
@@ -112,16 +122,17 @@ const dropdownPopperOptions = ref({
 
 const toSlug = (value) => (value || "").toLowerCase().trim().replace(/\s+/g, "-");
 
-const getPlayerAvatar = (player) => {
-	if (player.avatar_url) {
-		return player.avatar_url;
-	}
-	return resolveAsset(
+const getPlayerAvatar = (player) =>
+	resolveAsset(
 		`public/assets/images/players/${toSlug(player.first_name)}-${toSlug(player.last_name)}.png`,
 	);
-};
 
-const fetchTopCoinPotters = async () => {
+let statsRequest = 0;
+let refreshTimer = null;
+
+const fetchTopCoinPotters = async (options) => {
+	const quiet = Boolean(options && options.quiet);
+	if (quiet && statsRequest) return;
 	if (!selectedSeason.value) {
 		topCoinPotters.value = [];
 		isLeagueStageCompleted.value = false;
@@ -129,7 +140,8 @@ const fetchTopCoinPotters = async () => {
 		return;
 	}
 
-	loading.value = true;
+	const requestId = ++statsRequest;
+	if (!quiet) loading.value = true;
 	try {
 		seasonStore.setSeason(selectedSeason.value);
 		const result = await statsStore.fetchSeasonTopCoinPotters(
@@ -137,24 +149,39 @@ const fetchTopCoinPotters = async () => {
 			3,
 			true,
 		);
+		if (requestId !== statsRequest) return;
 		topCoinPotters.value = result.players || [];
 		isLeagueStageCompleted.value = result.isLeagueStageCompleted || false;
 		emptyMessage.value =
 			result.message || "Data is not available for this season.";
 	} catch (error) {
 		console.error("Failed to fetch golden striker stats", error);
-		topCoinPotters.value = [];
-		isLeagueStageCompleted.value = false;
-		emptyMessage.value = "Unable to load stats right now. Please try again.";
+		if (!quiet && requestId === statsRequest) {
+			topCoinPotters.value = [];
+			isLeagueStageCompleted.value = false;
+			emptyMessage.value = "Unable to load stats right now. Please try again.";
+		}
 	} finally {
-		loading.value = false;
+		if (requestId === statsRequest) statsRequest = 0;
+		if (!quiet) loading.value = false;
 	}
 };
 
-onMounted(async () => {
+const refreshStatsIfVisible = () => {
+	if (document.visibilityState === "visible") fetchTopCoinPotters({ quiet: true });
+};
+
+onMounted(() => {
 	seasons.value = seasonStore.visibleSeasons;
 	selectedSeason.value = seasonStore.selectedSeason;
-	await fetchTopCoinPotters();
+	fetchTopCoinPotters();
+	refreshTimer = setInterval(() => fetchTopCoinPotters({ quiet: true }), 5000);
+	document.addEventListener("visibilitychange", refreshStatsIfVisible);
+});
+
+onUnmounted(() => {
+	clearInterval(refreshTimer);
+	document.removeEventListener("visibilitychange", refreshStatsIfVisible);
 });
 </script>
 
@@ -305,6 +332,7 @@ onMounted(async () => {
 .player-name {
 	font-size: 17px;
 	text-align: center;
+	overflow-wrap: break-word;
 	color: #0f172a;
 }
 
@@ -375,6 +403,20 @@ onMounted(async () => {
 	.status-row {
 		flex-direction: column;
 		align-items: flex-start;
+	}
+
+	.top-players-grid {
+		gap: 10px;
+	}
+
+	.player-card {
+		padding: 14px 10px;
+	}
+}
+
+@media (max-width: 575.98px) {
+	#stats-body {
+		padding: 14px;
 	}
 
 	.top-players-grid {

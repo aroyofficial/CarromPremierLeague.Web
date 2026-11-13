@@ -23,14 +23,23 @@
 			</ul>
 
 			<div class="nav-actions desktop-only">
-				<template v-if="authStore.isAuthenticated">
-					<span class="admin-chip">
-						<el-icon><UserFilled /></el-icon>{{ authStore.username }}
+				<div v-if="authStore.isAuthenticated" class="account-cluster">
+					<router-link :to="Routes.ADMIN" class="btn-gold">
+						<span class="btn-glyph" aria-hidden="true"><el-icon><Setting /></el-icon></span>
+						Admin
+					</router-link>
+					<span class="admin-chip" :title="authStore.username">
+						<span class="admin-avatar" aria-hidden="true">{{ userInitial }}</span>
+						<span class="admin-name">{{ authStore.username }}</span>
 					</span>
-					<button type="button" class="btn-outline" @click="logout">Logout</button>
-				</template>
+					<button type="button" class="btn-logout" @click="logout">
+						<span class="btn-glyph" aria-hidden="true"><el-icon><SwitchButton /></el-icon></span>
+						Logout
+					</button>
+				</div>
 				<router-link v-else :to="Routes.LOGIN" class="btn-gold">
-					<el-icon><Lock /></el-icon>Admin Login
+					<span class="btn-glyph" aria-hidden="true"><el-icon><Lock /></el-icon></span>
+					Admin Login
 				</router-link>
 			</div>
 
@@ -63,14 +72,23 @@
 					</li>
 				</ul>
 				<div class="mobile-actions">
-					<template v-if="authStore.isAuthenticated">
-						<span class="admin-chip">
-							<el-icon><UserFilled /></el-icon>{{ authStore.username }}
+					<div v-if="authStore.isAuthenticated" class="account-cluster">
+						<router-link :to="Routes.ADMIN" class="btn-gold" @click="closeMenu">
+							<span class="btn-glyph" aria-hidden="true"><el-icon><Setting /></el-icon></span>
+							Admin Console
+						</router-link>
+						<span class="admin-chip" :title="authStore.username">
+							<span class="admin-avatar" aria-hidden="true">{{ userInitial }}</span>
+							<span class="admin-name">{{ authStore.username }}</span>
 						</span>
-						<button type="button" class="btn-outline" @click="logout">Logout</button>
-					</template>
-					<router-link v-else :to="Routes.LOGIN" class="btn-gold w-100" @click="closeMenu">
-						<el-icon><Lock /></el-icon>Admin Login
+						<button type="button" class="btn-logout" @click="logout">
+							<span class="btn-glyph" aria-hidden="true"><el-icon><SwitchButton /></el-icon></span>
+							Logout
+						</button>
+					</div>
+					<router-link v-else :to="Routes.LOGIN" class="btn-gold" @click="closeMenu">
+						<span class="btn-glyph" aria-hidden="true"><el-icon><Lock /></el-icon></span>
+						Admin Login
 					</router-link>
 				</div>
 			</div>
@@ -82,9 +100,9 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, onUnmounted } from "vue";
+import { computed, ref, watch, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { Lock, UserFilled } from "@element-plus/icons-vue";
+import { Lock, Setting, SwitchButton } from "@element-plus/icons-vue";
 import { NavItems, Routes } from "@/utils/constants";
 import { resolveAsset } from "@/utils/common";
 import { useAuthStore } from "@/store/authStore";
@@ -96,6 +114,10 @@ const isStatsSection = (item) =>
 	item.path === Routes.STATS &&
 	(route.path === Routes.STATS || route.path.startsWith(`${Routes.STATS}/`));
 const authStore = useAuthStore();
+const userInitial = computed(() => {
+	const name = (authStore.username || "").trim();
+	return name ? name.charAt(0).toUpperCase() : "A";
+});
 const isMenuOpen = ref(false);
 const isScrolled = ref(false);
 const logoSrc = resolveAsset("public/assets/images/favicon.png");
@@ -215,6 +237,7 @@ onUnmounted(() => {
 .nav-link {
 	position: relative;
 	display: block;
+	white-space: nowrap;
 	padding: 8px 14px;
 	color: rgba(255, 255, 255, 0.78);
 	text-decoration: none;
@@ -241,50 +264,129 @@ onUnmounted(() => {
 	gap: 10px;
 }
 
-.btn-gold,
-.btn-outline {
+.account-cluster {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px;
+	border-radius: 999px;
+	background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.03));
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.08),
+		0 8px 20px rgba(0, 0, 0, 0.18);
+}
+
+.btn-glyph {
+	width: 22px;
+	height: 22px;
+	border-radius: 50%;
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	gap: 6px;
-	padding: 8px 16px;
+	flex: 0 0 22px;
+
+	.el-icon {
+		font-size: 13px;
+	}
+}
+
+.btn-gold,
+.btn-logout {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	height: 34px;
+	padding: 0 14px 0 6px;
 	border-radius: 999px;
-	font-size: 14px;
+	font-family: inherit;
+	font-size: 13px;
 	font-weight: 600;
+	letter-spacing: 0.01em;
+	line-height: 1;
 	text-decoration: none;
+	white-space: nowrap;
 	cursor: pointer;
-	transition: transform 0.2s ease, box-shadow 0.2s ease;
+	transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+
+	&:focus-visible {
+		outline: 2px solid var(--cpl-gold-400);
+		outline-offset: 2px;
+	}
 }
 
 .btn-gold {
 	color: var(--cpl-navy-900);
-	background: linear-gradient(135deg, var(--cpl-gold-400), var(--cpl-gold-500));
-	border: none;
-	box-shadow: 0 6px 16px rgba(245, 184, 46, 0.35);
+	background: linear-gradient(180deg, #ffe7a8 0%, #ffc94a 46%, #e8a516 100%);
+	border: 1px solid rgba(120, 72, 0, 0.18);
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.7),
+		0 6px 14px rgba(245, 184, 46, 0.28);
+
+	.btn-glyph {
+		background: rgba(11, 20, 38, 0.12);
+	}
 
 	&:hover {
-		transform: translateY(-1px);
-		box-shadow: 0 10px 22px rgba(245, 184, 46, 0.45);
+		background: linear-gradient(180deg, #fff0c4 0%, #ffd166 46%, #f0b01f 100%);
+		box-shadow:
+			inset 0 1px 0 rgba(255, 255, 255, 0.8),
+			0 8px 16px rgba(245, 184, 46, 0.36);
 	}
 }
 
-.btn-outline {
-	color: #fff;
-	background: transparent;
-	border: 1px solid rgba(255, 255, 255, 0.35);
+.btn-logout {
+	color: rgba(255, 255, 255, 0.9);
+	background: rgba(255, 255, 255, 0.04);
+	border: 1px solid rgba(255, 255, 255, 0.14);
+
+	.btn-glyph {
+		background: rgba(255, 255, 255, 0.08);
+	}
 
 	&:hover {
-		border-color: var(--cpl-gold-400);
 		color: var(--cpl-gold-400);
+		border-color: rgba(255, 209, 102, 0.55);
+		background: rgba(255, 209, 102, 0.08);
 	}
 }
 
 .admin-chip {
 	display: inline-flex;
 	align-items: center;
-	gap: 6px;
-	color: rgba(255, 255, 255, 0.85);
+	gap: 8px;
+	height: 34px;
+	padding: 0 12px 0 6px;
+	border-radius: 999px;
+	color: rgba(255, 255, 255, 0.92);
+	background: rgba(8, 14, 28, 0.35);
+	border: 1px solid rgba(255, 255, 255, 0.08);
 	font-size: 13px;
+	font-weight: 600;
+	min-width: 0;
+}
+
+.admin-avatar {
+	width: 22px;
+	height: 22px;
+	border-radius: 50%;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 22px;
+	background: linear-gradient(160deg, #ffe7a8, #e2a01a);
+	color: var(--cpl-navy-900);
+	font-size: 11px;
+	font-weight: 800;
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+
+.admin-name {
+	max-width: 108px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .menu-toggle {
@@ -370,6 +472,24 @@ onUnmounted(() => {
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
+
+	.account-cluster,
+	.btn-gold,
+	.btn-logout,
+	.admin-chip {
+		width: 100%;
+	}
+
+	.account-cluster {
+		flex-direction: column;
+		align-items: stretch;
+		border-radius: 20px;
+		padding: 8px;
+	}
+
+	.admin-name {
+		max-width: none;
+	}
 }
 
 .backdrop {
@@ -383,7 +503,25 @@ onUnmounted(() => {
 	display: none;
 }
 
-@media (max-width: 991.98px) {
+@media (max-width: 1399.98px) {
+	.nav-inner {
+		gap: 16px;
+	}
+
+	.nav-link {
+		padding: 8px 11px;
+	}
+
+	.nav-actions .admin-chip {
+		padding-right: 6px;
+	}
+
+	.nav-actions .admin-name {
+		display: none;
+	}
+}
+
+@media (max-width: 1199.98px) {
 	.desktop-only {
 		display: none !important;
 	}

@@ -10,7 +10,65 @@ const Routes = Object.freeze({
 	STATS: "/stats",
 	PLAYER_STATS: "/stats/players",
 	LOGIN: "/login",
+	ADMIN: "/admin",
 });
+
+// Codes match CarromPremierLeague.API core/permissions.py.
+const Permission = Object.freeze({
+	SEASONS_CREATE: "seasons.create",
+	SEASONS_UPDATE: "seasons.update",
+	SEASONS_DELETE: "seasons.delete",
+	SEASONS_TEAMS: "seasons.teams",
+	TEAMS_CREATE: "teams.create",
+	TEAMS_UPDATE: "teams.update",
+	TEAMS_DELETE: "teams.delete",
+	PLAYERS_CREATE: "players.create",
+	PLAYERS_UPDATE: "players.update",
+	PLAYERS_DELETE: "players.delete",
+	COUNTRIES_CREATE: "countries.create",
+	COUNTRIES_UPDATE: "countries.update",
+	COUNTRIES_DELETE: "countries.delete",
+	ROSTERS_MANAGE: "rosters.manage",
+	MATCHES_CREATE: "matches.create",
+	MATCHES_UPDATE: "matches.update",
+	MATCHES_SCORECARD: "matches.scorecard",
+	MATCHES_RESET: "matches.reset",
+	MATCHES_DELETE: "matches.delete",
+	SETTINGS_UPDATE: "settings.update",
+	ADMINS_VIEW: "admins.view",
+	ADMINS_CREATE: "admins.create",
+	ADMINS_UPDATE: "admins.update",
+	ADMINS_DELETE: "admins.delete",
+	PERMISSIONS_MANAGE: "permissions.manage",
+});
+
+const areaCodes = (area) => Object.values(Permission).filter((code) => code.startsWith(`${area}.`));
+
+// An empty permissions list means every signed-in admin can open the section.
+const AdminSections = Object.freeze([
+	{ name: "admin-dashboard", path: "", label: "Overview", icon: "DataBoard", permissions: [] },
+	{ name: "admin-seasons", path: "seasons", label: "Seasons", icon: "Calendar", permissions: areaCodes("seasons") },
+	{ name: "admin-teams", path: "teams", label: "Teams", icon: "Flag", permissions: areaCodes("teams") },
+	{ name: "admin-players", path: "players", label: "Players", icon: "User", permissions: areaCodes("players") },
+	{ name: "admin-rosters", path: "rosters", label: "Rosters", icon: "Connection", permissions: areaCodes("rosters") },
+	{ name: "admin-matches", path: "matches", label: "Matches", icon: "Trophy", permissions: areaCodes("matches") },
+	{ name: "admin-countries", path: "countries", label: "Countries", icon: "Location", permissions: areaCodes("countries") },
+	{
+		name: "admin-users",
+		path: "users",
+		label: "Users",
+		icon: "UserFilled",
+		permissions: [Permission.ADMINS_VIEW, Permission.ADMINS_CREATE],
+	},
+	{
+		name: "admin-permissions",
+		path: "permissions",
+		label: "Permissions",
+		icon: "Lock",
+		permissions: [Permission.PERMISSIONS_MANAGE],
+	},
+	{ name: "admin-settings", path: "settings", label: "Settings", icon: "Setting", permissions: [Permission.SETTINGS_UPDATE] },
+]);
 
 const NavItems = Object.freeze([
 	{ label: "Home", path: Routes.HOME },
@@ -97,6 +155,8 @@ const BackgroundMusic = Object.freeze({
 export {
 	Routes,
 	NavItems,
+	AdminSections,
+	Permission,
 	LEAGUE_TIMEZONE,
 	MatchStatus,
 	MatchCategory,

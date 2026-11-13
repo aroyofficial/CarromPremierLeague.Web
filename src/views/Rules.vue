@@ -34,9 +34,9 @@
 						format where performance across games determines their position on the table.
 					</p>
 					<p>
-						Every match is played for 15 minutes of regulation time, with a 15-second shot clock. The
-						Queen stays off the board during regulation. A league match can finish tied. A final or
-						eliminator that is still tied after 5 extra minutes, or a tie for a knockout place, is
+						Every match is played for {{ regulationMinutes }} minutes of regulation time, with a 15-second shot clock.
+						{{ leagueQueenSentence }} A league match can finish tied. A final or
+						eliminator that is still tied after {{ extraMinutes }} extra minutes, or a tie for a knockout place, is
 						decided by Golden Strike.
 					</p>
 					<p>
@@ -47,17 +47,34 @@
 
 				<section id="format" class="rule-card">
 					<h2><span aria-hidden="true">🎯</span> Match Format &amp; Gameplay</h2>
-					<p>Each match is played to a fixed clock.</p>
+					<p>
+						Each match is played to a fixed clock. The board has 9 white coins and 9 black coins.
+						One team plays each colour, so a team cannot be credited with more than 9 of its own coins.
+					</p>
 					<ul>
 						<li>
-							<b>Regulation Time:</b> Every match lasts 15 minutes.
+							<b>Regulation Time:</b> The clock runs for {{ regulationMinutes }} minutes. Finish is available as soon as a
+							team reaches 9 coins, and also when the clock expires.
 						</li>
 						<li>
-							<b>Extra Time (Only in Final / Eliminator):</b> 5 minutes extra are given.
+							<b>Extra Time (Only in Final / Eliminator):</b> {{ extraMinutes }} minutes extra are given.
 						</li>
 						<li>
-							<b>Winner:</b> When time expires, the team with more coins pocketed wins the match and
-							receives 2 points.
+							<b>Queen:</b> {{ leagueQueenSentence }}
+						</li>
+						<li>
+							<b>Winner:</b> The team with more coins pocketed wins the match and receives 2 points.
+							An equal score is a tie.
+						</li>
+					</ul>
+
+					<h3>Fines</h3>
+					<ul>
+						<li>A <b>single fine</b> costs 1 pocketed coin.</li>
+						<li>A <b>double fine</b> costs 2 pocketed coins.</li>
+						<li>
+							If a team does not have enough pocketed coins to cover a single or double fine, that
+							fine is <b>due</b>.
 						</li>
 					</ul>
 
@@ -93,7 +110,7 @@
 					</div>
 					<p>
 						A league tie is awarded when regulation time ends with the same number of white and black
-						coins left. Each team receives 1 point. A final or eliminator that is still tied after 5
+						coins left. Each team receives 1 point. A final or eliminator that is still tied after {{ extraMinutes }}
 						extra minutes is decided by Golden Strike, so those matches do not share the point.
 					</p>
 				</section>
@@ -109,8 +126,8 @@
 							#2, and #3.
 						</li>
 						<li>
-							<b>Final:</b> When four teams are playing, they decide the #1 and #2 ranking for the
-							final.
+							<b>Final:</b> When four or fewer teams are playing, they decide the #1 and #2 ranking
+							for the final.
 						</li>
 					</ul>
 					<p>Teams on the same points are separated in this order:</p>
@@ -131,8 +148,8 @@
 
 					<h3>Final / Eliminator Ties</h3>
 					<p>
-						If the final or the eliminator is tied after 15 minutes, with the same number of white and
-						black coins left, 5 more minutes are played. If the match is still tied after that extra
+						If the final or the eliminator is tied after {{ regulationMinutes }} minutes, with the same number of white and
+						black coins left, {{ extraMinutes }} more minutes are played. If the match is still tied after that extra
 						time, the system schedules a Golden Strike between the same teams. These matches do not
 						share 1 point. The winner of that Golden Strike takes the knockout place.
 					</p>
@@ -161,13 +178,15 @@
 					<h2><span aria-hidden="true">🏁</span> Finals</h2>
 					<ul>
 						<li>
-							<b>Four teams:</b> When the league is complete, the system schedules a final between
-							#1 and #2. A tie for either place schedules Golden Strike first.
+							<b>Four or fewer teams:</b> When the league is complete, the system schedules a final
+							between #1 and #2. Until both teams are known the final is shown as TBD against TBD. A tie
+							for either place schedules Golden Strike first.
 						</li>
 						<li>
 							<b>More than four teams:</b> When the league is complete, the system schedules an
-							eliminator between #2 and #3, then a final between #1 and the eliminator winner. A tie
-							for #1 or for an eliminator place schedules Golden Strike first.
+							eliminator between #2 and #3, then a final between #1 and the eliminator winner. The
+							eliminator and the final are shown as TBD against TBD until both of their teams are
+							known. A tie for #1 or for an eliminator place schedules Golden Strike first.
 						</li>
 					</ul>
 				</section>
@@ -178,7 +197,17 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, onUnmounted } from "vue";
+import { computed, ref, watch, onMounted, onUnmounted } from "vue";
+import { useSettingsStore } from "@/store/settingsStore";
+
+const settingsStore = useSettingsStore();
+const regulationMinutes = computed(() => settingsStore.regulation_minutes);
+const extraMinutes = computed(() => settingsStore.extra_minutes);
+const leagueQueenSentence = computed(() => {
+	if (!settingsStore.league_queen) return "The Queen stays off the board during league regulation.";
+	if (settingsStore.queen_needs_cover) return "The Queen is in play during league regulation and must be covered.";
+	return "The Queen is in play during league regulation. No cover is required.";
+});
 
 const sections = [
 	{ id: "about", icon: "🏆", title: "About CPL" },
@@ -196,11 +225,34 @@ let resizeObserver = null;
 let lockActive = false;
 let lockTimer = null;
 
+// Must match the media query that enables the panel layout in the styles below.
+const panelQuery = window.matchMedia("(min-width: 992px) and (min-height: 601px)");
+const usesPageScroll = () => !panelQuery.matches;
+
+const stuckIndexBottom = () => {
+	const header = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--app-header-height")) || 64;
+	return header + (indexRef.value?.offsetHeight || 0);
+};
+
+const markerTop = () => {
+	if (usesPageScroll()) return stuckIndexBottom() + 28;
+	return (contentRef.value?.getBoundingClientRect().top || 0) + 28;
+};
+
 const syncScrollEnd = () => {
 	const scroller = contentRef.value;
 	const spacer = scroller?.querySelector(".rules-scroll-end");
 	if (!scroller || !spacer) return;
-	spacer.style.height = `${Math.max(scroller.clientHeight - 120, 24)}px`;
+	if (!usesPageScroll()) {
+		spacer.style.height = `${Math.max(scroller.clientHeight - 120, 24)}px`;
+		return;
+	}
+	const last = document.getElementById(sections[sections.length - 1].id);
+	if (!last) return;
+	const lastTop = last.getBoundingClientRect().top + window.scrollY;
+	const targetScroll = lastTop - stuckIndexBottom() - 8;
+	const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+	spacer.style.height = `${Math.max(spacer.offsetHeight + targetScroll - maxScroll, 24)}px`;
 };
 
 const scrollChipIntoView = (id) => {
@@ -218,9 +270,8 @@ const scrollChipIntoView = (id) => {
 
 const updateActiveFromScroll = () => {
 	if (lockActive) return;
-	const scroller = contentRef.value;
-	if (!scroller) return;
-	const marker = scroller.getBoundingClientRect().top + 28;
+	if (!contentRef.value) return;
+	const marker = markerTop();
 	let current = sections[0].id;
 	for (const section of sections) {
 		const el = document.getElementById(section.id);
@@ -230,14 +281,17 @@ const updateActiveFromScroll = () => {
 };
 
 const scrollTo = (id) => {
-	const scroller = contentRef.value;
+	const panel = contentRef.value;
 	const target = document.getElementById(id);
-	if (!scroller || !target) return;
-	const top =
-		target.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
+	if (!panel || !target) return;
+	const pageScroll = usesPageScroll();
+	const scroller = pageScroll ? window : panel;
+	const top = pageScroll
+		? target.getBoundingClientRect().top + window.scrollY - stuckIndexBottom() - 8
+		: target.getBoundingClientRect().top - panel.getBoundingClientRect().top + panel.scrollTop - 4;
 	lockActive = true;
 	activeId.value = id;
-	scroller.scrollTo({ top: Math.max(top - 4, 0), behavior: "smooth" });
+	scroller.scrollTo({ top: Math.max(top, 0), behavior: "smooth" });
 	clearTimeout(lockTimer);
 	const release = () => {
 		lockActive = false;
@@ -249,51 +303,82 @@ const scrollTo = (id) => {
 watch(activeId, (id) => scrollChipIntoView(id));
 
 onMounted(() => {
+	settingsStore.fetchSettings().catch(() => undefined);
 	document.getElementById("app")?.classList.add("rules-screen");
 	syncScrollEnd();
 	resizeObserver = new ResizeObserver(syncScrollEnd);
 	contentRef.value?.addEventListener("scroll", updateActiveFromScroll, { passive: true });
+	window.addEventListener("scroll", updateActiveFromScroll, { passive: true });
+	panelQuery.addEventListener("change", syncScrollEnd);
 	if (contentRef.value) resizeObserver.observe(contentRef.value);
+	resizeObserver.observe(document.documentElement);
 });
 
 onUnmounted(() => {
 	clearTimeout(lockTimer);
 	contentRef.value?.removeEventListener("scroll", updateActiveFromScroll);
+	window.removeEventListener("scroll", updateActiveFromScroll);
+	panelQuery.removeEventListener("change", syncScrollEnd);
 	resizeObserver?.disconnect();
 	document.getElementById("app")?.classList.remove("rules-screen");
 });
 </script>
 
 <style scoped lang="scss">
-:global(html:has(#app.rules-screen)),
-:global(body:has(#app.rules-screen)) {
-	height: 100%;
-	overflow: hidden;
-}
+/* Panel layout (viewport-locked, content scrolls inside) only where there is room for it;
+   the breakpoint must match panelQuery in the script. */
+@media (min-width: 992px) and (min-height: 601px) {
+	:global(html:has(#app.rules-screen)),
+	:global(body:has(#app.rules-screen)) {
+		height: 100%;
+		overflow: hidden;
+	}
 
-:global(#app.rules-screen) {
-	height: 100dvh;
-	max-height: 100dvh;
-	overflow: hidden;
-}
+	:global(#app.rules-screen) {
+		height: 100dvh;
+		max-height: 100dvh;
+		overflow: hidden;
+	}
 
-:global(#app.rules-screen #app-content) {
-	display: flex;
-	flex: 1 1 auto;
-	flex-direction: column;
-	min-width: 0;
-	min-height: 0;
-	overflow: hidden;
+	:global(#app.rules-screen #app-content) {
+		display: flex;
+		flex: 1 1 auto;
+		flex-direction: column;
+		min-width: 0;
+		min-height: 0;
+		overflow: hidden;
+	}
+
+	.rules-page {
+		display: flex;
+		flex: 1 1 auto;
+		flex-direction: column;
+		min-height: 0;
+		overflow: hidden;
+	}
+
+	.rules-layout {
+		flex: 1 1 auto;
+		min-height: 0;
+		overflow: hidden;
+	}
+
+	.rules-index {
+		min-height: 0;
+		overflow-y: auto;
+		overscroll-behavior: contain;
+	}
+
+	.rules-content {
+		min-height: 0;
+		overflow-y: auto;
+		overscroll-behavior: contain;
+	}
 }
 
 .rules-page {
-	display: flex;
-	flex: 1 1 auto;
-	flex-direction: column;
 	width: 100%;
 	min-width: 0;
-	min-height: 0;
-	overflow: hidden;
 	padding-top: clamp(12px, 2.5vw, 28px);
 	padding-bottom: clamp(12px, 2vw, 20px);
 }
@@ -305,13 +390,10 @@ onUnmounted(() => {
 
 .rules-layout {
 	display: grid;
-	flex: 1 1 auto;
 	grid-template-columns: minmax(168px, 220px) minmax(0, 1fr);
 	gap: clamp(12px, 2vw, 28px);
 	align-items: stretch;
 	min-width: 0;
-	min-height: 0;
-	overflow: hidden;
 }
 
 .rules-index {
@@ -320,10 +402,7 @@ onUnmounted(() => {
 	gap: 4px;
 	align-self: stretch;
 	min-width: 0;
-	min-height: 0;
 	overflow-x: hidden;
-	overflow-y: auto;
-	overscroll-behavior: contain;
 
 	a {
 		display: flex;
@@ -355,10 +434,7 @@ onUnmounted(() => {
 	gap: 18px;
 	align-self: stretch;
 	min-width: 0;
-	min-height: 0;
 	overflow-x: hidden;
-	overflow-y: auto;
-	overscroll-behavior: contain;
 	padding-right: 4px;
 	padding-bottom: 8px;
 }
@@ -453,6 +529,19 @@ onUnmounted(() => {
 	margin-top: 6px;
 }
 
+@media (max-width: 991.98px), (max-height: 600px) {
+	.rules-index {
+		position: sticky;
+		top: var(--app-header-height);
+		z-index: 5;
+		align-self: start;
+	}
+
+	.rule-card {
+		scroll-margin-top: calc(var(--app-header-height) + 64px);
+	}
+}
+
 @media (max-width: 991.98px) {
 	.rules-layout {
 		grid-template-columns: minmax(0, 1fr);
@@ -461,14 +550,14 @@ onUnmounted(() => {
 	}
 
 	.rules-index {
-		z-index: 5;
 		flex-direction: row;
 		align-self: stretch;
 		overflow-x: auto;
 		overflow-y: hidden;
-		margin: 0;
-		padding: 2px 0 8px;
-		background: transparent;
+		margin: 0 calc(-1 * var(--page-gutter));
+		padding: 8px var(--page-gutter);
+		background: var(--cpl-surface-muted);
+		box-shadow: 0 6px 12px -10px rgba(15, 23, 42, 0.35);
 		scrollbar-width: none;
 
 		&::-webkit-scrollbar {
@@ -487,11 +576,26 @@ onUnmounted(() => {
 
 @media (max-width: 575.98px) {
 	.points-grid {
-		grid-template-columns: 1fr;
+		gap: 8px;
+	}
+
+	.points-tile {
+		padding: 14px 6px;
 	}
 
 	.points-value {
-		font-size: 32px;
+		font-size: 30px;
+	}
+
+	.points-label {
+		font-size: 12px;
+		line-height: 1.3;
+	}
+}
+
+@media (max-width: 339.98px) {
+	.points-grid {
+		grid-template-columns: 1fr;
 	}
 }
 </style>

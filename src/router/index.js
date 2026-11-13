@@ -1,11 +1,27 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { ElMessage } from "element-plus";
-import { Routes } from "../utils/constants";
+import { AdminSections, Routes } from "../utils/constants";
+import { authToken } from "../utils/authToken";
 import { useSeasonStore } from "@/store/seasonStore";
+import { useSettingsStore } from "@/store/settingsStore";
+import { useAuthStore } from "@/store/authStore";
 import { useTeamStore } from "@/store/teamStore";
 import { useMatchStore } from "@/store/matchStore";
 import { useRosterStore } from "@/store/rosterStore";
 import { startLoader, pauseLoader } from "../utils/common";
+
+const adminViews = {
+	"admin-dashboard": () => import("@/views/admin/AdminDashboard.vue"),
+	"admin-seasons": () => import("@/views/admin/AdminSeasons.vue"),
+	"admin-teams": () => import("@/views/admin/AdminTeams.vue"),
+	"admin-players": () => import("@/views/admin/AdminPlayers.vue"),
+	"admin-rosters": () => import("@/views/admin/AdminRosters.vue"),
+	"admin-matches": () => import("@/views/admin/AdminMatches.vue"),
+	"admin-countries": () => import("@/views/admin/AdminCountries.vue"),
+	"admin-users": () => import("@/views/admin/AdminUsers.vue"),
+	"admin-permissions": () => import("@/views/admin/AdminPermissions.vue"),
+	"admin-settings": () => import("@/views/admin/AdminSettings.vue"),
+};
 
 const routes = [
 	{
@@ -69,6 +85,22 @@ const routes = [
 		meta: { title: "Admin Login", skipPreload: true },
 	},
 	{
+		path: Routes.ADMIN,
+		component: () => import("@/views/admin/AdminLayout.vue"),
+		meta: { requiresAuth: true, skipPreload: true },
+		children: AdminSections.map((section) => ({
+			path: section.path,
+			name: section.name,
+			component: adminViews[section.name],
+			meta: {
+				title: `Admin · ${section.label}`,
+				requiresAuth: true,
+				skipPreload: true,
+				permissions: section.permissions,
+			},
+		})),
+	},
+	{
 		path: Routes.NOT_FOUND,
 		name: "not-found",
 		component: () => import("@/views/NotFound.vue"),
@@ -81,7 +113,7 @@ const routes = [
 ];
 
 const router = createRouter({
-	history: createWebHistory(),
+	history: createWebHistory(import.meta.env.BASE_URL),
 	routes,
 	scrollBehavior(to, from, savedPosition) {
 		return savedPosition || { top: 0 };
@@ -89,16 +121,34 @@ const router = createRouter({
 });
 
 router.beforeEach(async (to) => {
+	if (to.matched.some((record) => record.meta.requiresAuth) && !authToken.get()) {
+		return { path: Routes.LOGIN, query: { redirect: to.fullPath } };
+	}
+	const required = to.meta.permissions || [];
+	if (required.length) {
+		const authStore = useAuthStore();
+		try {
+			await authStore.loadProfile();
+		} catch {
+			return authToken.get() ? { name: "admin-dashboard" } : { path: Routes.LOGIN, query: { redirect: to.fullPath } };
+		}
+		if (!authStore.canAny(required)) {
+			ElMessage.warning("You do not have permission to open that section.");
+			return { name: "admin-dashboard" };
+		}
+	}
 	if (to.meta.skipPreload) return true;
 
 	startLoader();
 	try {
 		const seasonStore = useSeasonStore();
 		const teamStore = useTeamStore();
+		const settingsStore = useSettingsStore();
 
 		await Promise.all([
 			seasonStore.seasons.length === 0 && seasonStore.fetchSeasons(),
 			teamStore.teams.length === 0 && teamStore.fetchTeams(),
+			settingsStore.fetchSettings().catch(() => undefined),
 		]);
 
 		if (to.path === Routes.FIXTURES && seasonStore.selectedSeason) {

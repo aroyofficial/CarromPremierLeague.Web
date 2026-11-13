@@ -19,25 +19,6 @@
 			</div>
 		</header>
 
-		<div class="summary" aria-label="Schedule summary">
-			<button type="button" class="summary-card" :class="{ 'is-on': filter === 'all' }" @click="filter = 'all'">
-				<strong>{{ matches.length }}</strong>
-				<span>Matches</span>
-			</button>
-			<button type="button" class="summary-card live" :class="{ 'is-on': filter === 'live' }" @click="filter = 'live'">
-				<strong>{{ counts.live }}</strong>
-				<span>Live</span>
-			</button>
-			<button type="button" class="summary-card" :class="{ 'is-on': filter === 'upcoming' }" @click="filter = 'upcoming'">
-				<strong>{{ counts.upcoming }}</strong>
-				<span>To play</span>
-			</button>
-			<button type="button" class="summary-card" :class="{ 'is-on': filter === 'played' }" @click="filter = 'played'">
-				<strong>{{ counts.played }}</strong>
-				<span>Played</span>
-			</button>
-		</div>
-
 		<div v-loading="loading" element-loading-text="Loading..." class="schedule-body">
 			<section v-for="group in groups" :key="group.date" class="day-group">
 				<h2 class="day-label">{{ groupLabel(group.date) }}</h2>
@@ -76,19 +57,19 @@
 								</div>
 								<div v-else-if="isPlayed(match) && match.players.length" class="score">
 									<span class="score-num">{{ scoreLine(match) }}</span>
-									<span class="score-caption" :class="{ 'is-extra': finishInfo(match).extra }">{{ finishInfo(match).text }}</span>
+									<span class="score-caption" :class="{ 'is-extra': showMatchClock(match) && finishInfo(match).extra }">{{ playedClockText(match) }}</span>
 								</div>
 								<div v-else-if="isPlayed(match)" class="score">
 									<span class="score-num">{{ centerMark(match) }}</span>
-									<span class="score-caption" :class="{ 'is-extra': finishInfo(match).extra }">{{ match.duration == null ? centerCaption(match) : finishInfo(match).text }}</span>
+									<span class="score-caption" :class="{ 'is-extra': showMatchClock(match) && match.duration != null && finishInfo(match).extra }">{{ playedClockText(match) }}</span>
 								</div>
 								<span v-else class="vs-mark">VS</span>
-								<span v-if="isLive(match)" class="match-meta">
+								<span v-if="isLive(match) && showMatchClock(match)" class="match-meta">
 									<span class="clock-time" :class="{ 'is-extra': clockState(match).extra }">{{ clockState(match).time }}</span>
 									<span v-if="clockState(match).extra" class="extra-label">Extra</span>
-									<span class="match-label">Match {{ match.order }}</span>
+									<span class="match-label">{{ matchLabel(match) }}</span>
 								</span>
-								<span v-else class="match-label">Match {{ match.order }}</span>
+								<span v-else class="match-label">{{ matchLabel(match) }}</span>
 							</div>
 
 							<div class="club club-away" :class="[sideState(match, match.team2_id), favored(match, match.team2_id)]">
@@ -145,8 +126,8 @@
 							<div class="tally">
 								<div class="tally-row tally-names">
 									<span></span>
-									<span>{{ match.team1_name || "Team 1" }}</span>
-									<span>{{ match.team2_name || "Team 2" }}</span>
+									<span>{{ match.team1_name || "TBD" }}</span>
+									<span>{{ match.team2_name || "TBD" }}</span>
 								</div>
 								<div class="tally-row tally-score">
 									<span>Score</span>
@@ -198,11 +179,11 @@
 								<div class="chance-readout">
 									<div>
 										<strong>{{ match.win_probability.team1_percent }}%</strong>
-										<span>{{ match.team1_name || "Team 1" }}</span>
+										<span>{{ match.team1_name || "TBD" }}</span>
 									</div>
 									<div class="chance-readout-right">
 										<strong>{{ match.win_probability.team2_percent }}%</strong>
-										<span>{{ match.team2_name || "Team 2" }}</span>
+										<span>{{ match.team2_name || "TBD" }}</span>
 									</div>
 								</div>
 							</section>
@@ -250,12 +231,12 @@
 
 		<el-dialog v-model="statsOpen" :title="statsTitle" width="min(560px, 92vw)" align-center append-to-body>
 			<p v-if="statsMatch && !statsMatch.head_to_head.matches_played" class="history-note">
-				{{ statsMatch.team1_name }} and {{ statsMatch.team2_name }} have not played each other before.
+				{{ statsMatch.team1_name || "TBD" }} and {{ statsMatch.team2_name || "TBD" }} have not played each other before.
 			</p>
 			<div v-else-if="statsMatch" class="h2h">
 				<div class="h2h-cell">
 					<strong>{{ statsMatch.head_to_head.team1_wins }}</strong>
-					<span>{{ statsMatch.team1_name }} wins</span>
+					<span>{{ statsMatch.team1_name || "TBD" }} wins</span>
 					<em>{{ statsMatch.head_to_head.team1_coins }} coins pocketed</em>
 				</div>
 				<div class="h2h-cell h2h-draw">
@@ -265,7 +246,7 @@
 				</div>
 				<div class="h2h-cell">
 					<strong>{{ statsMatch.head_to_head.team2_wins }}</strong>
-					<span>{{ statsMatch.team2_name }} wins</span>
+					<span>{{ statsMatch.team2_name || "TBD" }} wins</span>
 					<em>{{ statsMatch.head_to_head.team2_coins }} coins pocketed</em>
 				</div>
 			</div>
@@ -277,26 +258,27 @@
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import dayjs from "@/plugins/dayjs";
 import { useSeasonStore } from "@/store/seasonStore";
+import { useSettingsStore } from "@/store/settingsStore";
 import { useTeamStore } from "@/store/teamStore";
 import { seasonService } from "@/services/seasonService";
 import { MatchCategory, MatchStatus, TossOutcome } from "@/utils/constants";
 import { resolveAsset } from "@/utils/common";
 
 const seasonStore = useSeasonStore();
+const settingsStore = useSettingsStore();
 const teamStore = useTeamStore();
 const selectedSeason = ref(null);
 const seasons = ref([]);
 const matches = ref([]);
 const loading = ref(false);
 const errorMessage = ref("");
-const filter = ref("all");
 const openId = ref(null);
 let refreshTimer = null;
 const statsOpen = ref(false);
 const statsMatch = ref(null);
 const statsTitle = computed(() => {
 	if (!statsMatch.value) return "Stats";
-	return `${statsMatch.value.team1_name} vs ${statsMatch.value.team2_name}`;
+	return `${statsMatch.value.team1_name || "TBD"} vs ${statsMatch.value.team2_name || "TBD"}`;
 });
 const dropdownPopperOptions = ref({
 	placement: "bottom-start",
@@ -308,18 +290,7 @@ const isLive = (match) => match.status === statusId("In Progress");
 const isPlayed = (match) => match.status === statusId("Played");
 const isScheduled = (match) => match.status === statusId("Scheduled");
 
-const counts = computed(() => ({
-	live: matches.value.filter(isLive).length,
-	played: matches.value.filter(isPlayed).length,
-	upcoming: matches.value.filter(isScheduled).length,
-}));
-
-const visibleMatches = computed(() => {
-	if (filter.value === "live") return matches.value.filter(isLive);
-	if (filter.value === "played") return matches.value.filter(isPlayed);
-	if (filter.value === "upcoming") return matches.value.filter(isScheduled);
-	return matches.value;
-});
+const visibleMatches = computed(() => matches.value);
 
 const groups = computed(() => {
 	const grouped = [];
@@ -332,15 +303,14 @@ const groups = computed(() => {
 	return grouped;
 });
 
-const emptyLabel = computed(() => {
-	if (errorMessage.value) return errorMessage.value;
-	if (filter.value === "live") return "No match is live right now.";
-	if (filter.value === "played") return "No matches have been played in this season.";
-	if (filter.value === "upcoming") return "Every match in this season has been played.";
-	return "No matches have been scheduled for this season.";
-});
+const emptyLabel = computed(() => errorMessage.value || "No matches have been scheduled for this season.");
 
 const categoryName = (category) => MatchCategory.find((item) => item.id === category)?.name || "Match";
+
+const matchLabel = (match) => {
+	const name = categoryName(match.category);
+	return name === "League" ? `Match ${match.order}` : `${name} · Match ${match.order}`;
+};
 
 const dateParts = (value) => {
 	const date = value ? dayjs(value) : null;
@@ -376,16 +346,31 @@ const tally = (match, teamId) =>
 		{ coins: 0, opponent: 0, single: 0, double: 0, fines: 0, strikers: 0 },
 	);
 
+const COINS_PER_COLOR = 9;
+
+// A fine puts a pocketed coin back on the board, so a team can pocket more than 9 of its coins
+// once fines are counted; what stays off the board never exceeds 9.
+const creditedCoins = (match, teamId) => {
+	const mine = tally(match, teamId);
+	const otherId = teamId === match.team1_id ? match.team2_id : match.team1_id;
+	const other = otherId ? tally(match, otherId) : { opponent: 0 };
+	const room = Math.max(0, COINS_PER_COLOR - Math.min(COINS_PER_COLOR, other.opponent || 0)) + mine.fines;
+	return Math.min(mine.coins, room);
+};
+
 const teamScore = (match, teamId) => {
-	const totals = tally(match, teamId);
-	return totals.coins - totals.fines;
+	const mine = tally(match, teamId);
+	const otherId = teamId === match.team1_id ? match.team2_id : match.team1_id;
+	const other = otherId ? tally(match, otherId) : { opponent: 0 };
+	// Coins of this colour the other team pocketed count in the score. A due fine floors own coins at zero.
+	return Math.max(0, mine.coins - mine.fines) + (other.opponent || 0);
 };
 
 const teamRows = (match) => {
 	const home = tally(match, match.team1_id);
 	const away = tally(match, match.team2_id);
 	return [
-		{ label: "Own Coins Pocketed", home: home.coins, away: away.coins },
+		{ label: "Own Coins Pocketed", home: creditedCoins(match, match.team1_id), away: creditedCoins(match, match.team2_id) },
 		{ label: "Opponent Coins Pocketed", home: home.opponent, away: away.opponent, opponent: true },
 		{ label: "Single Fines (1 coin)", home: home.single, away: away.single },
 		{ label: "Double Fines (2 coins)", home: home.double, away: away.double },
@@ -410,8 +395,6 @@ const showBoard = (match) => (isLive(match) || isPlayed(match)) && match.players
 
 const scoreLine = (match) => `${teamScore(match, match.team1_id)} – ${teamScore(match, match.team2_id)}`;
 
-const REGULATION_MS = 15 * 60 * 1000;
-const EXTRA_MS = 5 * 60 * 1000;
 const now = ref(Date.now());
 
 const tossSide = (match) => {
@@ -420,24 +403,27 @@ const tossSide = (match) => {
 	return "";
 };
 
-const showToss = (match) => (isLive(match) || isPlayed(match)) && tossSide(match) !== "";
+const showToss = (match) => tossSide(match) !== "";
 
 const showChance = (match) => (isScheduled(match) || isLive(match)) && match.win_probability;
 
-const REGULATION_SECONDS = 15 * 60;
-const EXTRA_SECONDS = 5 * 60;
+const regulationSeconds = () => settingsStore.regulation_minutes * 60;
+const extraSeconds = () => settingsStore.extra_minutes * 60;
+
+const isTiebreak = (match) => categoryName(match.category) === "Golden Strike";
+
+const showMatchClock = (match) => !isTiebreak(match);
 
 const finishInfo = (match) => {
 	if (match.duration == null) return { text: "Final score", extra: false };
 	const extraPlayed = match.extra || 0;
-	if (extraPlayed > 0) {
-		const left = Math.max(0, EXTRA_SECONDS - extraPlayed);
-		if (left === 0) return { text: "Full extra time", extra: true };
-		return { text: `${formatClock(left)} left in extra`, extra: true };
-	}
-	const left = Math.max(0, REGULATION_SECONDS - match.duration);
-	if (left === 0) return { text: "Full 15:00", extra: false };
-	return { text: `${formatClock(left)} left`, extra: false };
+	if (extraPlayed > 0) return { text: `${formatClock(extraPlayed)} extra`, extra: true };
+	return { text: formatClock(match.duration), extra: false };
+};
+
+const playedClockText = (match) => {
+	if (!showMatchClock(match) || match.duration == null) return centerCaption(match);
+	return finishInfo(match).text;
 };
 
 const formatClock = (totalSeconds) => {
@@ -449,18 +435,24 @@ const formatClock = (totalSeconds) => {
 
 const isKnockout = (match) => {
 	const name = categoryName(match.category);
-	return name === "Final" || name === "Eliminator";
+	return ["Eliminator", "Qualifier 1", "Qualifier 2", "Final"].includes(name);
 };
 
 const clockState = (match) => {
 	const start = match.started_at ? dayjs(match.started_at).valueOf() : now.value;
-	const regulationLeft = Math.max(0, Math.ceil((start + REGULATION_MS - now.value) / 1000));
-	if (isKnockout(match) && regulationLeft === 0 && match.extra_started_at) {
+	const elapsedRegulation = Math.min(
+		regulationSeconds(),
+		Math.max(0, Math.floor((now.value - start) / 1000)),
+	);
+	if (isKnockout(match) && elapsedRegulation >= regulationSeconds() && match.extra_started_at) {
 		const extraStart = dayjs(match.extra_started_at).valueOf();
-		const extraLeft = Math.max(0, Math.ceil((extraStart + EXTRA_MS - now.value) / 1000));
-		return { time: formatClock(extraLeft), extra: true };
+		const extraElapsed = Math.min(
+			extraSeconds(),
+			Math.max(0, Math.floor((now.value - extraStart) / 1000)),
+		);
+		return { time: formatClock(extraElapsed), extra: true };
 	}
-	return { time: formatClock(regulationLeft), extra: false };
+	return { time: formatClock(elapsedRegulation), extra: false };
 };
 
 const localPhoto = (player) => {
@@ -547,20 +539,26 @@ const openStats = (match) => {
 	statsOpen.value = true;
 };
 
+let scheduleRequest = 0;
+
 const fetchSchedule = async (options) => {
 	const quiet = Boolean(options && options.quiet);
+	if (quiet && scheduleRequest) return;
 	if (!selectedSeason.value) {
 		matches.value = [];
 		openId.value = null;
 		return;
 	}
+	const requestId = ++scheduleRequest;
 	if (!quiet) {
 		loading.value = true;
 		errorMessage.value = "";
 	}
 	try {
 		seasonStore.setSeason(selectedSeason.value);
+		await settingsStore.fetchSettings().catch(() => undefined);
 		const response = await seasonService.getSchedule(selectedSeason.value);
+		if (requestId !== scheduleRequest) return;
 		const nextMatches = response.data?.matches || [];
 		matches.value = nextMatches;
 		if (statsMatch.value) {
@@ -570,14 +568,19 @@ const fetchSchedule = async (options) => {
 		if (!quiet) openId.value = null;
 	} catch (error) {
 		console.error("Failed to load schedule", error);
-		if (!quiet) {
+		if (!quiet && requestId === scheduleRequest) {
 			matches.value = [];
 			openId.value = null;
 			errorMessage.value = "Unable to load the schedule right now. Please try again.";
 		}
 	} finally {
+		if (requestId === scheduleRequest) scheduleRequest = 0;
 		if (!quiet) loading.value = false;
 	}
+};
+
+const refreshScheduleIfVisible = () => {
+	if (document.visibilityState === "visible") fetchSchedule({ quiet: true });
 };
 
 onMounted(() => {
@@ -585,6 +588,7 @@ onMounted(() => {
 	selectedSeason.value = seasonStore.selectedSeason;
 	fetchSchedule();
 	refreshTimer = setInterval(() => fetchSchedule({ quiet: true }), 5000);
+	document.addEventListener("visibilitychange", refreshScheduleIfVisible);
 });
 
 const clockTimer = setInterval(() => {
@@ -594,67 +598,13 @@ const clockTimer = setInterval(() => {
 onUnmounted(() => {
 	clearInterval(clockTimer);
 	clearInterval(refreshTimer);
+	document.removeEventListener("visibilitychange", refreshScheduleIfVisible);
 });
 </script>
 
 <style lang="scss" scoped>
 .schedule-page {
 	max-width: 1080px;
-}
-
-.summary {
-	display: grid;
-	grid-template-columns: repeat(4, minmax(0, 1fr));
-	gap: 12px;
-	margin-bottom: 22px;
-}
-
-.summary-card {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	justify-content: center;
-	gap: 2px;
-	min-height: 88px;
-	padding: 14px 16px;
-	border: 1px solid var(--cpl-line);
-	border-radius: 16px;
-	background: #fff;
-	box-shadow: var(--cpl-shadow-card);
-	cursor: pointer;
-	text-align: center;
-
-	strong {
-		font-family: var(--cpl-font-display);
-		font-size: 28px;
-		line-height: 1;
-		color: var(--cpl-navy-900);
-	}
-
-	span {
-		font-size: 12px;
-		font-weight: 600;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-		color: var(--cpl-ink-400);
-	}
-
-	&.is-on {
-		border-color: var(--cpl-navy-800);
-		background: var(--cpl-navy-900);
-		strong,
-		span {
-			color: #fff;
-		}
-	}
-
-	&.live strong {
-		color: var(--cpl-red-500);
-	}
-
-	&.live.is-on strong {
-		color: #fecaca;
-	}
 }
 
 .schedule-body {
@@ -1565,8 +1515,10 @@ onUnmounted(() => {
 }
 
 @media (max-width: 767.98px) {
-	.summary {
-		grid-template-columns: 1fr 1fr;
+	.action {
+		min-height: 40px;
+		padding-right: 16px;
+		padding-left: 16px;
 	}
 
 	.drawer-grid,
@@ -1674,15 +1626,6 @@ onUnmounted(() => {
 }
 
 @media (max-width: 479.98px) {
-	.summary-card {
-		min-height: 76px;
-		padding: 12px 10px;
-	}
-
-	.summary-card strong {
-		font-size: 24px;
-	}
-
 	.crest {
 		width: 46px;
 		height: 46px;

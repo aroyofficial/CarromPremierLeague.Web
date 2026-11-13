@@ -26,6 +26,13 @@ api.interceptors.response.use(
 	(response) => response.data,
 	(error) => {
 		console.error("API Error:", error.response?.data || error.message);
+		if (error.response?.status === 401 && authToken.get()) {
+			authToken.clear();
+			window.dispatchEvent(new CustomEvent("cpl:session-expired"));
+		}
+		if (error.response?.status === 403 && authToken.get()) {
+			window.dispatchEvent(new CustomEvent("cpl:permission-denied"));
+		}
 		return Promise.reject(error.response?.data || error);
 	},
 );

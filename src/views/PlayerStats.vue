@@ -27,16 +27,21 @@
 				<table class="standings">
 					<thead>
 						<tr>
+							<th class="col-rank" scope="col"><abbr title="Rank by net coins, then coins, fewer double fines, fewer single fines, fewer opponent coins, fewer striker pockets">#</abbr></th>
 							<th class="col-player" scope="col">Player</th>
 							<th class="col-team" scope="col">Team</th>
 							<th scope="col"><abbr title="Matches with a recorded scorecard">Matches</abbr></th>
-							<th scope="col"><abbr title="Coins pocketed">Coins</abbr></th>
-							<th scope="col"><abbr title="Coins fined">Fines</abbr></th>
-							<th scope="col"><abbr title="Striker pockets">Pockets</abbr></th>
+							<th scope="col"><abbr title="Coins pocketed">C</abbr></th>
+							<th scope="col"><abbr title="Opponent coins pocketed">OC</abbr></th>
+							<th scope="col"><abbr title="Strikers pocketed">S</abbr></th>
+							<th scope="col"><abbr title="Single fines">SF</abbr></th>
+							<th scope="col"><abbr title="Double fines">DF</abbr></th>
+							<th scope="col"><abbr title="Net coins: coins pocketed minus fined coins">Net</abbr></th>
 						</tr>
 					</thead>
 					<tbody>
 						<tr v-for="(player, index) in players" :key="player.player_id" :style="{ '--i': index }">
+							<td class="col-rank">{{ index + 1 }}</td>
 							<td class="col-player">
 								<div class="player-cell">
 									<img :src="getPlayerAvatar(player)" alt="" class="avatar" />
@@ -46,8 +51,11 @@
 							<td class="col-team">{{ player.team_name || "Team unavailable" }}</td>
 							<td>{{ player.matches_played }}</td>
 							<td class="col-coins">{{ player.coins_pocketed }}</td>
-							<td>{{ player.coins_fined }}</td>
+							<td>{{ player.opponent_coins_pocketed }}</td>
 							<td>{{ player.strikers_pocketed }}</td>
+							<td>{{ player.single_fines }}</td>
+							<td>{{ player.double_fines }}</td>
+							<td class="col-coins">{{ player.net_coins ?? player.coins_pocketed - (player.coins_fined || 0) }}</td>
 						</tr>
 					</tbody>
 				</table>
@@ -61,7 +69,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, onUnmounted } from "vue";
 import { useSeasonStore } from "@/store/seasonStore";
 import { useStatsStore } from "@/store/statsStore";
 import { resolveAsset } from "@/utils/common";
@@ -82,14 +90,17 @@ const dropdownPopperOptions = ref({
 
 const toSlug = (value) => (value || "").toLowerCase().trim().replace(/\s+/g, "-");
 
-const getPlayerAvatar = (player) => {
-	if (player.avatar_url) return player.avatar_url;
-	return resolveAsset(
+const getPlayerAvatar = (player) =>
+	resolveAsset(
 		`public/assets/images/players/${toSlug(player.first_name)}-${toSlug(player.last_name)}.png`,
 	);
-};
 
-const fetchPlayerStats = async () => {
+let statsRequest = 0;
+let refreshTimer = null;
+
+const fetchPlayerStats = async (options) => {
+	const quiet = Boolean(options && options.quiet);
+	if (quiet && statsRequest) return;
 	if (!selectedSeason.value) {
 		players.value = [];
 		dataAvailable.value = false;
@@ -97,10 +108,12 @@ const fetchPlayerStats = async () => {
 		return;
 	}
 
-	loading.value = true;
+	const requestId = ++statsRequest;
+	if (!quiet) loading.value = true;
 	try {
 		seasonStore.setSeason(selectedSeason.value);
 		const result = await statsStore.fetchSeasonPlayerStats(selectedSeason.value, true);
+		if (requestId !== statsRequest) return;
 		dataAvailable.value = result.dataAvailable;
 		players.value = result.dataAvailable ? result.players : [];
 		emptyMessage.value = result.dataAvailable
@@ -110,18 +123,32 @@ const fetchPlayerStats = async () => {
 			: "Data is not available for this season.";
 	} catch (error) {
 		console.error("Failed to fetch player stats", error);
-		players.value = [];
-		dataAvailable.value = false;
-		emptyMessage.value = "Unable to load stats right now. Please try again.";
+		if (!quiet && requestId === statsRequest) {
+			players.value = [];
+			dataAvailable.value = false;
+			emptyMessage.value = "Unable to load stats right now. Please try again.";
+		}
 	} finally {
-		loading.value = false;
+		if (requestId === statsRequest) statsRequest = 0;
+		if (!quiet) loading.value = false;
 	}
 };
 
-onMounted(async () => {
+const refreshPlayerStatsIfVisible = () => {
+	if (document.visibilityState === "visible") fetchPlayerStats({ quiet: true });
+};
+
+onMounted(() => {
 	seasons.value = seasonStore.visibleSeasons;
 	selectedSeason.value = seasonStore.selectedSeason;
-	await fetchPlayerStats();
+	fetchPlayerStats();
+	refreshTimer = setInterval(() => fetchPlayerStats({ quiet: true }), 5000);
+	document.addEventListener("visibilitychange", refreshPlayerStatsIfVisible);
+});
+
+onUnmounted(() => {
+	clearInterval(refreshTimer);
+	document.removeEventListener("visibilitychange", refreshPlayerStatsIfVisible);
 });
 </script>
 
@@ -137,6 +164,10 @@ onMounted(async () => {
 
 .table-scroll {
 	overflow-x: auto;
+	-webkit-overflow-scrolling: touch;
+	background:
+		linear-gradient(to left, #fff 30%, rgba(255, 255, 255, 0)) right / 40px 100% no-repeat local,
+		radial-gradient(farthest-side at 100% 50%, rgba(15, 23, 42, 0.16), transparent) right / 14px 100% no-repeat scroll;
 }
 
 .standings {
@@ -240,12 +271,44 @@ onMounted(async () => {
 
 	.player-cell {
 		gap: 8px;
-		min-width: 140px;
+		min-width: 132px;
 	}
 
 	.avatar {
 		width: 28px;
 		height: 28px;
+	}
+}
+
+@media (max-width: 767.98px) {
+	.standings {
+		--rank-col: 34px;
+
+		.col-rank,
+		.col-player {
+			position: sticky;
+			z-index: 1;
+			background: #fff;
+		}
+
+		.col-rank {
+			left: 0;
+			box-sizing: border-box;
+			width: var(--rank-col);
+			min-width: var(--rank-col);
+			padding-right: 2px;
+			padding-left: 2px;
+		}
+
+		.col-player {
+			left: var(--rank-col);
+			box-shadow: 6px 0 8px -8px rgba(15, 23, 42, 0.35);
+		}
+
+		tbody tr:hover .col-rank,
+		tbody tr:hover .col-player {
+			background: #f8fafc;
+		}
 	}
 }
 

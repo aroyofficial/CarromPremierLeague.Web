@@ -1,0 +1,99 @@
+name: Deploy web to GitHub Pages
+
+on:
+  workflow_dispatch:
+    inputs:
+      git_ref:
+        description: Branch, tag, or full commit SHA to build and deploy
+        required: true
+        default: feature/season-3-portal-revamp
+        type: string
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the selected ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.git_ref }}
+          fetch-depth: 0
+
+      - name: Check required secrets
+        env:
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+        run: |
+          if [ -z "${VITE_API_BASE_URL}" ]; then
+            echo "::error::Repository secret VITE_API_BASE_URL is not set."
+            exit 1
+          fi
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        env:
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+          VITE_WEB_ENV: production
+          VITE_BASE_PATH: /${{ github.event.repository.name }}/
+        run: |
+          set -euo pipefail
+          node -e '
+            const value = process.env.VITE_API_BASE_URL;
+            const url = new URL(value);
+            if (url.protocol !== "https:" || !url.hostname.endsWith(".onrender.com") || !url.pathname.endsWith("/")) {
+              throw new Error("VITE_API_BASE_URL must be an https onrender.com URL ending in /.");
+            }
+            console.log(`Building for API host: ${url.host}`);
+            console.log(`Publishing under: ${process.env.VITE_BASE_PATH}`);
+          '
+          npm run build
+          node -e '
+            const fs = require("fs");
+            fs.writeFileSync(
+              "dist/runtime-config.js",
+              `window.__CPL_API_BASE_URL__ = ${JSON.stringify(process.env.VITE_API_BASE_URL)};\n`,
+            );
+            fs.copyFileSync("dist/index.html", "dist/404.html");
+          '
+          if ! grep -Fxq "window.__CPL_API_BASE_URL__ = \"${VITE_API_BASE_URL}\";" dist/runtime-config.js; then
+            echo "::error::The generated runtime API configuration is invalid."
+            exit 1
+          fi
+          if ! grep -q "${VITE_BASE_PATH}assets/" dist/index.html; then
+            echo "::error::The build was not prefixed for the GitHub Pages project path."
+            exit 1
+          fi
+
+      - name: Upload the Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publish to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -101,22 +101,26 @@
 							</div>
 						</div>
 						<div class="career-metrics">
-							<div class="metric-card">
-								<div class="metric-title">Coins</div>
-								<div class="metric-number">
-									{{ player.total_coins_pocketed || 0 }}
+							<div class="metric-row">
+								<div
+									v-for="metric in playerMetrics(player).slice(0, 3)"
+									:key="metric.label"
+									class="metric-card"
+									:title="metric.title"
+								>
+									<div class="metric-title">{{ metric.label }}</div>
+									<div class="metric-number">{{ metric.value }}</div>
 								</div>
 							</div>
-							<div class="metric-card">
-								<div class="metric-title">Fines</div>
-								<div class="metric-number">
-									{{ player.total_coins_fined || 0 }}
-								</div>
-							</div>
-							<div class="metric-card">
-								<div class="metric-title">Pockets</div>
-								<div class="metric-number">
-									{{ player.total_strikers_pocketed || 0 }}
+							<div class="metric-row">
+								<div
+									v-for="metric in playerMetrics(player).slice(3)"
+									:key="metric.label"
+									class="metric-card"
+									:title="metric.title"
+								>
+									<div class="metric-title">{{ metric.label }}</div>
+									<div class="metric-number">{{ metric.value }}</div>
 								</div>
 							</div>
 						</div>
@@ -131,11 +135,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useSeasonStore } from "@/store/seasonStore";
 import { useTeamStore } from "@/store/teamStore";
 import { useRosterStore } from "@/store/rosterStore";
 import { usePlayerStore } from "@/store/playerStore";
+import { useStatsStore } from "@/store/statsStore";
 import { useCountryStore } from "@/store/countryStore";
 import dayjs from "@/plugins/dayjs";
 import { resolveAsset } from "@/utils/common";
@@ -147,6 +152,7 @@ const seasonStore = useSeasonStore();
 const teamStore = useTeamStore();
 const rosterStore = useRosterStore();
 const playerStore = usePlayerStore();
+const statsStore = useStatsStore();
 const countryStore = useCountryStore();
 
 const selectedSeason = ref(SEASON_FILTER_ALL);
@@ -156,6 +162,7 @@ const loading = ref(false);
 const seasons = ref([]);
 const teams = ref([]);
 const seasonRosters = ref([]);
+const seasonPlayerStats = ref(new Map());
 const dropdownPopperOptions = ref({
 	placement: "bottom-start",
 	modifiers: [
@@ -291,22 +298,40 @@ const getAgeText = (dob) => {
 	return `${years} yrs`;
 };
 
-const fetchPlayersDirectory = async () => {
-	loading.value = true;
+const playerMetrics = (player) => {
+	const seasonRow = seasonPlayerStats.value.get(player.id);
+	const value = (careerKey, seasonKey) =>
+		isAllSeasons.value ? player[careerKey] || 0 : seasonRow?.[seasonKey] || 0;
+	return [
+		{ label: "C", title: "Coins pocketed", value: value("total_coins_pocketed", "coins_pocketed") },
+		{ label: "OC", title: "Opponent coins pocketed", value: value("total_opponent_coins_pocketed", "opponent_coins_pocketed") },
+		{ label: "S", title: "Strikers pocketed", value: value("total_strikers_pocketed", "strikers_pocketed") },
+		{ label: "SF", title: "Single fines", value: value("total_single_fines", "single_fines") },
+		{ label: "DF", title: "Double fines", value: value("total_double_fines", "double_fines") },
+	];
+};
+
+let playersRequest = 0;
+let refreshTimer = null;
+
+const fetchPlayersDirectory = async (options) => {
+	const quiet = Boolean(options && options.quiet);
+	if (quiet && playersRequest) return;
+	const requestId = ++playersRequest;
+	if (!quiet) loading.value = true;
 	try {
-		const tasks = [playerStore.fetchPlayerProfiles(), countryStore.fetchCountries()];
+		const tasks = [playerStore.fetchPlayerProfiles(true), countryStore.fetchCountries()];
 		if (!isAllSeasons.value) {
 			tasks.push(
 				(async () => {
 					seasonStore.setSeason(selectedSeason.value);
-					if (!rosterStore.teams.has(selectedSeason.value)) {
-						await rosterStore.fetchTeamDetails(selectedSeason.value);
-					}
+					await rosterStore.fetchTeamDetails(selectedSeason.value);
 				})(),
 			);
 		}
 
 		const results = await Promise.allSettled(tasks);
+		if (requestId !== playersRequest) return;
 		const playersResult = results[0];
 		const countriesResult = results[1];
 		const rosterResult = !isAllSeasons.value ? results[2] : null;
@@ -319,26 +344,48 @@ const fetchPlayersDirectory = async () => {
 		}
 		if (!isAllSeasons.value && rosterResult?.status === "rejected") {
 			console.error("Failed to fetch season roster", rosterResult.reason);
-			seasonRosters.value = [];
+			if (!quiet) seasonRosters.value = [];
 		} else if (!isAllSeasons.value) {
 			seasonRosters.value = rosterStore.teams.get(selectedSeason.value) || [];
 		} else {
 			seasonRosters.value = [];
 			selectedTeamFilter.value = TEAM_FILTER_ALL;
 		}
+
+		if (isAllSeasons.value) {
+			seasonPlayerStats.value = new Map();
+		} else {
+			const statsResult = await statsStore.fetchSeasonPlayerStats(selectedSeason.value, true);
+			if (requestId !== playersRequest) return;
+			seasonPlayerStats.value = new Map(
+				(statsResult?.players || []).map((row) => [row.player_id, row]),
+			);
+		}
 	} catch (error) {
 		console.error("Failed to fetch players directory", error);
-		seasonRosters.value = [];
+		if (!quiet && requestId === playersRequest) seasonRosters.value = [];
 	} finally {
-		loading.value = false;
+		if (requestId === playersRequest) playersRequest = 0;
+		if (!quiet) loading.value = false;
 	}
 };
 
-onMounted(async () => {
+const refreshPlayersIfVisible = () => {
+	if (document.visibilityState === "visible") fetchPlayersDirectory({ quiet: true });
+};
+
+onMounted(() => {
 	seasons.value = seasonStore.visibleSeasons;
 	teams.value = teamStore.teams;
 	selectedSeason.value = SEASON_FILTER_ALL;
-	await fetchPlayersDirectory();
+	fetchPlayersDirectory();
+	refreshTimer = setInterval(() => fetchPlayersDirectory({ quiet: true }), 5000);
+	document.addEventListener("visibilitychange", refreshPlayersIfVisible);
+});
+
+onUnmounted(() => {
+	clearInterval(refreshTimer);
+	document.removeEventListener("visibilitychange", refreshPlayersIfVisible);
 });
 </script>
 
@@ -488,9 +535,22 @@ onMounted(async () => {
 }
 
 .career-metrics {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.metric-row {
 	display: grid;
+	gap: 6px;
+}
+
+.metric-row:first-child {
 	grid-template-columns: repeat(3, minmax(0, 1fr));
-	gap: 8px;
+}
+
+.metric-row:last-child {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .metric-card {

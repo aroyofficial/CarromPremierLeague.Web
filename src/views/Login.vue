@@ -14,7 +14,10 @@
 				<p>
 					You are signed in as <strong>{{ authStore.username }}</strong>.
 				</p>
-				<el-button type="primary" size="large" class="w-100" @click="logout">Logout</el-button>
+				<el-button type="primary" size="large" class="w-100 submit-btn" @click="router.push(Routes.ADMIN)">
+					Open Admin Console
+				</el-button>
+				<el-button size="large" class="w-100 mt-2 ms-0" @click="logout">Logout</el-button>
 			</div>
 
 			<el-form
@@ -90,7 +93,7 @@ const safeRedirect = () => {
 	const target = route.query.redirect;
 	return typeof target === "string" && target.startsWith("/") && !target.startsWith("//")
 		? target
-		: Routes.HOME;
+		: Routes.ADMIN;
 };
 
 const submit = async () => {
