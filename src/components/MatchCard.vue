@@ -300,6 +300,9 @@
 					<span v-if="!authStore.isAuthenticated" class="match-access-note">
 						Sign in as an admin to start and record this match.
 					</span>
+					<span v-else-if="!canRunMatch" class="match-access-note">
+						Your account cannot run matches. Ask for the 'Edit and run matches' and 'Save scorecards' permissions.
+					</span>
 					<el-button @click="hideMatchManagementDialog()">Cancel</el-button>
 					<el-button
 						v-if="showResetTossBtn()"
@@ -503,6 +506,7 @@ import {
 	MatchCategory,
 	TossOutcome,
 	BackgroundMusic,
+	Permission,
 } from "../utils/constants";
 import dayjs from "@/plugins/dayjs";
 import { ArrowRight } from "@element-plus/icons-vue";
@@ -532,6 +536,7 @@ const matchStore = useMatchStore();
 const statsStore = useStatsStore();
 const rosterStore = useRosterStore();
 const authStore = useAuthStore();
+const canRunMatch = computed(() => authStore.canAll([Permission.MATCHES_UPDATE, Permission.MATCHES_SCORECARD]));
 const showMatchManagementDialog = ref(false);
 const stats = ref({});
 const teamDetails = ref([]);
@@ -1261,14 +1266,14 @@ const startMatch = async () => {
 };
 
 const showEditBtn = () =>
-	authStore.isAuthenticated &&
+	canRunMatch.value &&
 	props.match.status === MatchStatus.find((status) => status.name === "Played")?.id;
 
 const showStartBtn = () => {
 	let isScheduled =
 		props.match.status ===
 		MatchStatus.find((status) => status.name === "Scheduled").id;
-	return isScheduled && authStore.isAuthenticated;
+	return isScheduled && canRunMatch.value;
 };
 
 const getTeamMembers = (teamId) => {
@@ -1322,7 +1327,7 @@ const resumeMatch = () => {
 };
 
 const showResumeBtn = () =>
-	authStore.isAuthenticated &&
+	canRunMatch.value &&
 	props.match.status === MatchStatus.find((status) => status.name === "In Progress")?.id;
 
 // The clock always comes from the start time stored on the server, so it keeps running while nobody has the page open.
@@ -1412,10 +1417,10 @@ const loadScorecard = async () => {
 	}
 };
 
-const showResetBtn = () => authStore.isAuthenticated && props.match.status !== scheduledStatus();
+const showResetBtn = () => authStore.can(Permission.MATCHES_RESET) && props.match.status !== scheduledStatus();
 
 const showResetTossBtn = () =>
-	authStore.isAuthenticated &&
+	authStore.can(Permission.MATCHES_UPDATE) &&
 	props.match.status === scheduledStatus() &&
 	tossDecided(props.match.toss_outcome);
 

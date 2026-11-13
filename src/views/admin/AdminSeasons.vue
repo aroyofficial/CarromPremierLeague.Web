@@ -7,7 +7,7 @@
 			</div>
 			<div class="admin-toolbar">
 				<el-input v-model="search" placeholder="Search seasons" clearable style="width: 220px" :prefix-icon="Search" />
-				<el-button type="primary" @click="openCreate">
+				<el-button v-if="can(Permission.SEASONS_CREATE)" type="primary" @click="openCreate">
 					<el-icon class="me-1"><Plus /></el-icon>New season
 				</el-button>
 			</div>
@@ -28,15 +28,22 @@
 						<el-tag :type="row.show ? 'success' : 'info'" size="small">{{ row.show ? "Visible" : "Hidden" }}</el-tag>
 					</template>
 				</el-table-column>
-				<el-table-column label="Actions" :width="isPhone ? 160 : 270" align="right" fixed="right" class-name="actions-col">
+				<el-table-column
+					v-if="canAny([Permission.SEASONS_TEAMS, Permission.SEASONS_UPDATE, Permission.SEASONS_DELETE])"
+					label="Actions"
+					:width="isPhone ? 160 : 270"
+					align="right"
+					fixed="right"
+					class-name="actions-col"
+				>
 					<template #default="{ row }">
-						<el-button size="small" aria-label="Teams" @click="openTeams(row)">
+						<el-button v-if="can(Permission.SEASONS_TEAMS)" size="small" aria-label="Teams" @click="openTeams(row)">
 							<el-icon class="me-1"><Flag /></el-icon><span class="btn-label">Teams</span>
 						</el-button>
-						<el-button size="small" type="primary" plain aria-label="Edit" @click="openEdit(row)">
+						<el-button v-if="can(Permission.SEASONS_UPDATE)" size="small" type="primary" plain aria-label="Edit" @click="openEdit(row)">
 							<el-icon class="me-1"><Edit /></el-icon><span class="btn-label">Edit</span>
 						</el-button>
-						<el-button size="small" type="danger" plain aria-label="Delete" @click="remove(row)">
+						<el-button v-if="can(Permission.SEASONS_DELETE)" size="small" type="danger" plain aria-label="Delete" @click="remove(row)">
 							<el-icon><Delete /></el-icon>
 						</el-button>
 					</template>
@@ -99,8 +106,10 @@ import { Delete, Edit, Flag, Plus, Search } from "@element-plus/icons-vue";
 import { adminApi } from "@/services/adminService";
 import { assetUrl, blankToNull, confirmDelete, matchesSearch, runAction, unwrap } from "@/utils/adminHelpers";
 import { useIsPhone } from "@/utils/viewport";
+import { usePermissions } from "@/utils/permissions";
 
 const isPhone = useIsPhone();
+const { Permission, can, canAny } = usePermissions();
 import { useSeasonStore } from "@/store/seasonStore";
 
 const seasonStore = useSeasonStore();

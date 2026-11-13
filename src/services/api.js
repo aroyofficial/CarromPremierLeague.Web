@@ -30,6 +30,9 @@ api.interceptors.response.use(
 			authToken.clear();
 			window.dispatchEvent(new CustomEvent("cpl:session-expired"));
 		}
+		if (error.response?.status === 403 && authToken.get()) {
+			window.dispatchEvent(new CustomEvent("cpl:permission-denied"));
+		}
 		return Promise.reject(error.response?.data || error);
 	},
 );

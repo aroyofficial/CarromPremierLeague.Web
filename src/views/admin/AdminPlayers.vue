@@ -7,7 +7,7 @@
 			</div>
 			<div class="admin-toolbar">
 				<el-input v-model="search" placeholder="Search players" clearable style="width: 220px" :prefix-icon="Search" />
-				<el-button type="primary" @click="openCreate">
+				<el-button v-if="can(Permission.PLAYERS_CREATE)" type="primary" @click="openCreate">
 					<el-icon class="me-1"><Plus /></el-icon>New player
 				</el-button>
 			</div>
@@ -37,12 +37,19 @@
 				<el-table-column label="Nationality" min-width="150">
 					<template #default="{ row }">{{ countryName(row.nationality_id) }}</template>
 				</el-table-column>
-				<el-table-column label="Actions" :width="isPhone ? 112 : 170" align="right" fixed="right" class-name="actions-col">
+				<el-table-column
+					v-if="canAny([Permission.PLAYERS_UPDATE, Permission.PLAYERS_DELETE])"
+					label="Actions"
+					:width="isPhone ? 112 : 170"
+					align="right"
+					fixed="right"
+					class-name="actions-col"
+				>
 					<template #default="{ row }">
-						<el-button size="small" type="primary" plain aria-label="Edit" @click="openEdit(row)">
+						<el-button v-if="can(Permission.PLAYERS_UPDATE)" size="small" type="primary" plain aria-label="Edit" @click="openEdit(row)">
 							<el-icon class="me-1"><Edit /></el-icon><span class="btn-label">Edit</span>
 						</el-button>
-						<el-button size="small" type="danger" plain aria-label="Delete" @click="remove(row)">
+						<el-button v-if="can(Permission.PLAYERS_DELETE)" size="small" type="danger" plain aria-label="Delete" @click="remove(row)">
 							<el-icon><Delete /></el-icon>
 						</el-button>
 					</template>
@@ -97,8 +104,10 @@ import { Delete, Edit, Plus, Search } from "@element-plus/icons-vue";
 import { adminApi } from "@/services/adminService";
 import { blankToNull, confirmDelete, matchesSearch, runAction, unwrap } from "@/utils/adminHelpers";
 import { useIsPhone } from "@/utils/viewport";
+import { usePermissions } from "@/utils/permissions";
 
 const isPhone = useIsPhone();
+const { Permission, can, canAny } = usePermissions();
 import { localPlayerPhoto } from "@/utils/playerPhotos";
 
 const players = ref([]);

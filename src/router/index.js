@@ -4,6 +4,7 @@ import { AdminSections, Routes } from "../utils/constants";
 import { authToken } from "../utils/authToken";
 import { useSeasonStore } from "@/store/seasonStore";
 import { useSettingsStore } from "@/store/settingsStore";
+import { useAuthStore } from "@/store/authStore";
 import { useTeamStore } from "@/store/teamStore";
 import { useMatchStore } from "@/store/matchStore";
 import { useRosterStore } from "@/store/rosterStore";
@@ -18,6 +19,7 @@ const adminViews = {
 	"admin-matches": () => import("@/views/admin/AdminMatches.vue"),
 	"admin-countries": () => import("@/views/admin/AdminCountries.vue"),
 	"admin-users": () => import("@/views/admin/AdminUsers.vue"),
+	"admin-permissions": () => import("@/views/admin/AdminPermissions.vue"),
 	"admin-settings": () => import("@/views/admin/AdminSettings.vue"),
 };
 
@@ -90,7 +92,12 @@ const routes = [
 			path: section.path,
 			name: section.name,
 			component: adminViews[section.name],
-			meta: { title: `Admin · ${section.label}`, requiresAuth: true, skipPreload: true },
+			meta: {
+				title: `Admin · ${section.label}`,
+				requiresAuth: true,
+				skipPreload: true,
+				permissions: section.permissions,
+			},
 		})),
 	},
 	{
@@ -116,6 +123,19 @@ const router = createRouter({
 router.beforeEach(async (to) => {
 	if (to.matched.some((record) => record.meta.requiresAuth) && !authToken.get()) {
 		return { path: Routes.LOGIN, query: { redirect: to.fullPath } };
+	}
+	const required = to.meta.permissions || [];
+	if (required.length) {
+		const authStore = useAuthStore();
+		try {
+			await authStore.loadProfile();
+		} catch {
+			return authToken.get() ? { name: "admin-dashboard" } : { path: Routes.LOGIN, query: { redirect: to.fullPath } };
+		}
+		if (!authStore.canAny(required)) {
+			ElMessage.warning("You do not have permission to open that section.");
+			return { name: "admin-dashboard" };
+		}
 	}
 	if (to.meta.skipPreload) return true;
 

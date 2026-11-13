@@ -36,9 +36,14 @@ export const adminApi = {
 	admins: {
 		me: () => api.get("auth/me"),
 		list: () => api.get("admins"),
+		get: (id) => api.get(`admins/${id}`),
 		create: (payload) => api.post("admins", payload),
 		update: (id, payload) => api.patch(`admins/${id}`, payload),
+		setPermissions: (id, permissions) => api.put(`admins/${id}/permissions`, { permissions }),
 		remove: (id) => api.delete(`admins/${id}`),
+	},
+	permissions: {
+		catalog: () => api.get("permissions"),
 	},
 };
 

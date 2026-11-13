@@ -29,8 +29,19 @@ const onSessionExpired = () => {
 	}
 };
 
-onMounted(() => window.addEventListener("cpl:session-expired", onSessionExpired));
-onUnmounted(() => window.removeEventListener("cpl:session-expired", onSessionExpired));
+const onPermissionDenied = () => {
+	authStore.loadProfile({ force: true }).catch(() => undefined);
+};
+
+onMounted(() => {
+	window.addEventListener("cpl:session-expired", onSessionExpired);
+	window.addEventListener("cpl:permission-denied", onPermissionDenied);
+	if (authStore.isAuthenticated) authStore.loadProfile().catch(() => undefined);
+});
+onUnmounted(() => {
+	window.removeEventListener("cpl:session-expired", onSessionExpired);
+	window.removeEventListener("cpl:permission-denied", onPermissionDenied);
+});
 </script>
 
 <style lang="scss">

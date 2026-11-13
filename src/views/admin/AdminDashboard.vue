@@ -13,6 +13,11 @@
 			</el-button>
 		</div>
 
+		<div v-if="authStore.profileLoaded && !cards.length" class="admin-card no-access">
+			<h2>No sections yet</h2>
+			<p>Your account has no permissions. Ask an admin who can manage permissions to give you access.</p>
+		</div>
+
 		<div class="dash-grid" v-loading="loading">
 			<router-link v-for="card in cards" :key="card.name" :to="{ name: card.name }" class="dash-card">
 				<span class="dash-label">{{ card.label }}</span>
@@ -28,6 +33,10 @@ import { computed, onMounted, reactive, ref } from "vue";
 import { Refresh } from "@element-plus/icons-vue";
 import { adminApi } from "@/services/adminService";
 import { defaultSeasonId, unwrap } from "@/utils/adminHelpers";
+import { AdminSections, Permission } from "@/utils/constants";
+import { useAuthStore } from "@/store/authStore";
+
+const authStore = useAuthStore();
 
 const loading = ref(false);
 const currentSeason = ref(null);
@@ -41,15 +50,24 @@ const counts = reactive({
 	matches: null,
 });
 
-const cards = computed(() => [
-	{ name: "admin-seasons", label: "Seasons", value: counts.seasons, hint: "Create seasons and pick participating teams" },
-	{ name: "admin-teams", label: "Teams", value: counts.teams, hint: "Names, slogans and logos" },
-	{ name: "admin-players", label: "Players", value: counts.players, hint: "Player profiles and nationality" },
-	{ name: "admin-rosters", label: "Rostered players", value: counts.rostered, hint: "Assign players to teams per season" },
-	{ name: "admin-matches", label: "Matches", value: counts.matches, hint: "Fixtures, results and scorecards" },
-	{ name: "admin-countries", label: "Countries", value: counts.countries, hint: "Nationality reference data" },
-	{ name: "admin-users", label: "Admin Users", value: counts.admins, hint: "Who can sign in to this console" },
-]);
+const sectionAllowed = (name) => {
+	const section = AdminSections.find((item) => item.name === name);
+	return Boolean(section) && (!section.permissions.length || authStore.canAny(section.permissions));
+};
+
+const cards = computed(() =>
+	[
+		{ name: "admin-seasons", label: "Seasons", value: counts.seasons, hint: "Create seasons and pick participating teams" },
+		{ name: "admin-teams", label: "Teams", value: counts.teams, hint: "Names, slogans and logos" },
+		{ name: "admin-players", label: "Players", value: counts.players, hint: "Player profiles and nationality" },
+		{ name: "admin-rosters", label: "Rostered players", value: counts.rostered, hint: "Assign players to teams per season" },
+		{ name: "admin-matches", label: "Matches", value: counts.matches, hint: "Fixtures, results and scorecards" },
+		{ name: "admin-countries", label: "Countries", value: counts.countries, hint: "Nationality reference data" },
+		{ name: "admin-users", label: "Users", value: counts.admins, hint: "Who can sign in to this console" },
+		{ name: "admin-permissions", label: "Permissions", value: null, hint: "What each admin user can do" },
+		{ name: "admin-settings", label: "Settings", value: null, hint: "Match clock and Queen rules" },
+	].filter((card) => sectionAllowed(card.name)),
+);
 
 const lengthOf = (outcome) => (outcome.status === "fulfilled" ? (unwrap(outcome.value) || []).length : null);
 
@@ -60,7 +78,9 @@ const load = async () => {
 		adminApi.teams.list(),
 		adminApi.players.list(),
 		adminApi.countries.list(),
-		adminApi.admins.list(),
+		authStore.canAny([Permission.ADMINS_VIEW, Permission.PERMISSIONS_MANAGE])
+			? adminApi.admins.list()
+			: Promise.reject(new Error("not permitted")),
 	]);
 	["seasons", "teams", "players", "countries", "admins"].forEach((key, index) => {
 		counts[key] = lengthOf(settled[index]);
@@ -83,7 +103,10 @@ const load = async () => {
 	loading.value = false;
 };
 
-onMounted(load);
+onMounted(async () => {
+	await authStore.loadProfile().catch(() => undefined);
+	load();
+});
 </script>
 
 <style scoped lang="scss">
@@ -129,5 +152,20 @@ onMounted(load);
 .dash-hint {
 	font-size: 13px;
 	color: var(--cpl-ink-400);
+}
+
+.no-access {
+	margin-bottom: 16px;
+
+	h2 {
+		margin: 0 0 4px;
+		font-size: 17px;
+		font-weight: 700;
+	}
+
+	p {
+		margin: 0;
+		color: var(--cpl-ink-600);
+	}
 }
 </style>

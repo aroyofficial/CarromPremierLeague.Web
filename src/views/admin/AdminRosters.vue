@@ -15,7 +15,7 @@
 		<el-empty v-if="!seasonId" description="Choose a season to manage its rosters" />
 
 		<template v-else>
-			<div class="admin-card">
+			<div v-if="canManage" class="admin-card">
 				<h2 class="admin-card-title">Assign a player</h2>
 				<el-alert
 					v-if="!seasonTeams.length && !loading"
@@ -58,7 +58,9 @@
 					<ul v-else class="roster-list">
 						<li v-for="player in team.players" :key="player.player_id">
 							<span>{{ player.first_name }} {{ player.last_name }}</span>
-							<el-button size="small" type="danger" link @click="removePlayer(player, team)">Remove</el-button>
+							<el-button v-if="canManage" size="small" type="danger" link @click="removePlayer(player, team)">
+								Remove
+							</el-button>
 						</li>
 					</ul>
 				</div>
@@ -72,6 +74,10 @@ import { computed, onMounted, reactive, ref } from "vue";
 import { Plus } from "@element-plus/icons-vue";
 import { adminApi } from "@/services/adminService";
 import { confirmDelete, defaultSeasonId, runAction, unwrap } from "@/utils/adminHelpers";
+import { usePermissions } from "@/utils/permissions";
+
+const { Permission, can } = usePermissions();
+const canManage = computed(() => can(Permission.ROSTERS_MANAGE));
 
 const seasons = ref([]);
 const players = ref([]);

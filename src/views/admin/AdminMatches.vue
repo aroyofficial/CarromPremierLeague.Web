@@ -12,10 +12,14 @@
 				<el-select v-model="statusFilter" placeholder="All statuses" clearable style="width: 160px">
 					<el-option v-for="status in MatchStatus" :key="status.id" :label="status.name" :value="status.id" />
 				</el-select>
-				<el-button type="primary" :disabled="!seasonId" @click="openCreate">
+				<el-button v-if="can(Permission.MATCHES_CREATE)" type="primary" :disabled="!seasonId" @click="openCreate">
 					<el-icon class="me-1"><Plus /></el-icon>New match
 				</el-button>
-				<el-button :disabled="!seasonId" @click="openMatchManager">
+				<el-button
+					v-if="canAll([Permission.MATCHES_UPDATE, Permission.MATCHES_SCORECARD])"
+					:disabled="!seasonId"
+					@click="openMatchManager"
+				>
 					<el-icon class="me-1"><VideoPlay /></el-icon>Open match manager
 				</el-button>
 			</div>
@@ -62,19 +66,27 @@
 				<el-table-column label="Result" min-width="160">
 					<template #default="{ row }">{{ resultText(row) }}</template>
 				</el-table-column>
-				<el-table-column label="" width="118" align="right">
+				<el-table-column v-if="hasRowActions" label="" width="118" align="right">
 					<template #default="{ row }">
 						<div class="row-actions">
-							<el-button size="small" type="primary" plain @click="openEdit(row)">Edit</el-button>
-							<el-dropdown trigger="click" @command="(command) => runRowCommand(command, row)">
+							<el-button v-if="canEditRow(row)" size="small" type="primary" plain @click="openEdit(row)">Edit</el-button>
+							<el-dropdown
+								v-if="rowCommands(row).length"
+								trigger="click"
+								@command="(command) => runRowCommand(command, row)"
+							>
 								<el-button size="small" :aria-label="`More actions for match ${row.order}`">
 									<el-icon><MoreFilled /></el-icon>
 								</el-button>
 								<template #dropdown>
 									<el-dropdown-menu>
-										<el-dropdown-item v-if="row.status !== 1" command="reset">Reset match</el-dropdown-item>
-										<el-dropdown-item v-if="canResetToss(row)" command="reset-toss">Reset toss</el-dropdown-item>
-										<el-dropdown-item command="delete" divided>Delete match</el-dropdown-item>
+										<el-dropdown-item v-if="rowCommands(row).includes('reset')" command="reset">Reset match</el-dropdown-item>
+										<el-dropdown-item v-if="rowCommands(row).includes('reset-toss')" command="reset-toss">
+											Reset toss
+										</el-dropdown-item>
+										<el-dropdown-item v-if="rowCommands(row).includes('delete')" command="delete" divided>
+											Delete match
+										</el-dropdown-item>
 									</el-dropdown-menu>
 								</template>
 							</el-dropdown>
@@ -175,6 +187,31 @@ import { adminApi } from "@/services/adminService";
 import { confirmDelete, defaultSeasonId, runAction, unwrap } from "@/utils/adminHelpers";
 import { MatchCategory, MatchOutcome, MatchStatus, Routes, TossOutcome } from "@/utils/constants";
 import { coinBounds, colourOverflow } from "@/utils/coinLimits";
+import { usePermissions } from "@/utils/permissions";
+
+const { Permission, can, canAny, canAll } = usePermissions();
+
+const playedStatusId = MatchStatus.find((status) => status.name === "Played")?.id;
+
+const canEditRow = (row) =>
+	row.status === playedStatusId ? can(Permission.MATCHES_SCORECARD) : can(Permission.MATCHES_UPDATE);
+
+const rowCommands = (row) => {
+	const commands = [];
+	if (row.status !== 1 && can(Permission.MATCHES_RESET)) commands.push("reset");
+	if (canResetToss(row) && can(Permission.MATCHES_UPDATE)) commands.push("reset-toss");
+	if (can(Permission.MATCHES_DELETE)) commands.push("delete");
+	return commands;
+};
+
+const hasRowActions = computed(() =>
+	canAny([
+		Permission.MATCHES_UPDATE,
+		Permission.MATCHES_SCORECARD,
+		Permission.MATCHES_RESET,
+		Permission.MATCHES_DELETE,
+	]),
+);
 
 const router = useRouter();
 const seasons = ref([]);

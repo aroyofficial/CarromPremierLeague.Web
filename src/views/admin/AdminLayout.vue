@@ -7,7 +7,7 @@
 			</div>
 			<nav class="sidebar-nav" aria-label="Admin sections">
 				<router-link
-					v-for="section in AdminSections"
+					v-for="section in visibleSections"
 					:key="section.name"
 					:to="{ name: section.name }"
 					class="sidebar-link"
@@ -41,7 +41,7 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import {
 	Calendar,
@@ -56,15 +56,24 @@ import {
 	SwitchButton,
 	Trophy,
 	User,
+	UserFilled,
 } from "@element-plus/icons-vue";
 import { AdminSections, Routes } from "@/utils/constants";
 import { useAuthStore } from "@/store/authStore";
 
-const icons = { Calendar, Connection, DataBoard, Flag, Location, Lock, Setting, Trophy, User };
+const icons = { Calendar, Connection, DataBoard, Flag, Location, Lock, Setting, Trophy, User, UserFilled };
 
 const router = useRouter();
 const authStore = useAuthStore();
 const sidebarOpen = ref(false);
+
+const visibleSections = computed(() =>
+	AdminSections.filter((section) => !section.permissions.length || authStore.canAny(section.permissions)),
+);
+
+onMounted(() => {
+	authStore.loadProfile().catch(() => undefined);
+});
 
 const logout = () => {
 	authStore.logout();
