@@ -107,32 +107,22 @@
 						class="col d-flex flex-column gap-0 align-items-center justify-content-center"
 					>
 						<div class="mb-5 poppins-bold">{{ isGoldenStrikeCategory(match.category) ? "Golden Strike" : `Match ${match.order}` }}</div>
-						<div id="stopwatch-head-btn" class="d-flex">
+						<template v-if="!isGoldenStrikeCategory(match.category)">
+							<div id="stopwatch-head-btn" class="d-flex">
+								<div
+									v-for="i in [1, 2, 3, 4, 5]"
+									:key="i"
+									class="stopwatch-head-btn-knurling"
+								></div>
+							</div>
+							<div id="stopwatch-head-pin"></div>
 							<div
-								v-for="i in [1, 2, 3, 4, 5]"
-								:key="i"
-								class="stopwatch-head-btn-knurling"
-							></div>
-						</div>
-						<div id="stopwatch-head-pin"></div>
-						<div
-							id="stopwatch"
-							class="d-flex align-items-center justify-content-center"
-						>
-							<div v-if="timerFrozenAtZero" class="countdown-frozen">
-								00:00
+								id="stopwatch"
+								class="d-flex align-items-center justify-content-center"
+							>
+								<div class="countdown-frozen">{{ forwardClock }}</div>
 							</div>
-							<div v-else-if="timerPaused" class="countdown-frozen">
-								{{ formatDurationFromSeconds(pausedTimerSeconds) }}
-							</div>
-							<el-countdown
-								v-else
-								:key="regulationTimer"
-								format="mm:ss"
-								:value="regulationTimer"
-								@finish="live && onEndingCountdown()"
-							/>
-						</div>
+						</template>
 						<div class="mt-5 live-badge" :class="{ disabled: !live }">
 							<span class="live-icon"></span>
 							{{ live ? "Live" : "Starting" }}
@@ -500,7 +490,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, ref, onUpdated, watch } from "vue";
+import { computed, nextTick, onUnmounted, onUpdated, ref, watch } from "vue";
 import { useSeasonStore } from "@/store/seasonStore";
 import { useTeamStore } from "@/store/teamStore";
 import { useMatchStore } from "@/store/matchStore";
@@ -573,6 +563,13 @@ const startMatchTimeoutId = ref(null);
 const hornStopTimeoutId = ref(null);
 const regulationDurationSeconds = 15 * 60;
 const extraDurationSeconds = 5 * 60;
+const clockNow = ref(Date.now());
+let clockTick = null;
+
+const stopClockTick = () => {
+	if (clockTick) clearInterval(clockTick);
+	clockTick = null;
+};
 
 const blankMetricPlayer = (member, previous) => ({
 	id: member?.player_id ?? previous?.id ?? null,
@@ -594,8 +591,14 @@ const createInitialScorecard = () => ({
 
 const scorecard = ref(createInitialScorecard());
 
-watch(showMatchManager, () => {
+watch(showMatchManager, (open) => {
 	document.querySelector("span.el-dialog__title")?.classList.toggle("ms-4");
+	stopClockTick();
+	if (!open) return;
+	clockNow.value = Date.now();
+	clockTick = setInterval(() => {
+		clockNow.value = Date.now();
+	}, 250);
 });
 
 const clearMatchTimeouts = () => {
@@ -918,9 +921,26 @@ const getRemainingSeconds = (targetTime) => {
 	if (!targetTime) {
 		return 0;
 	}
-	const diffMs = targetTime - dayjs().valueOf();
+	const diffMs = targetTime - clockNow.value;
 	return Math.max(0, Math.ceil(diffMs / 1000));
 };
+
+const activePeriodSeconds = () =>
+	extraTimeStarted.value ? extraDurationSeconds : regulationDurationSeconds;
+
+const forwardClock = computed(() => {
+	if (isGoldenStrikeCategory(props.match.category)) return "";
+	if (editingResult.value) {
+		const extraPlayed = Number(props.match.extra || 0);
+		if (extraPlayed > 0) return `${formatDurationFromSeconds(extraPlayed)} extra`;
+		return formatDurationFromSeconds(props.match.duration ?? regulationDurationSeconds);
+	}
+	if (timerFrozenAtZero.value) return formatDurationFromSeconds(activePeriodSeconds());
+	const remaining = timerPaused.value
+		? Math.max(0, Number(pausedTimerSeconds.value || 0))
+		: getRemainingSeconds(regulationTimer.value);
+	return formatDurationFromSeconds(Math.max(0, activePeriodSeconds() - remaining));
+});
 
 const getElapsedMatchTime = () => {
 	if (!regulationTimeExhausted.value && !extraTimeStarted.value) {
@@ -1014,6 +1034,12 @@ const handleExtraDecision = (goToGoldenStrike) => {
 	winnerTeamId.value = null;
 	enableFinishBtn.value = true;
 };
+
+watch(clockNow, () => {
+	if (!live.value || editingResult.value || timerFrozenAtZero.value || timerPaused.value) return;
+	if (!regulationTimer.value || getRemainingSeconds(regulationTimer.value) > 0) return;
+	onEndingCountdown();
+});
 
 const onEndingCountdown = async () => {
 	if (!regulationTimeExhausted.value) {
@@ -1583,6 +1609,8 @@ const finishMatch = async (forcefully = false) => {
 		pauseLoader();
 	}
 };
+
+onUnmounted(stopClockTick);
 
 onUpdated(() => {
 	const next =

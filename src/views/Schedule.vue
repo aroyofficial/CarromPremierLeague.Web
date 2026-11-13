@@ -57,14 +57,14 @@
 								</div>
 								<div v-else-if="isPlayed(match) && match.players.length" class="score">
 									<span class="score-num">{{ scoreLine(match) }}</span>
-									<span class="score-caption" :class="{ 'is-extra': finishInfo(match).extra }">{{ finishInfo(match).text }}</span>
+									<span class="score-caption" :class="{ 'is-extra': showMatchClock(match) && finishInfo(match).extra }">{{ playedClockText(match) }}</span>
 								</div>
 								<div v-else-if="isPlayed(match)" class="score">
 									<span class="score-num">{{ centerMark(match) }}</span>
-									<span class="score-caption" :class="{ 'is-extra': finishInfo(match).extra }">{{ match.duration == null ? centerCaption(match) : finishInfo(match).text }}</span>
+									<span class="score-caption" :class="{ 'is-extra': showMatchClock(match) && match.duration != null && finishInfo(match).extra }">{{ playedClockText(match) }}</span>
 								</div>
 								<span v-else class="vs-mark">VS</span>
-								<span v-if="isLive(match)" class="match-meta">
+								<span v-if="isLive(match) && showMatchClock(match)" class="match-meta">
 									<span class="clock-time" :class="{ 'is-extra': clockState(match).extra }">{{ clockState(match).time }}</span>
 									<span v-if="clockState(match).extra" class="extra-label">Extra</span>
 									<span class="match-label">{{ matchLabel(match) }}</span>
@@ -393,8 +393,6 @@ const showBoard = (match) => (isLive(match) || isPlayed(match)) && match.players
 
 const scoreLine = (match) => `${teamScore(match, match.team1_id)} – ${teamScore(match, match.team2_id)}`;
 
-const REGULATION_MS = 15 * 60 * 1000;
-const EXTRA_MS = 5 * 60 * 1000;
 const now = ref(Date.now());
 
 const tossSide = (match) => {
@@ -410,17 +408,20 @@ const showChance = (match) => (isScheduled(match) || isLive(match)) && match.win
 const REGULATION_SECONDS = 15 * 60;
 const EXTRA_SECONDS = 5 * 60;
 
+const isTiebreak = (match) => categoryName(match.category) === "Golden Strike";
+
+const showMatchClock = (match) => !isTiebreak(match);
+
 const finishInfo = (match) => {
 	if (match.duration == null) return { text: "Final score", extra: false };
 	const extraPlayed = match.extra || 0;
-	if (extraPlayed > 0) {
-		const left = Math.max(0, EXTRA_SECONDS - extraPlayed);
-		if (left === 0) return { text: "Full extra time", extra: true };
-		return { text: `${formatClock(left)} left in extra`, extra: true };
-	}
-	const left = Math.max(0, REGULATION_SECONDS - match.duration);
-	if (left === 0) return { text: "Full 15:00", extra: false };
-	return { text: `${formatClock(left)} left`, extra: false };
+	if (extraPlayed > 0) return { text: `${formatClock(extraPlayed)} extra`, extra: true };
+	return { text: formatClock(match.duration), extra: false };
+};
+
+const playedClockText = (match) => {
+	if (!showMatchClock(match) || match.duration == null) return centerCaption(match);
+	return finishInfo(match).text;
 };
 
 const formatClock = (totalSeconds) => {
@@ -437,13 +438,19 @@ const isKnockout = (match) => {
 
 const clockState = (match) => {
 	const start = match.started_at ? dayjs(match.started_at).valueOf() : now.value;
-	const regulationLeft = Math.max(0, Math.ceil((start + REGULATION_MS - now.value) / 1000));
-	if (isKnockout(match) && regulationLeft === 0 && match.extra_started_at) {
+	const elapsedRegulation = Math.min(
+		REGULATION_SECONDS,
+		Math.max(0, Math.floor((now.value - start) / 1000)),
+	);
+	if (isKnockout(match) && elapsedRegulation >= REGULATION_SECONDS && match.extra_started_at) {
 		const extraStart = dayjs(match.extra_started_at).valueOf();
-		const extraLeft = Math.max(0, Math.ceil((extraStart + EXTRA_MS - now.value) / 1000));
-		return { time: formatClock(extraLeft), extra: true };
+		const extraElapsed = Math.min(
+			EXTRA_SECONDS,
+			Math.max(0, Math.floor((now.value - extraStart) / 1000)),
+		);
+		return { time: formatClock(extraElapsed), extra: true };
 	}
-	return { time: formatClock(regulationLeft), extra: false };
+	return { time: formatClock(elapsedRegulation), extra: false };
 };
 
 const localPhoto = (player) => {

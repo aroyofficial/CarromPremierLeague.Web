@@ -100,16 +100,24 @@ const dataAvailable = computed(() => leagueTable.value?.data_available !== false
 
 const getTeamLogo = (teamId) => teamStore.teams.find((t) => t.id === teamId)?.logo_url;
 
-const fetchLeagueTable = async () => {
+let tableRequest = 0;
+
+const fetchLeagueTable = async (options) => {
+	const quiet = Boolean(options && options.quiet);
+	if (quiet && tableRequest) return;
 	if (!selectedSeason.value) return;
-	loading.value = true;
-	errorMessage.value = "";
+	const requestId = ++tableRequest;
+	if (!quiet) {
+		loading.value = true;
+		errorMessage.value = "";
+	}
 	try {
 		seasonStore.setSeason(selectedSeason.value);
 		await Promise.all([
 			seasonStore.fetchLeagueTable(),
 			matchStore.fetchMatches(selectedSeason.value),
 		]);
+		if (requestId !== tableRequest) return;
 		const table = seasonStore.leagueTable;
 		(table?.standings || []).forEach((team) => {
 			team.losses = team.matches_played - team.wins - (team.draws || 0);
@@ -117,11 +125,18 @@ const fetchLeagueTable = async () => {
 		leagueTable.value = table;
 	} catch (error) {
 		console.error("Failed to load league table", error);
-		leagueTable.value = null;
-		errorMessage.value = "Unable to load the points table right now. Please try again.";
+		if (!quiet && requestId === tableRequest) {
+			leagueTable.value = null;
+			errorMessage.value = "Unable to load the points table right now. Please try again.";
+		}
 	} finally {
-		loading.value = false;
+		if (requestId === tableRequest) tableRequest = 0;
+		if (!quiet) loading.value = false;
 	}
+};
+
+const refreshTableIfVisible = () => {
+	if (document.visibilityState === "visible") fetchLeagueTable({ quiet: true });
 };
 
 const isSeasonEnded = () => leagueTable.value?.season_status === SeasonStatus.FINISHED;
@@ -170,16 +185,22 @@ const startTableMusic = () => {
 	return musicStart;
 };
 
+let refreshTimer = null;
+
 onMounted(() => {
 	seasons.value = seasonStore.visibleSeasons;
 	selectedSeason.value = seasonStore.selectedSeason;
 	fetchLeagueTable();
+	refreshTimer = setInterval(() => fetchLeagueTable({ quiet: true }), 5000);
+	document.addEventListener("visibilitychange", refreshTableIfVisible);
 	startTableMusic();
 	window.addEventListener("pointerdown", startTableMusic);
 	window.addEventListener("keydown", startTableMusic);
 });
 
 onUnmounted(() => {
+	clearInterval(refreshTimer);
+	document.removeEventListener("visibilitychange", refreshTableIfVisible);
 	window.removeEventListener("pointerdown", startTableMusic);
 	window.removeEventListener("keydown", startTableMusic);
 	pauseBgm(BackgroundMusic.Match, 400);
