@@ -42,10 +42,30 @@ body {
 	padding-top: var(--app-header-height);
 	box-sizing: border-box;
 	overflow-x: hidden;
+	overflow-x: clip;
 }
 
 img {
 	max-width: 100%;
+}
+
+.el-dialog:not(.is-fullscreen),
+.el-message-box {
+	max-width: calc(100vw - 16px);
+}
+
+.el-dialog__body {
+	overflow-wrap: break-word;
+}
+
+@media (max-width: 575.98px) {
+	.el-dialog:not(.is-fullscreen) {
+		--el-dialog-padding-primary: 14px;
+	}
+
+	.el-message-box {
+		width: calc(100vw - 24px);
+	}
 }
 
 .page-container {

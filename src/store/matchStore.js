@@ -54,6 +54,14 @@ export const useMatchStore = defineStore("match", {
 				this.loading = false;
 			}
 		},
+		async resetMatch(matchId) {
+			const response = await matchService.reset(matchId);
+			const index = this.matches.findIndex((match) => match.id === matchId);
+			if (index !== -1) {
+				this.matches[index] = { ...this.matches[index], ...response.data };
+			}
+			return response.data;
+		},
 		async updateMatchStats(matchId, stats) {
 			this.loading = true;
 			try {

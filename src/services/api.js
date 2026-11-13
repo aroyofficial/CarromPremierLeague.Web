@@ -1,8 +1,11 @@
 import axios from "axios";
 import { authToken } from "@/utils/authToken";
 
+const apiBaseUrl =
+	globalThis.__CPL_API_BASE_URL__ || import.meta.env.VITE_API_BASE_URL;
+
 const api = axios.create({
-	baseURL: import.meta.env.VITE_API_BASE_URL,
+	baseURL: apiBaseUrl,
 	// Long enough to survive a cold start on the free API host.
 	timeout: 90000,
 	headers: {
@@ -23,6 +26,13 @@ api.interceptors.response.use(
 	(response) => response.data,
 	(error) => {
 		console.error("API Error:", error.response?.data || error.message);
+		if (error.response?.status === 401 && authToken.get()) {
+			authToken.clear();
+			window.dispatchEvent(new CustomEvent("cpl:session-expired"));
+		}
+		if (error.response?.status === 403 && authToken.get()) {
+			window.dispatchEvent(new CustomEvent("cpl:permission-denied"));
+		}
 		return Promise.reject(error.response?.data || error);
 	},
 );

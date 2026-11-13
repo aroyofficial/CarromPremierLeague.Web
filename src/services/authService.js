@@ -4,4 +4,8 @@ export const authService = {
 	async login(username, password) {
 		return await api.post("auth/login", { username, password });
 	},
+
+	async me() {
+		return await api.get("auth/me");
+	},
 };
