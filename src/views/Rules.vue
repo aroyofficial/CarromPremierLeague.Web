@@ -53,14 +53,15 @@
 					</p>
 					<ul>
 						<li>
-							<b>Regulation Time:</b> Every match lasts 15 minutes.
+							<b>Regulation Time:</b> The clock runs for 15 minutes. Finish is available as soon as a
+							team reaches 9 coins, and also when the clock expires.
 						</li>
 						<li>
 							<b>Extra Time (Only in Final / Eliminator):</b> 5 minutes extra are given.
 						</li>
 						<li>
-							<b>Winner:</b> When time expires, the team with more coins pocketed wins the match and
-							receives 2 points.
+							<b>Winner:</b> The team with more coins pocketed wins the match and receives 2 points.
+							An equal score is a tie.
 						</li>
 					</ul>
 

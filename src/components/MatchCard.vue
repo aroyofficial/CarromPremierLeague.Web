@@ -301,7 +301,7 @@
 							type="primary"
 							size="large"
 							@click="requestFinish()"
-							:disabled="!enableFinishBtn"
+							:disabled="!canFinishMatch"
 							>{{ editingResult ? "Save scores" : "Finish" }}</el-button
 						>
 					</template>
@@ -528,7 +528,7 @@ import {
 import { ElMessage, ElMessageBox } from "element-plus";
 import { matchService } from "@/services/matchService";
 import { localPlayerPhoto } from "@/utils/playerPhotos";
-import { COINS_PER_COLOR, coinBounds, colourOverflow, fineCoins as fineCoinCount, teamScore } from "@/utils/coinLimits";
+import { COINS_PER_COLOR, coinBounds, colourOverflow, eitherTeamReachedNine, fineCoins as fineCoinCount, teamScore } from "@/utils/coinLimits";
 import { matchQueue } from "@/utils/requestQueue";
 
 const props = defineProps({
@@ -725,6 +725,13 @@ const getTeamNetPoints = () => {
 		team2NetPoints: teamScore(rows, props.match.team2),
 	};
 };
+
+// The clock still enables Finish when time expires. Reaching 9 coins enables it during the match.
+const canFinishMatch = computed(() => {
+	if (enableFinishBtn.value) return true;
+	if (!lock.value) return false;
+	return eitherTeamReachedNine(limitRows(), [props.match.team1, props.match.team2]);
+});
 
 const getInvalidTeamNetPoints = () => {
 	const { team1NetPoints, team2NetPoints } = getTeamNetPoints();

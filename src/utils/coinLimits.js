@@ -36,6 +36,10 @@ export const colourOverflow = (rows, teamId) => {
 	return Math.max(0, offBoard(mine, other) - COINS_PER_COLOR);
 };
 
+// A colour is finished once 9 of its coins are off the board, fines included.
+export const eitherTeamReachedNine = (rows, teamIds) =>
+	teamIds.some((teamId) => teamScore(rows, teamId) >= COINS_PER_COLOR);
+
 // Limits keep every value that is already on the scorecard, so a stored number is never rewritten;
 // they only stop a change that would break the nine-coin rule.
 const keep = (min, max, value) => ({ min: Math.min(min, value), max: Math.max(max, value) });
