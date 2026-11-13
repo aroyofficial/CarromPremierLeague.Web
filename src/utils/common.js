@@ -89,7 +89,9 @@ function fadeTo(audio, duration, targetVolume) {
 export function resolveAsset(url) {
 	const env = import.meta.env.VITE_WEB_ENV;
 	const asset = env === "dev" ? url : url.replace("public", "");
-	return asset.startsWith("/") ? asset : `/${asset}`;
+	const path = asset.startsWith("/") ? asset : `/${asset}`;
+	const base = import.meta.env.BASE_URL || "/";
+	return `${base}${path.slice(1)}`;
 }
 
 export function startLoader(text = "Loading...") {

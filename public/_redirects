@@ -1,3 +1,0 @@
-# Vue Router uses history mode. Netlify must return the app for client routes.
-# Existing files such as /assets/* are served before this rule.
-/*    /index.html   200

@@ -6,6 +6,7 @@ import { ElementPlusResolver } from "unplugin-vue-components/resolvers";
 import path from "path";
 
 const apiBaseUrl = process.env.VITE_API_BASE_URL || "";
+const basePath = process.env.VITE_BASE_PATH || "/";
 
 function serveFresh() {
 	return {
@@ -21,6 +22,7 @@ function serveFresh() {
 }
 
 export default defineConfig({
+	base: basePath.endsWith("/") ? basePath : `${basePath}/`,
 	define: apiBaseUrl
 		? { __CPL_API_BASE_URL__: JSON.stringify(apiBaseUrl) }
 		: {},
