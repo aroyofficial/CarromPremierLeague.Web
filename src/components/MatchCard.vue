@@ -490,7 +490,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onUnmounted, onUpdated, ref, watch } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, onUpdated, ref, watch } from "vue";
 import { useSeasonStore } from "@/store/seasonStore";
 import { useTeamStore } from "@/store/teamStore";
 import { useMatchStore } from "@/store/matchStore";
@@ -517,6 +517,7 @@ import {
 } from "../utils/common";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { matchService } from "@/services/matchService";
+import { useSettingsStore } from "@/store/settingsStore";
 import { localPlayerPhoto } from "@/utils/playerPhotos";
 import { COINS_PER_COLOR, coinBounds, colourOverflow, eitherTeamReachedNine, fineCoins as fineCoinCount, teamScore } from "@/utils/coinLimits";
 import { matchQueue } from "@/utils/requestQueue";
@@ -561,8 +562,13 @@ const pausedTimerSeconds = ref(0);
 const showSaveBtn = ref(false);
 const startMatchTimeoutId = ref(null);
 const hornStopTimeoutId = ref(null);
-const regulationDurationSeconds = 15 * 60;
-const extraDurationSeconds = 5 * 60;
+const settingsStore = useSettingsStore();
+const regulationSeconds = () => settingsStore.regulation_minutes * 60;
+const extraSeconds = () => settingsStore.extra_minutes * 60;
+
+onMounted(() => {
+	if (!settingsStore.loaded) settingsStore.fetchSettings().catch(() => undefined);
+});
 const clockNow = ref(Date.now());
 let clockTick = null;
 
@@ -926,14 +932,14 @@ const getRemainingSeconds = (targetTime) => {
 };
 
 const activePeriodSeconds = () =>
-	extraTimeStarted.value ? extraDurationSeconds : regulationDurationSeconds;
+	extraTimeStarted.value ? extraSeconds() : regulationSeconds();
 
 const forwardClock = computed(() => {
 	if (isGoldenStrikeCategory(props.match.category)) return "";
 	if (editingResult.value) {
 		const extraPlayed = Number(props.match.extra || 0);
 		if (extraPlayed > 0) return `${formatDurationFromSeconds(extraPlayed)} extra`;
-		return formatDurationFromSeconds(props.match.duration ?? regulationDurationSeconds);
+		return formatDurationFromSeconds(props.match.duration ?? regulationSeconds());
 	}
 	if (timerFrozenAtZero.value) return formatDurationFromSeconds(activePeriodSeconds());
 	const remaining = timerPaused.value
@@ -953,15 +959,15 @@ const getElapsedMatchTime = () => {
 			duration: Math.max(
 				0,
 				Math.min(
-					regulationDurationSeconds,
-					regulationDurationSeconds - remainingRegulationSeconds,
+					regulationSeconds(),
+					regulationSeconds() - remainingRegulationSeconds,
 				),
 			),
 			extra: null,
 		};
 	}
 
-	const duration = regulationDurationSeconds;
+	const duration = regulationSeconds();
 	if (!extraTimeStarted.value) {
 		return {
 			duration,
@@ -972,7 +978,7 @@ const getElapsedMatchTime = () => {
 	if (extraTimeExhausted.value) {
 		return {
 			duration,
-			extra: extraDurationSeconds,
+			extra: extraSeconds(),
 		};
 	}
 
@@ -985,7 +991,7 @@ const getElapsedMatchTime = () => {
 		duration,
 		extra: Math.max(
 			0,
-			Math.min(extraDurationSeconds, extraDurationSeconds - remainingExtraSeconds),
+			Math.min(extraSeconds(), extraSeconds() - remainingExtraSeconds),
 		),
 	};
 };
@@ -999,11 +1005,11 @@ const startExtraTime = async () => {
 	pausedTimerSeconds.value = 0;
 	showSaveBtn.value = false;
 	goldenStrikeTaken.value = false;
-	regulationTimer.value = dayjs().add(extraDurationSeconds, "second").valueOf();
+	regulationTimer.value = dayjs().add(extraSeconds(), "second").valueOf();
 	try {
 		const updatedMatch = await persistMatch({ extra: 0 }, "extra time start");
 		if (updatedMatch?.extra_started_at) {
-			regulationTimer.value = dayjs(updatedMatch.extra_started_at).valueOf() + extraDurationSeconds * 1000;
+			regulationTimer.value = dayjs(updatedMatch.extra_started_at).valueOf() + extraSeconds() * 1000;
 		}
 	} catch (error) {
 		console.error("Failed to start extra time", error);
@@ -1230,7 +1236,7 @@ const startMatch = async () => {
 		enableFinishBtn.value = true;
 		openGoldenStrikeDialog();
 	} else {
-		regulationTimer.value = dayjs().add(regulationDurationSeconds, "second").valueOf();
+		regulationTimer.value = dayjs().add(regulationSeconds(), "second").valueOf();
 	}
 	playHorn();
 	try {
@@ -1242,7 +1248,7 @@ const startMatch = async () => {
 			"match start",
 		);
 		if (!goldenStrike && updatedMatch?.started_at) {
-			regulationTimer.value = dayjs(updatedMatch.started_at).valueOf() + regulationDurationSeconds * 1000;
+			regulationTimer.value = dayjs(updatedMatch.started_at).valueOf() + regulationSeconds() * 1000;
 		}
 	} catch (error) {
 		console.error("Failed to mark the match live", error);
@@ -1324,7 +1330,7 @@ const restoreClock = () => {
 	const now = dayjs().valueOf();
 	const regulationStartedAt = props.match.started_at ? dayjs(props.match.started_at).valueOf() : now;
 	const extraStartedAt = props.match.extra_started_at ? dayjs(props.match.extra_started_at).valueOf() : null;
-	const regulationEnd = regulationStartedAt + regulationDurationSeconds * 1000;
+	const regulationEnd = regulationStartedAt + regulationSeconds() * 1000;
 	timerPaused.value = false;
 	pausedTimerSeconds.value = 0;
 
@@ -1337,7 +1343,7 @@ const restoreClock = () => {
 	}
 
 	if (extraStartedAt) {
-		const extraEnd = extraStartedAt + extraDurationSeconds * 1000;
+		const extraEnd = extraStartedAt + extraSeconds() * 1000;
 		regulationTimeExhausted.value = true;
 		extraTimeStarted.value = true;
 		regulationTimer.value = extraEnd;
@@ -1571,7 +1577,7 @@ const finishMatch = async (forcefully = false) => {
 			? {
 				duration: isGoldenStrikeCategory(props.match.category)
 					? 0
-					: props.match.duration ?? regulationDurationSeconds,
+					: props.match.duration ?? regulationSeconds(),
 				extra: props.match.extra,
 			}
 			: isGoldenStrikeCategory(props.match.category)

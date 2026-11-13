@@ -258,12 +258,14 @@
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import dayjs from "@/plugins/dayjs";
 import { useSeasonStore } from "@/store/seasonStore";
+import { useSettingsStore } from "@/store/settingsStore";
 import { useTeamStore } from "@/store/teamStore";
 import { seasonService } from "@/services/seasonService";
 import { MatchCategory, MatchStatus, TossOutcome } from "@/utils/constants";
 import { resolveAsset } from "@/utils/common";
 
 const seasonStore = useSeasonStore();
+const settingsStore = useSettingsStore();
 const teamStore = useTeamStore();
 const selectedSeason = ref(null);
 const seasons = ref([]);
@@ -405,8 +407,8 @@ const showToss = (match) => tossSide(match) !== "";
 
 const showChance = (match) => (isScheduled(match) || isLive(match)) && match.win_probability;
 
-const REGULATION_SECONDS = 15 * 60;
-const EXTRA_SECONDS = 5 * 60;
+const regulationSeconds = () => settingsStore.regulation_minutes * 60;
+const extraSeconds = () => settingsStore.extra_minutes * 60;
 
 const isTiebreak = (match) => categoryName(match.category) === "Golden Strike";
 
@@ -439,13 +441,13 @@ const isKnockout = (match) => {
 const clockState = (match) => {
 	const start = match.started_at ? dayjs(match.started_at).valueOf() : now.value;
 	const elapsedRegulation = Math.min(
-		REGULATION_SECONDS,
+		regulationSeconds(),
 		Math.max(0, Math.floor((now.value - start) / 1000)),
 	);
-	if (isKnockout(match) && elapsedRegulation >= REGULATION_SECONDS && match.extra_started_at) {
+	if (isKnockout(match) && elapsedRegulation >= regulationSeconds() && match.extra_started_at) {
 		const extraStart = dayjs(match.extra_started_at).valueOf();
 		const extraElapsed = Math.min(
-			EXTRA_SECONDS,
+			extraSeconds(),
 			Math.max(0, Math.floor((now.value - extraStart) / 1000)),
 		);
 		return { time: formatClock(extraElapsed), extra: true };
@@ -554,6 +556,7 @@ const fetchSchedule = async (options) => {
 	}
 	try {
 		seasonStore.setSeason(selectedSeason.value);
+		await settingsStore.fetchSettings().catch(() => undefined);
 		const response = await seasonService.getSchedule(selectedSeason.value);
 		if (requestId !== scheduleRequest) return;
 		const nextMatches = response.data?.matches || [];

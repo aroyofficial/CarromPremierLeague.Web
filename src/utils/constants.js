@@ -22,6 +22,7 @@ const AdminSections = Object.freeze([
 	{ name: "admin-matches", path: "matches", label: "Matches", icon: "Trophy" },
 	{ name: "admin-countries", path: "countries", label: "Countries", icon: "Location" },
 	{ name: "admin-users", path: "users", label: "Admin Users", icon: "Lock" },
+	{ name: "admin-settings", path: "settings", label: "Settings", icon: "Setting" },
 ]);
 
 const NavItems = Object.freeze([

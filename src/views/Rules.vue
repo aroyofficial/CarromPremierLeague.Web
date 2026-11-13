@@ -34,9 +34,9 @@
 						format where performance across games determines their position on the table.
 					</p>
 					<p>
-						Every match is played for 15 minutes of regulation time, with a 15-second shot clock. The
-						Queen stays off the board during regulation. A league match can finish tied. A final or
-						eliminator that is still tied after 5 extra minutes, or a tie for a knockout place, is
+						Every match is played for {{ regulationMinutes }} minutes of regulation time, with a 15-second shot clock.
+						{{ leagueQueenSentence }} A league match can finish tied. A final or
+						eliminator that is still tied after {{ extraMinutes }} extra minutes, or a tie for a knockout place, is
 						decided by Golden Strike.
 					</p>
 					<p>
@@ -53,11 +53,14 @@
 					</p>
 					<ul>
 						<li>
-							<b>Regulation Time:</b> The clock runs for 15 minutes. Finish is available as soon as a
+							<b>Regulation Time:</b> The clock runs for {{ regulationMinutes }} minutes. Finish is available as soon as a
 							team reaches 9 coins, and also when the clock expires.
 						</li>
 						<li>
-							<b>Extra Time (Only in Final / Eliminator):</b> 5 minutes extra are given.
+							<b>Extra Time (Only in Final / Eliminator):</b> {{ extraMinutes }} minutes extra are given.
+						</li>
+						<li>
+							<b>Queen:</b> {{ leagueQueenSentence }}
 						</li>
 						<li>
 							<b>Winner:</b> The team with more coins pocketed wins the match and receives 2 points.
@@ -107,7 +110,7 @@
 					</div>
 					<p>
 						A league tie is awarded when regulation time ends with the same number of white and black
-						coins left. Each team receives 1 point. A final or eliminator that is still tied after 5
+						coins left. Each team receives 1 point. A final or eliminator that is still tied after {{ extraMinutes }}
 						extra minutes is decided by Golden Strike, so those matches do not share the point.
 					</p>
 				</section>
@@ -145,8 +148,8 @@
 
 					<h3>Final / Eliminator Ties</h3>
 					<p>
-						If the final or the eliminator is tied after 15 minutes, with the same number of white and
-						black coins left, 5 more minutes are played. If the match is still tied after that extra
+						If the final or the eliminator is tied after {{ regulationMinutes }} minutes, with the same number of white and
+						black coins left, {{ extraMinutes }} more minutes are played. If the match is still tied after that extra
 						time, the system schedules a Golden Strike between the same teams. These matches do not
 						share 1 point. The winner of that Golden Strike takes the knockout place.
 					</p>
@@ -194,7 +197,17 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, onUnmounted } from "vue";
+import { computed, ref, watch, onMounted, onUnmounted } from "vue";
+import { useSettingsStore } from "@/store/settingsStore";
+
+const settingsStore = useSettingsStore();
+const regulationMinutes = computed(() => settingsStore.regulation_minutes);
+const extraMinutes = computed(() => settingsStore.extra_minutes);
+const leagueQueenSentence = computed(() => {
+	if (!settingsStore.league_queen) return "The Queen stays off the board during league regulation.";
+	if (settingsStore.queen_needs_cover) return "The Queen is in play during league regulation and must be covered.";
+	return "The Queen is in play during league regulation. No cover is required.";
+});
 
 const sections = [
 	{ id: "about", icon: "🏆", title: "About CPL" },
@@ -290,6 +303,7 @@ const scrollTo = (id) => {
 watch(activeId, (id) => scrollChipIntoView(id));
 
 onMounted(() => {
+	settingsStore.fetchSettings().catch(() => undefined);
 	document.getElementById("app")?.classList.add("rules-screen");
 	syncScrollEnd();
 	resizeObserver = new ResizeObserver(syncScrollEnd);

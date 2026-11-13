@@ -3,6 +3,7 @@ import { ElMessage } from "element-plus";
 import { AdminSections, Routes } from "../utils/constants";
 import { authToken } from "../utils/authToken";
 import { useSeasonStore } from "@/store/seasonStore";
+import { useSettingsStore } from "@/store/settingsStore";
 import { useTeamStore } from "@/store/teamStore";
 import { useMatchStore } from "@/store/matchStore";
 import { useRosterStore } from "@/store/rosterStore";
@@ -17,6 +18,7 @@ const adminViews = {
 	"admin-matches": () => import("@/views/admin/AdminMatches.vue"),
 	"admin-countries": () => import("@/views/admin/AdminCountries.vue"),
 	"admin-users": () => import("@/views/admin/AdminUsers.vue"),
+	"admin-settings": () => import("@/views/admin/AdminSettings.vue"),
 };
 
 const routes = [
@@ -121,10 +123,12 @@ router.beforeEach(async (to) => {
 	try {
 		const seasonStore = useSeasonStore();
 		const teamStore = useTeamStore();
+		const settingsStore = useSettingsStore();
 
 		await Promise.all([
 			seasonStore.seasons.length === 0 && seasonStore.fetchSeasons(),
 			teamStore.teams.length === 0 && teamStore.fetchTeams(),
+			settingsStore.fetchSettings().catch(() => undefined),
 		]);
 
 		if (to.path === Routes.FIXTURES && seasonStore.selectedSeason) {
