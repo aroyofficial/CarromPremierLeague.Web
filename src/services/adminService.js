@@ -19,6 +19,14 @@ const uploadImage = (url, file, onProgress) => {
 	});
 };
 
+const saveImageUrl = (url, link) => {
+	const body = new FormData();
+	body.append("url", link);
+	return api.put(url, body, {
+		headers: { "Content-Type": "multipart/form-data" },
+	});
+};
+
 export const adminApi = {
 	seasons: {
 		...crud("seasons", { updateMethod: "put" }),
@@ -29,11 +37,13 @@ export const adminApi = {
 	teams: {
 		...crud("teams"),
 		uploadLogo: (id, file, onProgress) => uploadImage(`teams/${id}/logo`, file, onProgress),
+		setLogoUrl: (id, link) => saveImageUrl(`teams/${id}/logo`, link),
 		removeLogo: (id) => api.delete(`teams/${id}/logo`),
 	},
 	players: {
 		...crud("players"),
 		uploadAvatar: (id, file, onProgress) => uploadImage(`players/${id}/avatar`, file, onProgress),
+		setAvatarUrl: (id, link) => saveImageUrl(`players/${id}/avatar`, link),
 		removeAvatar: (id) => api.delete(`players/${id}/avatar`),
 	},
 	countries: crud("countries"),
@@ -69,6 +79,11 @@ export const adminApi = {
 
 export const apiErrorMessage = (error, fallback = "Something went wrong. Please try again.") => {
 	if (!error) return fallback;
+	if (typeof error === "string" && error.trim()) return error;
+	if (typeof error.detail === "string" && error.detail.trim()) return error.detail;
+	if (Array.isArray(error.detail) && error.detail.length) {
+		return error.detail.map((item) => item?.msg || String(item)).join("; ");
+	}
 	if (Array.isArray(error.data) && error.data.length) {
 		return error.data
 			.map((item) => {

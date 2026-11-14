@@ -50,7 +50,15 @@
 			</el-table>
 		</div>
 
-		<el-dialog v-model="dialogOpen" :title="editingId ? 'Edit player' : 'New player'" width="min(600px, 94vw)">
+		<el-dialog
+			v-model="dialogOpen"
+			:title="editingId ? 'Edit player' : 'New player'"
+			width="min(600px, 94vw)"
+			:close-on-click-modal="!uploadBlocked"
+			:close-on-press-escape="!uploadBlocked"
+			:show-close="!uploadBlocked"
+			:before-close="closeDialog"
+		>
 			<el-form ref="formRef" :model="form" :rules="rules" label-position="top" class="admin-form-grid" @submit.prevent>
 				<el-form-item label="First name" prop="first_name">
 					<el-input v-model="form.first_name" />
@@ -75,20 +83,27 @@
 				<el-form-item label="Profile picture" class="span-2">
 					<ImageUploadField
 						v-model:pending-file="pendingPhoto"
+						v-model:pending-link="pendingLink"
+						v-model:busy="pictureBusy"
 						:src="editingAvatar"
 						:name="playerName(form) || 'New player'"
 						kind="player"
 						label="Profile picture"
 						:deferred="!editingId"
+						:external-busy="uploading"
+						:external-progress="uploadProgress"
+						:external-error="pictureError"
+						@dismiss-error="pictureError = ''"
 						:upload="(file, onProgress) => adminApi.players.uploadAvatar(editingId, file, onProgress)"
+						:upload-link="(url) => adminApi.players.setAvatarUrl(editingId, url)"
 						:remove="() => adminApi.players.removeAvatar(editingId)"
 						@changed="pictureChanged"
 					/>
 				</el-form-item>
 			</el-form>
 			<template #footer>
-				<el-button @click="dialogOpen = false">Cancel</el-button>
-				<el-button type="primary" :loading="saving" @click="save">Save</el-button>
+				<el-button :disabled="uploadBlocked" @click="dialogOpen = false">Cancel</el-button>
+				<el-button type="primary" :loading="saving" :disabled="saving || pictureBusy" @click="save">Save</el-button>
 			</template>
 		</el-dialog>
 	</div>
@@ -97,7 +112,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
 import { Delete, Edit, Plus, Search } from "@element-plus/icons-vue";
-import { adminApi } from "@/services/adminService";
+import { adminApi, apiErrorMessage } from "@/services/adminService";
 import { blankToNull, confirmDelete, matchesSearch, runAction, unwrap } from "@/utils/adminHelpers";
 import { useIsPhone } from "@/utils/viewport";
 import { usePermissions } from "@/utils/permissions";
@@ -142,6 +157,15 @@ const emptyForm = () => ({ first_name: "", last_name: "", date_of_birth: null, n
 const form = reactive(emptyForm());
 const editingAvatar = ref("");
 const pendingPhoto = ref(null);
+const pendingLink = ref("");
+const pictureBusy = ref(false);
+const uploading = ref(false);
+const uploadProgress = ref(null);
+const pictureError = ref("");
+const uploadBlocked = computed(() => pictureBusy.value || uploading.value || Boolean(pictureError.value));
+const closeDialog = (done) => {
+	if (!uploadBlocked.value) done();
+};
 
 const rules = {
 	first_name: [{ required: true, whitespace: true, message: "First name is required", trigger: "blur" }],
@@ -152,6 +176,8 @@ const openCreate = () => {
 	editingId.value = null;
 	editingAvatar.value = "";
 	pendingPhoto.value = null;
+	pendingLink.value = "";
+	pictureError.value = "";
 	Object.assign(form, emptyForm());
 	dialogOpen.value = true;
 	formRef.value?.clearValidate();
@@ -161,6 +187,8 @@ const openEdit = (player) => {
 	editingId.value = player.id;
 	editingAvatar.value = player.avatar_url || "";
 	pendingPhoto.value = null;
+	pendingLink.value = "";
+	pictureError.value = "";
 	Object.assign(form, {
 		first_name: player.first_name,
 		last_name: player.last_name,
@@ -187,18 +215,40 @@ const save = async () => {
 	const valid = await formRef.value.validate().catch(() => false);
 	if (!valid) return;
 	saving.value = true;
+	pictureError.value = "";
 	const payload = blankToNull({ ...form, first_name: form.first_name.trim(), last_name: form.last_name.trim() });
+	const wasNew = !editingId.value;
 	const { ok, result } = await runAction(
 		() => (editingId.value ? adminApi.players.update(editingId.value, payload) : adminApi.players.create(payload)),
 		editingId.value ? "Player updated" : "Player created",
 	);
-	if (ok && !editingId.value && pendingPhoto.value) {
+	let pictureOk = true;
+	if (ok && wasNew && (pendingPhoto.value || pendingLink.value)) {
 		const created = unwrap(result);
-		await runAction(() => adminApi.players.uploadAvatar(created.id, pendingPhoto.value), "Profile picture uploaded");
-		pendingPhoto.value = null;
+		editingId.value = created.id;
+		uploading.value = true;
+		try {
+			if (pendingPhoto.value) {
+				uploadProgress.value = null;
+				await adminApi.players.uploadAvatar(created.id, pendingPhoto.value, (value) => {
+					uploadProgress.value = value;
+				});
+			} else {
+				uploadProgress.value = null;
+				await adminApi.players.setAvatarUrl(created.id, pendingLink.value);
+			}
+			pendingPhoto.value = null;
+			pendingLink.value = "";
+		} catch (error) {
+			pictureOk = false;
+			pictureError.value = `The player was saved, but the picture was not. ${apiErrorMessage(error)}`;
+		} finally {
+			uploading.value = false;
+			uploadProgress.value = null;
+		}
 	}
 	saving.value = false;
-	if (ok) {
+	if (ok && pictureOk) {
 		dialogOpen.value = false;
 		refreshPublicPlayers();
 		await load();

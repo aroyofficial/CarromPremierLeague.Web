@@ -47,7 +47,15 @@
 			</el-table>
 		</div>
 
-		<el-dialog v-model="dialogOpen" :title="editingId ? 'Edit team' : 'New team'" width="min(560px, 94vw)">
+		<el-dialog
+			v-model="dialogOpen"
+			:title="editingId ? 'Edit team' : 'New team'"
+			width="min(560px, 94vw)"
+			:close-on-click-modal="!uploadBlocked"
+			:close-on-press-escape="!uploadBlocked"
+			:show-close="!uploadBlocked"
+			:before-close="closeDialog"
+		>
 			<el-form ref="formRef" :model="form" :rules="rules" label-position="top" @submit.prevent>
 				<el-form-item label="Name" prop="name">
 					<el-input v-model="form.name" placeholder="e.g. Dum Dum Diamonds" />
@@ -58,20 +66,27 @@
 				<el-form-item label="Logo">
 					<ImageUploadField
 						v-model:pending-file="pendingLogo"
+						v-model:pending-link="pendingLink"
+						v-model:busy="pictureBusy"
 						:src="editingLogo"
 						:name="form.name || 'New team'"
 						kind="team"
 						label="Logo"
 						:deferred="!editingId"
+						:external-busy="uploading"
+						:external-progress="uploadProgress"
+						:external-error="pictureError"
+						@dismiss-error="pictureError = ''"
 						:upload="(file, onProgress) => adminApi.teams.uploadLogo(editingId, file, onProgress)"
+						:upload-link="(url) => adminApi.teams.setLogoUrl(editingId, url)"
 						:remove="() => adminApi.teams.removeLogo(editingId)"
 						@changed="logoChanged"
 					/>
 				</el-form-item>
 			</el-form>
 			<template #footer>
-				<el-button @click="dialogOpen = false">Cancel</el-button>
-				<el-button type="primary" :loading="saving" @click="save">Save</el-button>
+				<el-button :disabled="uploadBlocked" @click="dialogOpen = false">Cancel</el-button>
+				<el-button type="primary" :loading="saving" :disabled="saving || pictureBusy" @click="save">Save</el-button>
 			</template>
 		</el-dialog>
 	</div>
@@ -80,7 +95,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
 import { Delete, Edit, Plus, Search } from "@element-plus/icons-vue";
-import { adminApi } from "@/services/adminService";
+import { adminApi, apiErrorMessage } from "@/services/adminService";
 import { blankToNull, confirmDelete, matchesSearch, runAction, unwrap } from "@/utils/adminHelpers";
 import { useIsPhone } from "@/utils/viewport";
 import { usePermissions } from "@/utils/permissions";
@@ -113,6 +128,15 @@ const emptyForm = () => ({ name: "", slogan: "" });
 const form = reactive(emptyForm());
 const editingLogo = ref("");
 const pendingLogo = ref(null);
+const pendingLink = ref("");
+const pictureBusy = ref(false);
+const uploading = ref(false);
+const uploadProgress = ref(null);
+const pictureError = ref("");
+const uploadBlocked = computed(() => pictureBusy.value || uploading.value || Boolean(pictureError.value));
+const closeDialog = (done) => {
+	if (!uploadBlocked.value) done();
+};
 
 const rules = {
 	name: [
@@ -125,6 +149,8 @@ const openCreate = () => {
 	editingId.value = null;
 	editingLogo.value = "";
 	pendingLogo.value = null;
+	pendingLink.value = "";
+	pictureError.value = "";
 	Object.assign(form, emptyForm());
 	dialogOpen.value = true;
 	formRef.value?.clearValidate();
@@ -134,6 +160,8 @@ const openEdit = (team) => {
 	editingId.value = team.id;
 	editingLogo.value = team.logo_url || "";
 	pendingLogo.value = null;
+	pendingLink.value = "";
+	pictureError.value = "";
 	Object.assign(form, { name: team.name, slogan: team.slogan || "" });
 	dialogOpen.value = true;
 	formRef.value?.clearValidate();
@@ -150,18 +178,40 @@ const save = async () => {
 	const valid = await formRef.value.validate().catch(() => false);
 	if (!valid) return;
 	saving.value = true;
+	pictureError.value = "";
 	const payload = blankToNull({ ...form, name: form.name.trim() });
+	const wasNew = !editingId.value;
 	const { ok, result } = await runAction(
 		() => (editingId.value ? adminApi.teams.update(editingId.value, payload) : adminApi.teams.create(payload)),
 		editingId.value ? "Team updated" : "Team created",
 	);
-	if (ok && !editingId.value && pendingLogo.value) {
+	let pictureOk = true;
+	if (ok && wasNew && (pendingLogo.value || pendingLink.value)) {
 		const created = unwrap(result);
-		await runAction(() => adminApi.teams.uploadLogo(created.id, pendingLogo.value), "Logo uploaded");
-		pendingLogo.value = null;
+		editingId.value = created.id;
+		uploading.value = true;
+		try {
+			if (pendingLogo.value) {
+				uploadProgress.value = null;
+				await adminApi.teams.uploadLogo(created.id, pendingLogo.value, (value) => {
+					uploadProgress.value = value;
+				});
+			} else {
+				uploadProgress.value = null;
+				await adminApi.teams.setLogoUrl(created.id, pendingLink.value);
+			}
+			pendingLogo.value = null;
+			pendingLink.value = "";
+		} catch (error) {
+			pictureOk = false;
+			pictureError.value = `The team was saved, but the logo was not. ${apiErrorMessage(error)}`;
+		} finally {
+			uploading.value = false;
+			uploadProgress.value = null;
+		}
 	}
 	saving.value = false;
-	if (ok) {
+	if (ok && pictureOk) {
 		dialogOpen.value = false;
 		teamStore.teams = [];
 		await load();

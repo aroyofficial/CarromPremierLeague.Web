@@ -44,3 +44,21 @@ export const imageFileProblem = (file) => {
 	if (file.size > MAX_IMAGE_BYTES) return "The image must be 5 MB or smaller.";
 	return "";
 };
+
+export const publicImageLinkProblem = (value) => {
+	const text = String(value || "").trim();
+	if (!text) return "Paste a public image link.";
+	let url;
+	try {
+		url = new URL(text);
+	} catch {
+		return "Enter a full link starting with http:// or https://.";
+	}
+	if (url.protocol !== "https:" && url.protocol !== "http:") return "Enter a public http or https link.";
+	if (url.username || url.password) return "Enter a public link without a username or password.";
+	const host = url.hostname.toLowerCase();
+	if (!host || host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local")) {
+		return "Enter a public image link.";
+	}
+	return "";
+};
