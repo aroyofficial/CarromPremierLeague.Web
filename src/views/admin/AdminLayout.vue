@@ -52,6 +52,7 @@ import {
 	Location,
 	Lock,
 	Menu,
+	Picture,
 	Setting,
 	SwitchButton,
 	Trophy,
@@ -61,7 +62,7 @@ import {
 import { AdminSections, Routes } from "@/utils/constants";
 import { useAuthStore } from "@/store/authStore";
 
-const icons = { Calendar, Connection, DataBoard, Flag, Location, Lock, Setting, Trophy, User, UserFilled };
+const icons = { Calendar, Connection, DataBoard, Flag, Location, Lock, Picture, Setting, Trophy, User, UserFilled };
 
 const router = useRouter();
 const authStore = useAuthStore();

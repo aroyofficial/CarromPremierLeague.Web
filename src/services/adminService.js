@@ -75,6 +75,24 @@ export const adminApi = {
 		catalog: () => api.get("permissions"),
 		tree: () => api.get("permissions/tree"),
 	},
+	gallery: {
+		seasons: () => api.get("gallery/seasons"),
+		list: (params) => api.get("gallery", { params }),
+		photo: (id) => api.get(`gallery/${id}`),
+		adminList: (params) => api.get("admin/gallery", { params }),
+		create: (body, onProgress) =>
+			api.post("gallery", body, {
+				headers: { "Content-Type": "multipart/form-data" },
+				onUploadProgress: (event) => {
+					if (onProgress && event.total) onProgress(Math.round((event.loaded / event.total) * 100));
+				},
+			}),
+		update: (id, payload) => api.patch(`gallery/${id}`, payload),
+		order: (seasonId, itemIds) => api.put("gallery/order", { season_id: seasonId, item_ids: itemIds }),
+		cover: (seasonId, itemId) => api.put(`seasons/${seasonId}/gallery-cover`, { item_id: itemId }),
+		bulk: (payload) => api.post("gallery/bulk", payload),
+		remove: (id) => api.delete(`gallery/${id}`),
+	},
 };
 
 export const apiErrorMessage = (error, fallback = "Something went wrong. Please try again.") => {

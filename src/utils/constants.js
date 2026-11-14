@@ -8,6 +8,7 @@ const Routes = Object.freeze({
 	TEAMS: "/teams",
 	PLAYERS: "/players",
 	STATS: "/stats",
+	GALLERY: "/gallery",
 	PLAYER_STATS: "/stats/players",
 	LOGIN: "/login",
 	ADMIN: "/admin",
@@ -40,6 +41,10 @@ const Permission = Object.freeze({
 	ADMINS_UPDATE: "admins.update",
 	ADMINS_DELETE: "admins.delete",
 	PERMISSIONS_MANAGE: "permissions.manage",
+	GALLERY_CREATE: "gallery.create",
+	GALLERY_UPDATE: "gallery.update",
+	GALLERY_PUBLISH: "gallery.publish",
+	GALLERY_DELETE: "gallery.delete",
 });
 
 const areaCodes = (area) => Object.values(Permission).filter((code) => code.startsWith(`${area}.`));
@@ -50,6 +55,7 @@ const AdminSections = Object.freeze([
 	{ name: "admin-seasons", path: "seasons", label: "Seasons", icon: "Calendar", permissions: areaCodes("seasons") },
 	{ name: "admin-teams", path: "teams", label: "Teams", icon: "Flag", permissions: areaCodes("teams") },
 	{ name: "admin-players", path: "players", label: "Players", icon: "User", permissions: areaCodes("players") },
+	{ name: "admin-gallery", path: "gallery", label: "Gallery", icon: "Picture", permissions: areaCodes("gallery") },
 	{ name: "admin-rosters", path: "rosters", label: "Rosters", icon: "Connection", permissions: areaCodes("rosters") },
 	{ name: "admin-matches", path: "matches", label: "Matches", icon: "Trophy", permissions: areaCodes("matches") },
 	{ name: "admin-countries", path: "countries", label: "Countries", icon: "Location", permissions: areaCodes("countries") },
@@ -77,6 +83,7 @@ const NavItems = Object.freeze([
 	{ label: "Rules", path: Routes.RULES },
 	{ label: "Teams", path: Routes.TEAMS },
 	{ label: "Players", path: Routes.PLAYERS },
+	{ label: "Gallery", path: Routes.GALLERY },
 	{ label: "Stats", path: Routes.STATS },
 ]);
 

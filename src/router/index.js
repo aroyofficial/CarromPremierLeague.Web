@@ -15,6 +15,7 @@ const adminViews = {
 	"admin-seasons": () => import("@/views/admin/AdminSeasons.vue"),
 	"admin-teams": () => import("@/views/admin/AdminTeams.vue"),
 	"admin-players": () => import("@/views/admin/AdminPlayers.vue"),
+	"admin-gallery": () => import("@/views/admin/AdminGallery.vue"),
 	"admin-rosters": () => import("@/views/admin/AdminRosters.vue"),
 	"admin-matches": () => import("@/views/admin/AdminMatches.vue"),
 	"admin-countries": () => import("@/views/admin/AdminCountries.vue"),
@@ -47,6 +48,12 @@ const routes = [
 		name: "teams",
 		component: () => import("@/views/Teams.vue"),
 		meta: { title: "Teams" },
+	},
+	{
+		path: Routes.GALLERY,
+		name: "gallery",
+		component: () => import("@/views/Gallery.vue"),
+		meta: { title: "Gallery" },
 	},
 	{
 		path: Routes.PLAYERS,
