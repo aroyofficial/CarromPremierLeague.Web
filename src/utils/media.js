@@ -60,6 +60,15 @@ export const mediaFileProblem = (file) => {
 	return "Choose a JPEG, PNG, WebP, MP4, WebM or MOV file.";
 };
 
+export const spokenDate = (value) => {
+	const text = String(value || "").slice(0, 10);
+	const match = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+	if (!match) return text;
+	const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+	if (Number.isNaN(date.getTime())) return text;
+	return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(date);
+};
+
 export const publicImageLinkProblem = (value) => {
 	const text = String(value || "").trim();
 	if (!text) return "Paste a public image link.";

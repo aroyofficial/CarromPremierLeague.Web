@@ -8,24 +8,6 @@
 			</div>
 		</header>
 
-		<div class="gallery-toolbar">
-			<el-select v-model="seasonId" placeholder="Season" clearable @change="reload">
-				<el-option v-for="season in seasons" :key="season.id" :label="season.name" :value="season.id" />
-			</el-select>
-			<el-select v-model="status" @change="reload">
-				<el-option label="All" value="all" />
-				<el-option label="Drafts" value="draft" />
-				<el-option label="Published" value="published" />
-			</el-select>
-			<el-input v-model="search" placeholder="Search captions" clearable />
-			<el-button v-if="canUpdate" :disabled="!canReorder" @click="toggleSelecting">
-				{{ selecting ? "Done" : "Select" }}
-			</el-button>
-			<el-button v-if="canUpdate && photos.length > 1" :disabled="!canReorder" :type="ordering ? 'primary' : 'default'" @click="toggleOrdering">
-				{{ ordering ? "Done" : "Reorder" }}
-			</el-button>
-		</div>
-
 		<section
 			v-if="canCreate"
 			class="drop-zone"
@@ -69,6 +51,24 @@
 			<el-button :disabled="!readyLinks.length || !seasonId" @click="saveLinks">Save {{ readyLinks.length }} link(s)</el-button>
 		</section>
 
+		<div class="gallery-toolbar">
+			<el-select v-model="seasonId" placeholder="Season" clearable @change="reload">
+				<el-option v-for="season in seasons" :key="season.id" :label="season.name" :value="season.id" />
+			</el-select>
+			<el-select v-model="status" @change="reload">
+				<el-option label="All" value="all" />
+				<el-option label="Drafts" value="draft" />
+				<el-option label="Published" value="published" />
+			</el-select>
+			<el-input v-model="search" placeholder="Search captions" clearable />
+			<el-button v-if="canUpdate" :disabled="!canReorder" @click="toggleSelecting">
+				{{ selecting ? "Done" : "Select" }}
+			</el-button>
+			<el-button v-if="canUpdate && photos.length > 1" :disabled="!canReorder" :type="ordering ? 'primary' : 'default'" @click="toggleOrdering">
+				{{ ordering ? "Done" : "Reorder" }}
+			</el-button>
+		</div>
+
 		<div v-if="selecting && selected.length" class="bulk-bar">
 			<span>{{ selected.length }} selected</span>
 			<el-button v-if="canPublish" :disabled="selected.length > 100" @click="runBulk('publish')">Publish</el-button>
@@ -92,7 +92,7 @@
 			<article
 				v-for="photo in photos"
 				:key="photo.id"
-				class="admin-card"
+				class="gallery-card"
 				:class="{ 'is-selected': selected.includes(photo.id), 'is-drop': dropId === photo.id, 'is-ordering': ordering, 'is-dragging': dragId === photo.id }"
 				:draggable="ordering"
 				@dragstart="onDragStart(photo.id, $event)"
@@ -101,7 +101,7 @@
 				@drop.prevent="moveBefore(photo.id)"
 			>
 				<div
-					class="admin-thumb"
+					class="gallery-thumb"
 					:style="thumbStyle(photo)"
 					role="button"
 					:tabindex="ordering ? -1 : 0"
@@ -124,8 +124,9 @@
 						<input type="checkbox" :checked="selected.includes(photo.id)" @change="toggleSelected(photo.id)" />
 						Select
 					</label>
-					<strong>{{ photo.caption || (isVideoItem(photo) ? "Untitled video" : "Untitled") }}</strong>
+					<strong class="card-caption" :title="photo.caption || ''">{{ photo.caption || (isVideoItem(photo) ? "Untitled video" : "Untitled") }}</strong>
 					<span class="hint">{{ isVideoItem(photo) ? "Video" : "Photo" }}<template v-if="photo.is_cover"> · Cover</template></span>
+					<span v-if="photo.taken_on" class="hint">{{ spokenDate(photo.taken_on) }}</span>
 				</div>
 			</article>
 		</div>
@@ -194,7 +195,7 @@ import GallerySkeleton from "@/components/GallerySkeleton.vue";
 import { adminApi, apiErrorMessage } from "@/services/adminService";
 import { useAuthStore } from "@/store/authStore";
 import { embedUrl, isVideoItem, isVideoUrl, tilePoster, videoPoster } from "@/utils/galleryMedia";
-import { IMAGE_ACCEPT, VIDEO_ACCEPT, mediaFileProblem, publicImageLinkProblem } from "@/utils/media";
+import { IMAGE_ACCEPT, VIDEO_ACCEPT, mediaFileProblem, publicImageLinkProblem, spokenDate } from "@/utils/media";
 import { useUploadLeaveGuard } from "@/utils/uploadGuard";
 
 const MEDIA_ACCEPT = `${IMAGE_ACCEPT},${VIDEO_ACCEPT}`;
@@ -579,7 +580,31 @@ const resetEditor = () => {
 	draft.value = null;
 	draftError.value = "";
 	editorKey.value += 1;
+	releasePageScroll();
 };
+
+let scrollRelease;
+const releasePageScroll = () => {
+	window.clearTimeout(scrollRelease);
+	scrollRelease = window.setTimeout(() => {
+		const open = [...document.querySelectorAll(".el-overlay")].some((node) => {
+			const style = window.getComputedStyle(node);
+			return style.display !== "none" && style.visibility !== "hidden";
+		});
+		if (open) return;
+		document.body.classList.remove("el-popup-parent--hidden");
+		document.body.style.removeProperty("width");
+		document.body.style.removeProperty("overflow");
+		document.body.style.removeProperty("padding-right");
+	}, 400);
+};
+
+watch(editorOpen, (open) => {
+	if (!open) releasePageScroll();
+});
+watch(cropRequest, (request) => {
+	if (!request) releasePageScroll();
+});
 
 const saveDraft = async () => {
 	saving.value = true;
@@ -764,7 +789,7 @@ onMounted(async () => {
 	align-items: start;
 }
 
-.admin-card {
+.gallery-card {
 	background: #fff;
 	border-radius: 16px;
 	overflow: hidden;
@@ -773,40 +798,41 @@ onMounted(async () => {
 	transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.admin-card:hover {
+.gallery-card:hover {
 	transform: translateY(-2px);
 	box-shadow: 0 16px 32px rgba(11, 20, 38, 0.1);
 }
 
-.admin-card.is-ordering {
+.gallery-card.is-ordering {
 	cursor: grab;
 }
 
-.admin-card.is-ordering:hover {
+.gallery-card.is-ordering:hover {
 	transform: none;
 }
 
-.admin-card.is-dragging {
+.gallery-card.is-dragging {
 	opacity: 0.55;
 }
 
-.admin-card.is-selected,
-.admin-card.is-drop {
+.gallery-card.is-selected,
+.gallery-card.is-drop {
 	border-color: var(--cpl-gold-500);
 }
 
-.admin-thumb {
+.gallery-thumb {
 	display: block;
 	width: 100%;
 	min-height: 200px;
 	padding: 0;
 	border: 0;
 	background: #e7edf6;
+	border-radius: 0;
 	position: relative;
 	cursor: pointer;
 }
 
-.admin-thumb img,
+.gallery-thumb img,
 .thumb-fallback {
 	width: 100%;
 	height: 100%;
@@ -860,8 +886,8 @@ onMounted(async () => {
 	color: var(--cpl-navy-900);
 }
 
-.admin-thumb img,
-.admin-thumb :deep(.framed),
+.gallery-thumb img,
+.gallery-thumb :deep(.framed),
 .thumb-fallback {
 	position: absolute;
 	inset: 0;
@@ -875,7 +901,16 @@ onMounted(async () => {
 	display: flex;
 	flex-direction: column;
 	gap: 4px;
+	min-width: 0;
 	padding: 10px 12px 12px;
+}
+
+.card-caption {
+	display: -webkit-box;
+	-webkit-line-clamp: 3;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+	overflow-wrap: anywhere;
 }
 
 .drawer-stage {
@@ -899,8 +934,8 @@ onMounted(async () => {
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.admin-card,
-	.admin-card:hover {
+	.gallery-card,
+	.gallery-card:hover {
 		transition: none;
 		transform: none;
 	}

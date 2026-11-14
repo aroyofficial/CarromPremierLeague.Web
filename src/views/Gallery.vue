@@ -46,7 +46,10 @@
 				/>
 				<span v-else class="photo-missing">Video</span>
 				<span v-if="isVideoItem(cover)" class="play-badge is-hero" aria-hidden="true"></span>
-				<span v-if="cover.caption" class="cover-caption">{{ cover.caption }}</span>
+				<span v-if="cover.caption || cover.taken_on" class="cover-caption">
+					<strong v-if="cover.caption">{{ cover.caption }}</strong>
+					<span v-if="cover.taken_on">{{ spokenDate(cover.taken_on) }}</span>
+				</span>
 			</button>
 
 			<div v-if="!seasons.length" class="gallery-status">
@@ -110,9 +113,9 @@
 					</div>
 					<button type="button" class="viewer-icon" aria-label="Close" @click="closeViewer">×</button>
 				</header>
-				<div ref="stageEl" class="viewer-stage" @touchstart.passive="onTouchStart" @touchend.passive="onTouchEnd">
+				<div ref="stageEl" class="viewer-stage" :class="{ 'is-zoomed': zoom > 1 }" @touchstart.passive="onTouchStart" @touchend.passive="onTouchEnd">
 					<button type="button" class="viewer-icon is-nav is-prev" aria-label="Previous" :disabled="!canStepBack" @click="step(-1)">‹</button>
-					<div v-if="fitted" class="viewer-fit" :style="{ width: `${fitted.width}px`, height: `${fitted.height}px` }">
+					<div v-if="shown" class="viewer-fit" :style="{ width: `${shown.width}px`, height: `${shown.height}px` }">
 						<iframe
 							v-if="isVideoItem(viewer) && embedUrl(viewer.url)"
 							:key="`embed-${viewer.id}`"
@@ -145,9 +148,14 @@
 					<button type="button" class="viewer-icon is-nav is-next" aria-label="Next" :disabled="!canStepForward" @click="step(1)">›</button>
 				</div>
 				<footer class="viewer-dock">
+					<div class="viewer-tools">
+						<button type="button" :disabled="zoom <= 1" @click="zoomBy(-0.25)">Zoom out</button>
+						<button type="button" :disabled="zoom >= 4" @click="zoomBy(0.25)">Zoom in</button>
+						<button type="button" @click="downloadMedia">Download</button>
+					</div>
 					<p v-if="viewer.caption || viewer.taken_on" class="viewer-caption">
 						<strong v-if="viewer.caption">{{ viewer.caption }}</strong>
-						<span v-if="viewer.taken_on">{{ viewer.taken_on }}</span>
+						<span v-if="viewer.taken_on">{{ spokenDate(viewer.taken_on) }}</span>
 					</p>
 					<div v-if="showFilePlayer" class="player-bar">
 						<button type="button" @click="togglePlay">{{ playing ? "Pause" : "Play" }}</button>
@@ -192,6 +200,7 @@ import FramedPicture from "@/components/FramedPicture.vue";
 import GallerySkeleton from "@/components/GallerySkeleton.vue";
 import { adminApi, apiErrorMessage } from "@/services/adminService";
 import { embedUrl, isVideoItem, tilePoster } from "@/utils/galleryMedia";
+import { spokenDate } from "@/utils/media";
 
 const route = useRoute();
 const router = useRouter();
@@ -211,6 +220,7 @@ const videoEl = ref(null);
 const stripEl = ref(null);
 const stageEl = ref(null);
 const stageBox = ref({ width: 0, height: 0 });
+const zoom = ref(1);
 const playing = ref(false);
 const muted = ref(false);
 const played = ref(0);
@@ -288,6 +298,50 @@ const fitted = computed(() => {
 	}
 	return { width: Math.max(1, Math.round(width)), height: Math.max(1, Math.round(height)) };
 });
+const shown = computed(() => {
+	if (!fitted.value) return null;
+	return {
+		width: Math.max(1, Math.round(fitted.value.width * zoom.value)),
+		height: Math.max(1, Math.round(fitted.value.height * zoom.value)),
+	};
+});
+const zoomBy = (delta) => {
+	const next = Math.round((zoom.value + delta) * 100) / 100;
+	zoom.value = Math.min(4, Math.max(1, next));
+};
+const downloadMedia = async () => {
+	const item = viewer.value;
+	const url = item?.url;
+	if (!url) return;
+	const base = String(item.caption || (isVideoItem(item) ? "video" : "photo"))
+		.replace(/[^\w\- ]+/g, "")
+		.trim()
+		.slice(0, 80) || "media";
+	const extension = url.split("?")[0].match(/\.([a-z0-9]{2,5})$/i)?.[1]?.toLowerCase() || (isVideoItem(item) ? "mp4" : "jpg");
+	const name = `${base}.${extension}`;
+	if (embedUrl(url)) {
+		window.open(url, "_blank", "noopener");
+		return;
+	}
+	try {
+		const response = await fetch(url);
+		if (!response.ok) throw new Error("download failed");
+		const blob = await response.blob();
+		const objectUrl = URL.createObjectURL(blob);
+		const link = document.createElement("a");
+		link.href = objectUrl;
+		link.download = name;
+		link.click();
+		window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1500);
+	} catch {
+		const link = document.createElement("a");
+		link.href = url;
+		link.target = "_blank";
+		link.rel = "noopener";
+		link.download = name;
+		link.click();
+	}
+};
 
 const clock = (seconds) => {
 	if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
@@ -493,6 +547,7 @@ watch(frameEl, (element, _previous, onCleanup) => {
 watch(
 	() => viewer.value?.id,
 	() => {
+		zoom.value = 1;
 		playing.value = false;
 		played.value = 0;
 		duration.value = 0;
@@ -596,10 +651,27 @@ onBeforeUnmount(() => {
 	left: 0;
 	right: 0;
 	bottom: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
 	padding: 28px 20px 16px;
 	color: #fff;
 	text-align: left;
+	overflow-wrap: anywhere;
 	background: linear-gradient(transparent, rgba(11, 20, 38, 0.78));
+}
+
+.cover-caption strong {
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+	font-weight: 700;
+}
+
+.cover-caption span {
+	font-size: 13px;
+	color: rgba(255, 255, 255, 0.82);
 }
 
 .photo-grid {
@@ -775,6 +847,12 @@ onBeforeUnmount(() => {
 	align-items: center;
 	justify-content: center;
 	padding: 0 72px;
+	overflow: auto;
+}
+
+.viewer-stage.is-zoomed {
+	align-items: flex-start;
+	justify-content: flex-start;
 }
 
 .viewer-fit {
@@ -834,12 +912,49 @@ onBeforeUnmount(() => {
 	padding: 8px 16px 14px;
 }
 
+.viewer-tools {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	gap: 8px;
+}
+
+.viewer-tools button {
+	border: 0;
+	border-radius: 999px;
+	background: #fff;
+	color: #0b1426;
+	font: inherit;
+	font-size: 13px;
+	font-weight: 700;
+	padding: 6px 12px;
+	cursor: pointer;
+}
+
+.viewer-tools button:disabled {
+	opacity: 0.4;
+	cursor: default;
+}
+
 .viewer-caption {
 	display: flex;
-	justify-content: center;
-	gap: 12px;
-	max-width: 100%;
+	flex-direction: column;
+	align-items: center;
+	gap: 4px;
+	width: min(720px, 100%);
+	max-height: 6.5em;
+	overflow: auto;
 	text-align: center;
+	overflow-wrap: anywhere;
+}
+
+.viewer-caption strong {
+	font-weight: 700;
+}
+
+.viewer-caption span {
+	color: rgba(255, 255, 255, 0.78);
+	font-size: 13px;
 }
 
 .player-bar {
