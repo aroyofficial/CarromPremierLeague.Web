@@ -85,7 +85,7 @@
 				<el-table-column label="Team" min-width="180">
 					<template #default="{ row }">
 						<div class="d-flex align-items-center gap-2">
-							<img v-if="row.logo_url" :src="assetUrl(row.logo_url)" class="admin-thumb" alt="" />
+							<EntityImage :src="row.logo_url || ''" :name="row.team_name" kind="team" class="admin-thumb" />
 							<span>{{ row.team_name }}</span>
 						</div>
 					</template>
@@ -104,9 +104,10 @@
 import { computed, onMounted, reactive, ref } from "vue";
 import { Delete, Edit, Flag, Plus, Search } from "@element-plus/icons-vue";
 import { adminApi } from "@/services/adminService";
-import { assetUrl, blankToNull, confirmDelete, matchesSearch, runAction, unwrap } from "@/utils/adminHelpers";
+import { blankToNull, confirmDelete, matchesSearch, runAction, unwrap } from "@/utils/adminHelpers";
 import { useIsPhone } from "@/utils/viewport";
 import { usePermissions } from "@/utils/permissions";
+import EntityImage from "@/components/EntityImage.vue";
 
 const isPhone = useIsPhone();
 const { Permission, can, canAny } = usePermissions();

@@ -63,7 +63,7 @@
 					>
 						<div class="player-head">
 							<div class="avatar-wrap">
-								<img :src="getPlayerAvatar(player)" class="player-avatar" />
+								<EntityImage :src="player.avatar_url || ''" :name="playerName(player)" kind="player" class="player-avatar" />
 							</div>
 							<div>
 								<div class="player-name poppins-semibold">{{ getPlayerName(player) }}</div>
@@ -143,7 +143,8 @@ import { usePlayerStore } from "@/store/playerStore";
 import { useStatsStore } from "@/store/statsStore";
 import { useCountryStore } from "@/store/countryStore";
 import dayjs from "@/plugins/dayjs";
-import { resolveAsset } from "@/utils/common";
+import { playerName } from "@/utils/media";
+import EntityImage from "@/components/EntityImage.vue";
 
 const SEASON_FILTER_ALL = "all_seasons";
 const TEAM_FILTER_ALL = "all";
@@ -275,13 +276,6 @@ const getCountryFlagUrl = (countryId) => {
 };
 
 const getPlayerName = (player) => `${player.first_name} ${player.last_name}`;
-
-const toSlug = (value) => (value || "").toLowerCase().trim().replace(/\s+/g, "-");
-
-const getPlayerAvatar = (player) =>
-	resolveAsset(
-		`public/assets/images/players/${toSlug(player.first_name)}-${toSlug(player.last_name)}.png`,
-	);
 
 const formatDob = (dob) => {
 	if (!dob) {

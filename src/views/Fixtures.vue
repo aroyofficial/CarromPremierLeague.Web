@@ -33,7 +33,7 @@
 					class="mb-1"
 				>
 					<div class="d-flex gap-2 align-items-center">
-						<img v-if="item.id !== -1" class="team-logo" :src="item.logo_url" />
+						<EntityImage v-if="item.id !== -1" class="team-logo" :src="item.logo_url || ''" :name="item.name" kind="team" />
 						<div>{{ item.name }}</div>
 					</div>
 				</el-option>
@@ -122,11 +122,13 @@
 								class="mb-1"
 							>
 								<div class="d-flex gap-2 align-items-center">
-									<img
+									<EntityImage
 										v-if="item.id !== -1"
 										class="team-logo"
-										:src="item.logo_url"
-									/>
+										:src="item.logo_url || ''"
+										:name="item.name"
+										kind="team"
+										/>
 									<div>{{ item.name }}</div>
 								</div>
 							</el-option>
@@ -152,11 +154,13 @@
 								class="mb-1"
 							>
 								<div class="d-flex gap-2 align-items-center">
-									<img
+									<EntityImage
 										v-if="item.id !== -1"
 										class="team-logo"
-										:src="item.logo_url"
-									/>
+										:src="item.logo_url || ''"
+										:name="item.name"
+										kind="team"
+										/>
 									<div>{{ item.name }}</div>
 								</div>
 							</el-option>
@@ -249,6 +253,7 @@ import { MatchCategory, MatchOutcome, MatchStatus } from "../utils/constants";
 import { isSeasonOpen } from "@/utils/season";
 import dayjs from "@/plugins/dayjs";
 import MatchCard from "../components/MatchCard.vue";
+import EntityImage from "@/components/EntityImage.vue";
 import { startLoader, pauseLoader } from "../utils/common";
 
 const seasonStore = useSeasonStore();

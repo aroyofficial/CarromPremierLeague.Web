@@ -19,14 +19,7 @@
 				<el-table-column label="Player" min-width="220">
 					<template #default="{ row }">
 						<div class="d-flex align-items-center gap-2">
-							<img
-								v-if="photoFor(row)"
-								:src="photoFor(row)"
-								class="admin-thumb"
-								:alt="`${row.first_name} ${row.last_name}`"
-								@error="hidePhoto(row.id)"
-							/>
-							<el-avatar v-else :size="36">{{ row.first_name.charAt(0) }}{{ row.last_name.charAt(0) }}</el-avatar>
+							<EntityImage :src="row.avatar_url || ''" :name="playerName(row)" kind="player" class="admin-thumb" />
 							<strong>{{ row.first_name }} {{ row.last_name }}</strong>
 						</div>
 					</template>
@@ -79,15 +72,18 @@
 						<el-option v-for="country in countries" :key="country.id" :label="country.name" :value="country.id" />
 					</el-select>
 				</el-form-item>
-				<el-form-item label="Profile photo" class="span-2">
-					<div class="d-flex align-items-center gap-2">
-						<img v-if="formPhoto" :src="formPhoto" class="admin-thumb" alt="" />
-						<el-avatar v-else :size="36">{{ (form.first_name || "?").charAt(0) }}{{ (form.last_name || "").charAt(0) }}</el-avatar>
-						<span>Uses the local file matching this player’s name.</span>
-					</div>
-				</el-form-item>
-				<el-form-item label="Avatar URL" prop="avatar_url" class="span-2">
-					<el-input v-model="form.avatar_url" placeholder="https://… (optional)" />
+				<el-form-item label="Profile picture" class="span-2">
+					<ImageUploadField
+						v-model:pending-file="pendingPhoto"
+						:src="editingAvatar"
+						:name="playerName(form) || 'New player'"
+						kind="player"
+						label="Profile picture"
+						:deferred="!editingId"
+						:upload="(file, onProgress) => adminApi.players.uploadAvatar(editingId, file, onProgress)"
+						:remove="() => adminApi.players.removeAvatar(editingId)"
+						@changed="pictureChanged"
+					/>
 				</el-form-item>
 			</el-form>
 			<template #footer>
@@ -105,10 +101,14 @@ import { adminApi } from "@/services/adminService";
 import { blankToNull, confirmDelete, matchesSearch, runAction, unwrap } from "@/utils/adminHelpers";
 import { useIsPhone } from "@/utils/viewport";
 import { usePermissions } from "@/utils/permissions";
+import { playerName } from "@/utils/media";
+import { usePlayerStore } from "@/store/playerStore";
+import EntityImage from "@/components/EntityImage.vue";
+import ImageUploadField from "@/components/admin/ImageUploadField.vue";
 
 const isPhone = useIsPhone();
 const { Permission, can, canAny } = usePermissions();
-import { localPlayerPhoto } from "@/utils/playerPhotos";
+const playerStore = usePlayerStore();
 
 const players = ref([]);
 const countries = ref([]);
@@ -124,13 +124,6 @@ const filtered = computed(() =>
 	),
 );
 
-const hiddenPhotos = ref(new Set());
-const photoFor = (player) => (hiddenPhotos.value.has(player.id) ? "" : localPlayerPhoto(player));
-const hidePhoto = (id) => {
-	hiddenPhotos.value = new Set([...hiddenPhotos.value, id]);
-};
-const formPhoto = computed(() => localPlayerPhoto(form));
-
 const load = async () => {
 	loading.value = true;
 	const { ok, result } = await runAction(() => Promise.all([adminApi.players.list(), adminApi.countries.list()]));
@@ -145,17 +138,20 @@ const dialogOpen = ref(false);
 const saving = ref(false);
 const editingId = ref(null);
 const formRef = ref(null);
-const emptyForm = () => ({ first_name: "", last_name: "", date_of_birth: null, nationality_id: null, avatar_url: "" });
+const emptyForm = () => ({ first_name: "", last_name: "", date_of_birth: null, nationality_id: null });
 const form = reactive(emptyForm());
+const editingAvatar = ref("");
+const pendingPhoto = ref(null);
 
 const rules = {
 	first_name: [{ required: true, whitespace: true, message: "First name is required", trigger: "blur" }],
 	last_name: [{ required: true, whitespace: true, message: "Last name is required", trigger: "blur" }],
-	avatar_url: [{ type: "url", message: "Enter a full URL starting with http:// or https://", trigger: "blur" }],
 };
 
 const openCreate = () => {
 	editingId.value = null;
+	editingAvatar.value = "";
+	pendingPhoto.value = null;
 	Object.assign(form, emptyForm());
 	dialogOpen.value = true;
 	formRef.value?.clearValidate();
@@ -163,15 +159,28 @@ const openCreate = () => {
 
 const openEdit = (player) => {
 	editingId.value = player.id;
+	editingAvatar.value = player.avatar_url || "";
+	pendingPhoto.value = null;
 	Object.assign(form, {
 		first_name: player.first_name,
 		last_name: player.last_name,
 		date_of_birth: player.date_of_birth,
 		nationality_id: player.nationality_id,
-		avatar_url: /^https?:\/\//i.test(player.avatar_url || "") ? player.avatar_url : "",
 	});
 	dialogOpen.value = true;
 	formRef.value?.clearValidate();
+};
+
+const refreshPublicPlayers = () => {
+	playerStore.loaded = false;
+	playerStore.profilesLoaded = false;
+};
+
+const pictureChanged = (player) => {
+	editingAvatar.value = player?.avatar_url || "";
+	const row = players.value.find((item) => item.id === editingId.value);
+	if (row) row.avatar_url = editingAvatar.value || null;
+	refreshPublicPlayers();
 };
 
 const save = async () => {
@@ -179,14 +188,19 @@ const save = async () => {
 	if (!valid) return;
 	saving.value = true;
 	const payload = blankToNull({ ...form, first_name: form.first_name.trim(), last_name: form.last_name.trim() });
-	if (editingId.value && payload.avatar_url === null) delete payload.avatar_url;
-	const { ok } = await runAction(
+	const { ok, result } = await runAction(
 		() => (editingId.value ? adminApi.players.update(editingId.value, payload) : adminApi.players.create(payload)),
 		editingId.value ? "Player updated" : "Player created",
 	);
+	if (ok && !editingId.value && pendingPhoto.value) {
+		const created = unwrap(result);
+		await runAction(() => adminApi.players.uploadAvatar(created.id, pendingPhoto.value), "Profile picture uploaded");
+		pendingPhoto.value = null;
+	}
 	saving.value = false;
 	if (ok) {
 		dialogOpen.value = false;
+		refreshPublicPlayers();
 		await load();
 	}
 };

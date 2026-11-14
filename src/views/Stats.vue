@@ -55,7 +55,7 @@
 							<span>#{{ index + 1 }}</span>
 						</div>
 						<div class="avatar-wrap">
-							<img :src="getPlayerAvatar(player)" class="player-avatar" />
+							<EntityImage :src="player.avatar_url || ''" :name="playerName(player)" kind="player" class="player-avatar" />
 						</div>
 						<div class="player-name poppins-semibold">
 							{{ player.first_name }} {{ player.last_name }}
@@ -98,7 +98,8 @@
 import { ref, onMounted, onUnmounted } from "vue";
 import { useSeasonStore } from "@/store/seasonStore";
 import { useStatsStore } from "@/store/statsStore";
-import { resolveAsset } from "@/utils/common";
+import { playerName } from "@/utils/media";
+import EntityImage from "@/components/EntityImage.vue";
 import { InfoFilled } from "@element-plus/icons-vue";
 import StatsSwitch from "@/components/StatsSwitch.vue";
 
@@ -119,13 +120,6 @@ const dropdownPopperOptions = ref({
 		},
 	],
 });
-
-const toSlug = (value) => (value || "").toLowerCase().trim().replace(/\s+/g, "-");
-
-const getPlayerAvatar = (player) =>
-	resolveAsset(
-		`public/assets/images/players/${toSlug(player.first_name)}-${toSlug(player.last_name)}.png`,
-	);
 
 let statsRequest = 0;
 let refreshTimer = null;

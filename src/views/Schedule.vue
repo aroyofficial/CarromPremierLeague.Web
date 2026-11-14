@@ -39,7 +39,7 @@
 						<div class="face-main">
 						<div class="board">
 							<div class="club" :class="[sideState(match, match.team1_id), favored(match, match.team1_id)]">
-								<img :src="teamLogo(match.team1_id)" alt="" class="crest" />
+								<EntityImage :src="teamLogo(match.team1_id)" :name="match.team1_name || 'TBD'" kind="team" class="crest" />
 								<div class="club-copy">
 									<strong>{{ match.team1_name || "TBD" }}</strong>
 									<em v-if="isPlayed(match) && match.winner_team_id === match.team1_id">Winner</em>
@@ -78,7 +78,7 @@
 									<em v-if="isPlayed(match) && match.winner_team_id === match.team2_id">Winner</em>
 									<em v-if="showToss(match) && tossSide(match) === 'away'" class="toss-note">Won the toss</em>
 								</div>
-								<img :src="teamLogo(match.team2_id)" alt="" class="crest" />
+								<EntityImage :src="teamLogo(match.team2_id)" :name="match.team2_name || 'TBD'" kind="team" class="crest" />
 							</div>
 						</div>
 
@@ -153,12 +153,13 @@
 									<h4>{{ side.name }}</h4>
 									<article v-for="player in playersFor(match, side.id)" :key="player.player_id" class="player-card">
 										<div class="player-name">
-											<img
-												:src="playerPhoto(player)"
-												:alt="`${player.first_name} ${player.last_name}`"
+											<EntityImage
+												:src="player.avatar_url || ''"
+												:name="playerName(player)"
+												:alt="playerName(player)"
+												kind="player"
 												class="player-photo"
-												@error="useLocalPhoto($event, player)"
-											/>
+												/>
 											<strong>{{ player.first_name }} {{ player.last_name }}</strong>
 										</div>
 										<dl class="stat-lines">
@@ -208,7 +209,7 @@
 								>
 									<em>{{ row.rank }}</em>
 									<strong>
-										<img :src="teamLogo(row.team_id)" alt="" />
+										<EntityImage :src="teamLogo(row.team_id)" :name="row.team_name || teamName(match, row.team_id)" kind="team" />
 										{{ row.team_name || teamName(match, row.team_id) }}
 									</strong>
 									<span>{{ moveLabel(row) }}</span>
@@ -262,7 +263,8 @@ import { useSettingsStore } from "@/store/settingsStore";
 import { useTeamStore } from "@/store/teamStore";
 import { seasonService } from "@/services/seasonService";
 import { MatchCategory, MatchStatus, TossOutcome } from "@/utils/constants";
-import { resolveAsset } from "@/utils/common";
+import { playerName } from "@/utils/media";
+import EntityImage from "@/components/EntityImage.vue";
 
 const seasonStore = useSeasonStore();
 const settingsStore = useSettingsStore();
@@ -320,10 +322,7 @@ const dateParts = (value) => {
 
 const groupLabel = (value) => (value && value !== "unscheduled" ? dayjs(value).format("dddd, D MMMM YYYY") : "Date to be confirmed");
 
-const teamLogo = (teamId) => {
-	if (!teamId) return resolveAsset("public/assets/images/teams/tbd.png");
-	return teamStore.teams.find((team) => team.id === teamId)?.logo_url || resolveAsset("public/assets/images/teams/tbd.png");
-};
+const teamLogo = (teamId) => (teamId ? teamStore.teams.find((team) => team.id === teamId)?.logo_url || "" : "");
 
 const playersFor = (match, teamId) => match.players.filter((player) => player.team_id === teamId);
 
@@ -453,18 +452,6 @@ const clockState = (match) => {
 		return { time: formatClock(extraElapsed), extra: true };
 	}
 	return { time: formatClock(elapsedRegulation), extra: false };
-};
-
-const localPhoto = (player) => {
-	const slug = `${player.first_name || ""}-${player.last_name || ""}`.toLowerCase().trim().replace(/\s+/g, "-");
-	return resolveAsset(`public/assets/images/players/${slug}.png`);
-};
-
-const playerPhoto = (player) => player.avatar_url || localPhoto(player);
-
-const useLocalPhoto = (event, player) => {
-	const fallback = localPhoto(player);
-	if (event.target.src !== fallback) event.target.src = fallback;
 };
 
 const teamName = (match, teamId) => {

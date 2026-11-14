@@ -37,7 +37,7 @@
 						class="team-card"
 					>
 						<div class="team-head">
-							<img :src="team.logo_url" class="team-logo" />
+							<EntityImage :src="team.logo_url || ''" :name="team.name" kind="team" class="team-logo" />
 							<div>
 								<div class="team-name-row">
 									<div class="team-name poppins-semibold">{{ team.name }}</div>
@@ -70,7 +70,7 @@
 								:key="player.player_id"
 								class="player-item"
 							>
-								<img :src="player.avatar_url" class="player-avatar" />
+								<EntityImage :src="player.avatar_url || ''" :name="playerName(player)" kind="player" class="player-avatar" />
 								<div class="player-name">
 									{{ player.first_name }} {{ player.last_name }}
 								</div>
@@ -86,6 +86,8 @@
 </template>
 
 <script setup>
+import { playerName } from "@/utils/media";
+import EntityImage from "@/components/EntityImage.vue";
 import { ref, computed, onMounted } from "vue";
 import { useSeasonStore } from "@/store/seasonStore";
 import { useTeamStore } from "@/store/teamStore";

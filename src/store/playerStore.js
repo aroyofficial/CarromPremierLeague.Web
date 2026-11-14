@@ -1,8 +1,5 @@
 import { defineStore } from "pinia";
 import { playerService } from "@/services/playerService";
-import { resolveAsset } from "@/utils/common";
-
-const toSlug = (value) => (value || "").toLowerCase().trim().replace(/\s+/g, "-");
 
 export const usePlayerStore = defineStore("player", {
 	state: () => ({
@@ -22,16 +19,7 @@ export const usePlayerStore = defineStore("player", {
 			this.loading = true;
 			try {
 				const response = await playerService.getAll();
-				this.players = (response.data || []).map((player) => {
-					const fallbackAvatar = resolveAsset(
-						`public/assets/images/players/${toSlug(player.first_name)}-${toSlug(player.last_name)}.png`,
-					);
-
-					return {
-						...player,
-						avatar_url: player.avatar_url || fallbackAvatar,
-					};
-				});
+				this.players = response.data || [];
 				this.loaded = true;
 				return this.players;
 			} finally {
@@ -47,16 +35,7 @@ export const usePlayerStore = defineStore("player", {
 			this.loading = true;
 			try {
 				const response = await playerService.getProfiles();
-				this.playerProfiles = (response.data || []).map((player) => {
-					const fallbackAvatar = resolveAsset(
-						`public/assets/images/players/${toSlug(player.first_name)}-${toSlug(player.last_name)}.png`,
-					);
-
-					return {
-						...player,
-						avatar_url: player.avatar_url || fallbackAvatar,
-					};
-				});
+				this.playerProfiles = response.data || [];
 				this.profilesLoaded = true;
 				return this.playerProfiles;
 			} finally {

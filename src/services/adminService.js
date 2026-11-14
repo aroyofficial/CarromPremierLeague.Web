@@ -8,6 +8,17 @@ const crud = (resource, { updateMethod = "patch" } = {}) => ({
 	remove: (id) => api.delete(`${resource}/${id}`),
 });
 
+const uploadImage = (url, file, onProgress) => {
+	const body = new FormData();
+	body.append("file", file);
+	return api.put(url, body, {
+		headers: { "Content-Type": "multipart/form-data" },
+		onUploadProgress: (event) => {
+			if (onProgress && event.total) onProgress(Math.round((event.loaded / event.total) * 100));
+		},
+	});
+};
+
 export const adminApi = {
 	seasons: {
 		...crud("seasons", { updateMethod: "put" }),
@@ -15,8 +26,16 @@ export const adminApi = {
 		addTeam: (seasonId, teamId) => api.post(`seasons/${seasonId}/teams`, { team_id: teamId }),
 		removeTeam: (seasonId, teamId) => api.delete(`seasons/${seasonId}/teams/${teamId}`),
 	},
-	teams: crud("teams"),
-	players: crud("players"),
+	teams: {
+		...crud("teams"),
+		uploadLogo: (id, file, onProgress) => uploadImage(`teams/${id}/logo`, file, onProgress),
+		removeLogo: (id) => api.delete(`teams/${id}/logo`),
+	},
+	players: {
+		...crud("players"),
+		uploadAvatar: (id, file, onProgress) => uploadImage(`players/${id}/avatar`, file, onProgress),
+		removeAvatar: (id) => api.delete(`players/${id}/avatar`),
+	},
 	countries: crud("countries"),
 	matches: {
 		list: (seasonId) => api.get("matches", { params: { seasonId } }),
@@ -44,6 +63,7 @@ export const adminApi = {
 	},
 	permissions: {
 		catalog: () => api.get("permissions"),
+		tree: () => api.get("permissions/tree"),
 	},
 };
 

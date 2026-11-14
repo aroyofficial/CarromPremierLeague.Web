@@ -1,11 +1,5 @@
 import { ElMessage, ElMessageBox } from "element-plus";
 import { apiErrorMessage } from "@/services/adminService";
-import { resolveAsset } from "@/utils/common";
-
-export const assetUrl = (url) => {
-	if (!url) return "";
-	return /^(https?:)?\/\//i.test(url) || url.startsWith("data:") ? url : resolveAsset(url);
-};
 
 export const unwrap = (response) => response?.data ?? null;
 

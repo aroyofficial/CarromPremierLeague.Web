@@ -43,7 +43,7 @@
 							<td class="col-rank">{{ index + 1 }}</td>
 							<td class="col-team">
 								<div class="team-cell">
-									<img :src="getTeamLogo(row.team_id)" :alt="''" class="logo" />
+									<EntityImage :src="getTeamLogo(row.team_id)" :name="row.team_name" kind="team" class="logo" />
 									<span class="team-name">{{ row.team_name }}</span>
 									<span v-if="isWinnerRow(row)" class="badge" title="Champion">&#127942;</span>
 								</div>
@@ -81,6 +81,7 @@ import { useTeamStore } from "@/store/teamStore";
 import { useMatchStore } from "@/store/matchStore";
 import { BackgroundMusic, MatchCategory, MatchStatus, SeasonStatus } from "@/utils/constants";
 import { pauseBgm, playBgm } from "@/utils/common";
+import EntityImage from "@/components/EntityImage.vue";
 
 const seasonStore = useSeasonStore();
 const teamStore = useTeamStore();
@@ -98,7 +99,7 @@ const dropdownPopperOptions = ref({
 const standings = computed(() => leagueTable.value?.standings || []);
 const dataAvailable = computed(() => leagueTable.value?.data_available !== false);
 
-const getTeamLogo = (teamId) => teamStore.teams.find((t) => t.id === teamId)?.logo_url;
+const getTeamLogo = (teamId) => teamStore.teams.find((t) => t.id === teamId)?.logo_url || "";
 
 let tableRequest = 0;
 

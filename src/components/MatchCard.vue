@@ -14,7 +14,7 @@
 			@keydown.space.prevent="match.team1 && match.team2 && openMatchManagementDialog()"
 		>
 			<div class="col-1">
-				<img :src="getTeamLogo(match.team1)" class="fixtures-team-logo" />
+				<EntityImage :src="getTeamLogo(match.team1)" :name="teamLabel(match.team1)" kind="team" class="fixtures-team-logo" />
 			</div>
 			<div class="col-3-5 fixture-team-name ps-4">
 				{{ match.team1 ? getTeam(match.team1).name : "TBD" }}
@@ -44,7 +44,7 @@
 				{{ match.team2 ? getTeam(match.team2).name : "TBD" }}
 			</div>
 			<div class="col-1 d-flex justify-content-end">
-				<img :src="getTeamLogo(match.team2)" class="fixtures-team-logo" />
+				<EntityImage :src="getTeamLogo(match.team2)" :name="teamLabel(match.team2)" kind="team" class="fixtures-team-logo" />
 			</div>
 		</div>
 		<el-dialog
@@ -63,7 +63,7 @@
 						class="team-match-info col d-flex flex-column justify-content-center align-items-center"
 					>
 						<div>
-							<img :src="getTeamLogo(match.team1)" class="match-team-logo" />
+							<EntityImage :src="getTeamLogo(match.team1)" :name="teamLabel(match.team1)" kind="team" class="match-team-logo" />
 						</div>
 						<div class="team-scorecard mt-3 p-3 border rounded">
 							<p v-if="!scorecard.team1.players.length" class="score-empty">No players are rostered for this team.</p>
@@ -73,7 +73,7 @@
 								class="score-player"
 							>
 								<div class="score-player-name">
-									<img :src="player.avatar_url" class="player-avatar border" alt="" />
+									<EntityImage :src="player.avatar_url || ''" :name="playerName(player)" kind="player" class="player-avatar border" />
 									<strong>{{ player.first_name }} {{ player.last_name }}</strong>
 								</div>
 								<div class="score-metric">
@@ -135,7 +135,7 @@
 						class="team-match-info col d-flex flex-column justify-content-center align-items-center"
 					>
 						<div>
-							<img :src="getTeamLogo(match.team2)" class="match-team-logo" />
+							<EntityImage :src="getTeamLogo(match.team2)" :name="teamLabel(match.team2)" kind="team" class="match-team-logo" />
 						</div>
 						<div class="team-scorecard mt-3 p-3 border rounded">
 							<p v-if="!scorecard.team2.players.length" class="score-empty">No players are rostered for this team.</p>
@@ -145,7 +145,7 @@
 								class="score-player"
 							>
 								<div class="score-player-name">
-									<img :src="player.avatar_url" class="player-avatar border" alt="" />
+									<EntityImage :src="player.avatar_url || ''" :name="playerName(player)" kind="player" class="player-avatar border" />
 									<strong>{{ player.first_name }} {{ player.last_name }}</strong>
 								</div>
 								<div class="score-metric">
@@ -189,7 +189,7 @@
 				<div class="row d-flex match-info-grid">
 					<div class="col-4 d-flex align-items-center flex-column info-team">
 						<div class="mb-2">
-							<img :src="getTeamLogo(match.team1)" class="team-logo" />
+							<EntityImage :src="getTeamLogo(match.team1)" :name="teamLabel(match.team1)" kind="team" class="team-logo" />
 						</div>
 						<div
 							class="team-members d-flex flex-column gap-2 border p-3 rounded"
@@ -200,7 +200,7 @@
 								:key="item.player_id"
 							>
 								<div>
-									<img :src="item.avatar_url" class="player-avatar border" />
+									<EntityImage :src="item.avatar_url || ''" :name="playerName(item)" kind="player" class="player-avatar border" />
 								</div>
 								<div>{{ item.first_name }} {{ item.last_name }}</div>
 							</div>
@@ -235,7 +235,7 @@
 					</div>
 					<div class="col-4 d-flex align-items-center flex-column info-team">
 						<div class="mb-2">
-							<img :src="getTeamLogo(match.team2)" class="team-logo" />
+							<EntityImage :src="getTeamLogo(match.team2)" :name="teamLabel(match.team2)" kind="team" class="team-logo" />
 						</div>
 						<div
 							class="team-members d-flex flex-column gap-2 border p-3 rounded"
@@ -246,7 +246,7 @@
 								:key="item.player_id"
 							>
 								<div>
-									<img :src="item.avatar_url" class="player-avatar border" />
+									<EntityImage :src="item.avatar_url || ''" :name="playerName(item)" kind="player" class="player-avatar border" />
 								</div>
 								<div>{{ item.first_name }} {{ item.last_name }}</div>
 							</div>
@@ -513,7 +513,6 @@ import { ArrowRight } from "@element-plus/icons-vue";
 import {
 	startLoader,
 	pauseLoader,
-	resolveAsset,
 	playBgm,
 	pauseBgm,
 	takeFullScreen,
@@ -522,7 +521,8 @@ import {
 import { ElMessage, ElMessageBox } from "element-plus";
 import { matchService } from "@/services/matchService";
 import { useSettingsStore } from "@/store/settingsStore";
-import { localPlayerPhoto } from "@/utils/playerPhotos";
+import { playerName } from "@/utils/media";
+import EntityImage from "@/components/EntityImage.vue";
 import { COINS_PER_COLOR, coinBounds, colourOverflow, eitherTeamReachedNine, fineCoins as fineCoinCount, teamScore } from "@/utils/coinLimits";
 import { matchQueue } from "@/utils/requestQueue";
 
@@ -586,7 +586,7 @@ const blankMetricPlayer = (member, previous) => ({
 	id: member?.player_id ?? previous?.id ?? null,
 	first_name: member?.first_name || previous?.first_name || "Player",
 	last_name: member?.last_name || previous?.last_name || "",
-	avatar_url: (member && (localPlayerPhoto(member) || member.avatar_url)) || previous?.avatar_url || "",
+	avatar_url: member ? member.avatar_url || "" : previous?.avatar_url || "",
 	coins: previous?.coins || 0,
 	opponent: previous?.opponent || 0,
 	single: previous?.single || 0,
@@ -686,10 +686,9 @@ const getTeam = (teamId) => {
 	return teamStore.teams.find((team) => team.id === teamId);
 };
 
-const getTeamLogo = (teamId) => {
-	if (!teamId) return resolveAsset("public/assets/images/teams/tbd.png");
-	return getTeam(teamId)?.logo_url || resolveAsset("public/assets/images/teams/tbd.png");
-};
+const getTeamLogo = (teamId) => (teamId ? getTeam(teamId)?.logo_url || "" : "");
+
+const teamLabel = (teamId) => (teamId ? getTeam(teamId)?.name || "" : "TBD");
 
 const blockMatchManagement = () => {
 	return false;
@@ -1295,7 +1294,7 @@ const syncScorecardSide = (side, teamId) => {
 			if (!player) return;
 			player.first_name = member.first_name;
 			player.last_name = member.last_name;
-			player.avatar_url = localPlayerPhoto(member) || member.avatar_url || player.avatar_url;
+			player.avatar_url = member.avatar_url || "";
 		});
 		return;
 	}

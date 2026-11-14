@@ -46,7 +46,7 @@
 				<div class="user-access">
 					<div class="access-label">
 						<span>{{ accessLabel(admin) }}</span>
-						<span class="access-count">{{ admin.permissions.length }} / {{ catalog.length || "–" }}</span>
+						<span class="access-count">{{ admin.permissions.length }} / {{ index.order.length || "–" }}</span>
 					</div>
 					<div class="access-bar" role="presentation">
 						<span :style="{ width: accessPercent(admin) }"></span>
@@ -130,10 +130,10 @@
 						<p v-if="canManage">Pick what this admin can do. You can change this later on the Permissions page.</p>
 						<p v-else>The new admin starts with no permissions. Someone who can manage permissions can grant them.</p>
 					</div>
-					<PermissionPicker
-						v-if="canManage && catalog.length"
+					<PermissionTree
+						v-if="canManage && index.order.length"
 						v-model="form.permissions"
-						:catalog="catalog"
+						:tree="tree"
 						:editable="authStore.permissions"
 						compact
 					/>
@@ -157,9 +157,10 @@ import { computed, onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import { Delete, Key, Lock, Plus, Search } from "@element-plus/icons-vue";
-import PermissionPicker from "@/components/admin/PermissionPicker.vue";
+import PermissionTree from "@/components/admin/PermissionTree.vue";
 import { adminApi } from "@/services/adminService";
 import { confirmDelete, matchesSearch, runAction, unwrap } from "@/utils/adminHelpers";
+import { accessLabel as describeAccess, buildIndex, emptyTree } from "@/utils/permissionTree";
 import { useIsPhone } from "@/utils/viewport";
 import { useAuthStore } from "@/store/authStore";
 import { Permission, Routes } from "@/utils/constants";
@@ -176,7 +177,8 @@ const canManage = computed(() => authStore.can(Permission.PERMISSIONS_MANAGE));
 const canEdit = (admin) => canUpdate.value || admin.id === authStore.adminId;
 
 const admins = ref([]);
-const catalog = ref([]);
+const tree = ref(emptyTree());
+const index = computed(() => buildIndex(tree.value));
 const loading = ref(false);
 const search = ref("");
 
@@ -184,21 +186,16 @@ const filteredAdmins = computed(() => admins.value.filter((admin) => matchesSear
 
 const initial = (name) => (name || "?").trim().charAt(0).toUpperCase();
 
-const accessLabel = (admin) => {
-	if (!catalog.value.length) return `${admin.permissions.length} permissions`;
-	if (admin.permissions.length === catalog.value.length) return "Full access";
-	if (!admin.permissions.length) return "No permissions";
-	return "Partial access";
-};
+const accessLabel = (admin) => describeAccess(index.value, tree.value.roles, admin.permissions);
 
 const accessPercent = (admin) =>
-	catalog.value.length ? `${Math.round((admin.permissions.length / catalog.value.length) * 100)}%` : "0%";
+	index.value.order.length ? `${Math.round((admin.permissions.length / index.value.order.length) * 100)}%` : "0%";
 
 const areaSummary = (admin) => {
-	if (!catalog.value.length || !admin.permissions.length) return "Cannot change anything yet.";
+	if (!index.value.order.length || !admin.permissions.length) return "Cannot change anything yet.";
 	const held = new Set(admin.permissions);
 	const areas = [];
-	catalog.value.forEach((item) => {
+	index.value.items.forEach((item) => {
 		if (held.has(item.code) && !areas.includes(item.area)) areas.push(item.area);
 	});
 	return areas.join(" · ");
@@ -207,11 +204,11 @@ const areaSummary = (admin) => {
 const load = async () => {
 	loading.value = true;
 	await authStore.loadProfile().catch(() => undefined);
-	const requests = [adminApi.permissions.catalog()];
+	const requests = [adminApi.permissions.tree()];
 	if (canView.value) requests.push(adminApi.admins.list());
 	const { ok, result } = await runAction(() => Promise.all(requests));
 	if (ok) {
-		catalog.value = unwrap(result[0]) || [];
+		tree.value = unwrap(result[0]) || emptyTree();
 		admins.value = canView.value ? unwrap(result[1]) || [] : [];
 	}
 	loading.value = false;

@@ -19,8 +19,7 @@
 				<el-table-column label="Team" min-width="220">
 					<template #default="{ row }">
 						<div class="d-flex align-items-center gap-2">
-							<img v-if="row.logo_url" :src="assetUrl(row.logo_url)" class="admin-thumb" alt="" />
-							<el-avatar v-else :size="36">{{ row.name.charAt(0) }}</el-avatar>
+							<EntityImage :src="row.logo_url || ''" :name="row.name" kind="team" class="admin-thumb" />
 							<strong>{{ row.name }}</strong>
 						</div>
 					</template>
@@ -56,13 +55,19 @@
 				<el-form-item label="Slogan" prop="slogan">
 					<el-input v-model="form.slogan" placeholder="Optional" maxlength="500" show-word-limit />
 				</el-form-item>
-				<el-form-item label="Logo URL" prop="logo_url">
-					<el-input v-model="form.logo_url" placeholder="https://… or public/assets/images/teams/…" />
+				<el-form-item label="Logo">
+					<ImageUploadField
+						v-model:pending-file="pendingLogo"
+						:src="editingLogo"
+						:name="form.name || 'New team'"
+						kind="team"
+						label="Logo"
+						:deferred="!editingId"
+						:upload="(file, onProgress) => adminApi.teams.uploadLogo(editingId, file, onProgress)"
+						:remove="() => adminApi.teams.removeLogo(editingId)"
+						@changed="logoChanged"
+					/>
 				</el-form-item>
-				<div v-if="form.logo_url" class="d-flex align-items-center gap-2">
-					<img :src="assetUrl(form.logo_url)" class="logo-preview" alt="Logo preview" />
-					<small class="text-muted">Preview</small>
-				</div>
 			</el-form>
 			<template #footer>
 				<el-button @click="dialogOpen = false">Cancel</el-button>
@@ -76,9 +81,11 @@
 import { computed, onMounted, reactive, ref } from "vue";
 import { Delete, Edit, Plus, Search } from "@element-plus/icons-vue";
 import { adminApi } from "@/services/adminService";
-import { assetUrl, blankToNull, confirmDelete, matchesSearch, runAction, unwrap } from "@/utils/adminHelpers";
+import { blankToNull, confirmDelete, matchesSearch, runAction, unwrap } from "@/utils/adminHelpers";
 import { useIsPhone } from "@/utils/viewport";
 import { usePermissions } from "@/utils/permissions";
+import EntityImage from "@/components/EntityImage.vue";
+import ImageUploadField from "@/components/admin/ImageUploadField.vue";
 
 const isPhone = useIsPhone();
 const { Permission, can, canAny } = usePermissions();
@@ -102,8 +109,10 @@ const dialogOpen = ref(false);
 const saving = ref(false);
 const editingId = ref(null);
 const formRef = ref(null);
-const emptyForm = () => ({ name: "", slogan: "", logo_url: "" });
+const emptyForm = () => ({ name: "", slogan: "" });
 const form = reactive(emptyForm());
+const editingLogo = ref("");
+const pendingLogo = ref(null);
 
 const rules = {
 	name: [
@@ -114,6 +123,8 @@ const rules = {
 
 const openCreate = () => {
 	editingId.value = null;
+	editingLogo.value = "";
+	pendingLogo.value = null;
 	Object.assign(form, emptyForm());
 	dialogOpen.value = true;
 	formRef.value?.clearValidate();
@@ -121,9 +132,18 @@ const openCreate = () => {
 
 const openEdit = (team) => {
 	editingId.value = team.id;
-	Object.assign(form, { name: team.name, slogan: team.slogan || "", logo_url: team.logo_url || "" });
+	editingLogo.value = team.logo_url || "";
+	pendingLogo.value = null;
+	Object.assign(form, { name: team.name, slogan: team.slogan || "" });
 	dialogOpen.value = true;
 	formRef.value?.clearValidate();
+};
+
+const logoChanged = (team) => {
+	editingLogo.value = team?.logo_url || "";
+	const row = teams.value.find((item) => item.id === editingId.value);
+	if (row) row.logo_url = editingLogo.value || null;
+	teamStore.teams = [];
 };
 
 const save = async () => {
@@ -131,10 +151,15 @@ const save = async () => {
 	if (!valid) return;
 	saving.value = true;
 	const payload = blankToNull({ ...form, name: form.name.trim() });
-	const { ok } = await runAction(
+	const { ok, result } = await runAction(
 		() => (editingId.value ? adminApi.teams.update(editingId.value, payload) : adminApi.teams.create(payload)),
 		editingId.value ? "Team updated" : "Team created",
 	);
+	if (ok && !editingId.value && pendingLogo.value) {
+		const created = unwrap(result);
+		await runAction(() => adminApi.teams.uploadLogo(created.id, pendingLogo.value), "Logo uploaded");
+		pendingLogo.value = null;
+	}
 	saving.value = false;
 	if (ok) {
 		dialogOpen.value = false;
@@ -154,13 +179,3 @@ const remove = async (team) => {
 
 onMounted(load);
 </script>
-
-<style scoped>
-.logo-preview {
-	width: 56px;
-	height: 56px;
-	border-radius: 50%;
-	object-fit: cover;
-	border: 1px solid var(--cpl-line);
-}
-</style>

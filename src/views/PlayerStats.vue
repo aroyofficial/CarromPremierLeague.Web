@@ -44,7 +44,7 @@
 							<td class="col-rank">{{ index + 1 }}</td>
 							<td class="col-player">
 								<div class="player-cell">
-									<img :src="getPlayerAvatar(player)" alt="" class="avatar" />
+									<EntityImage :src="player.avatar_url || ''" :name="playerName(player)" kind="player" class="avatar" />
 									<span class="player-name">{{ player.first_name }} {{ player.last_name }}</span>
 								</div>
 							</td>
@@ -72,7 +72,8 @@
 import { ref, onMounted, onUnmounted } from "vue";
 import { useSeasonStore } from "@/store/seasonStore";
 import { useStatsStore } from "@/store/statsStore";
-import { resolveAsset } from "@/utils/common";
+import { playerName } from "@/utils/media";
+import EntityImage from "@/components/EntityImage.vue";
 import StatsSwitch from "@/components/StatsSwitch.vue";
 
 const seasonStore = useSeasonStore();
@@ -87,13 +88,6 @@ const dropdownPopperOptions = ref({
 	placement: "bottom-start",
 	modifiers: [{ name: "flip", enabled: false }],
 });
-
-const toSlug = (value) => (value || "").toLowerCase().trim().replace(/\s+/g, "-");
-
-const getPlayerAvatar = (player) =>
-	resolveAsset(
-		`public/assets/images/players/${toSlug(player.first_name)}-${toSlug(player.last_name)}.png`,
-	);
 
 let statsRequest = 0;
 let refreshTimer = null;
