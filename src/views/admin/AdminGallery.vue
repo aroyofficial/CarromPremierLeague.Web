@@ -18,8 +18,11 @@
 				<el-option label="Published" value="published" />
 			</el-select>
 			<el-input v-model="search" placeholder="Search captions" clearable />
-			<el-button v-if="canUpdate" :disabled="!canReorder" @click="selecting = !selecting">
+			<el-button v-if="canUpdate" :disabled="!canReorder" @click="toggleSelecting">
 				{{ selecting ? "Done" : "Select" }}
+			</el-button>
+			<el-button v-if="canUpdate && photos.length > 1" :disabled="!canReorder" :type="ordering ? 'primary' : 'default'" @click="toggleOrdering">
+				{{ ordering ? "Done" : "Reorder" }}
 			</el-button>
 		</div>
 
@@ -83,27 +86,39 @@
 		</p>
 		<GallerySkeleton v-if="loading" compact />
 		<div v-else-if="!photos.length" class="gallery-status">No photos match this filter.</div>
-		<div v-else class="admin-grid">
+		<template v-else>
+		<p v-if="ordering" class="hint">Drag a card onto another to change the order.</p>
+		<div class="admin-grid">
 			<article
 				v-for="photo in photos"
 				:key="photo.id"
 				class="admin-card"
-				:class="{ 'is-selected': selected.includes(photo.id), 'is-drop': dropId === photo.id }"
-				@dragover.prevent="dropId = photo.id"
+				:class="{ 'is-selected': selected.includes(photo.id), 'is-drop': dropId === photo.id, 'is-ordering': ordering, 'is-dragging': dragId === photo.id }"
+				:draggable="ordering"
+				@dragstart="onDragStart(photo.id, $event)"
+				@dragend="dragId = null; dropId = null"
+				@dragover.prevent="onDragOver(photo.id)"
 				@drop.prevent="moveBefore(photo.id)"
 			>
-				<button type="button" class="admin-thumb" :style="{ aspectRatio: `${photo.width} / ${photo.height}` }" @click="openEditor(photo)">
+				<div
+					class="admin-thumb"
+					:style="thumbStyle(photo)"
+					role="button"
+					:tabindex="ordering ? -1 : 0"
+					@click="openEditor(photo)"
+					@keydown.enter.prevent="openEditor(photo)"
+				>
 					<FramedPicture
 						v-if="!isVideoItem(photo) && !broken.has(photo.id)"
 						:src="photo.url"
 						:alt="photo.alt_text || photo.caption || ''"
 						@error="markBroken(photo.id)"
 					/>
-					<img v-else-if="tilePoster(photo) && !broken.has(photo.id)" :src="tilePoster(photo)" :alt="photo.alt_text || photo.caption || ''" @error="markBroken(photo.id)" />
+					<img v-else-if="tilePoster(photo) && !broken.has(photo.id)" :src="tilePoster(photo)" :alt="photo.alt_text || photo.caption || ''" draggable="false" @error="markBroken(photo.id)" />
 					<span v-else class="thumb-fallback">{{ isVideoItem(photo) ? "Video" : "Unavailable" }}</span>
 					<span v-if="isVideoItem(photo)" class="play-badge" aria-hidden="true"></span>
 					<span class="status-pill" :class="{ 'is-live': photo.is_published }">{{ photo.is_published ? "Published" : "Draft" }}</span>
-				</button>
+				</div>
 				<div class="card-meta">
 					<label v-if="selecting">
 						<input type="checkbox" :checked="selected.includes(photo.id)" @change="toggleSelected(photo.id)" />
@@ -111,27 +126,17 @@
 					</label>
 					<strong>{{ photo.caption || (isVideoItem(photo) ? "Untitled video" : "Untitled") }}</strong>
 					<span class="hint">{{ isVideoItem(photo) ? "Video" : "Photo" }}<template v-if="photo.is_cover"> · Cover</template></span>
-					<button
-						v-if="canReorder"
-						type="button"
-						class="drag-handle"
-						draggable="true"
-						title="Drag to reorder"
-						@dragstart.stop="onDragStart(photo.id, $event)"
-						@dragend="dragId = null"
-					>
-						Drag
-					</button>
 				</div>
 			</article>
 		</div>
+		</template>
 		<GallerySkeleton v-if="loadingMore" compact />
 		<div v-if="cursor && !canReorder" class="gallery-more">
 			<el-button :loading="loadingMore" @click="load(false)">Load more</el-button>
 		</div>
 
-		<el-drawer v-model="editorOpen" title="Edit item" size="440px" :close-on-click-modal="!saving">
-			<template v-if="draft">
+		<el-drawer v-model="editorOpen" title="Edit item" size="440px" destroy-on-close :close-on-click-modal="!saving" @closed="resetEditor">
+			<div v-if="draft" :key="editorKey" class="drawer-body">
 				<div class="drawer-stage">
 					<iframe
 						v-if="isVideoItem(draft) && embedUrl(draft.url)"
@@ -168,7 +173,7 @@
 					<el-button v-if="canDelete" type="danger" plain @click="removeOne">Delete</el-button>
 				</div>
 				<p v-if="draftError" class="job-error">{{ draftError }}</p>
-			</template>
+			</div>
 		</el-drawer>
 		<GalleryFramePicker
 			:model-value="Boolean(cropRequest)"
@@ -214,6 +219,7 @@ const selected = ref([]);
 const bulkSeasonId = ref(null);
 const jobs = ref([]);
 const dragOver = ref(false);
+const ordering = ref(false);
 const dragId = ref(null);
 const dropId = ref(null);
 const cropRequest = ref(null);
@@ -221,6 +227,7 @@ const fileInput = ref(null);
 const linkText = ref("");
 const linkDrafts = ref([]);
 const editorOpen = ref(false);
+const editorKey = ref(0);
 const draft = ref(null);
 const draftError = ref("");
 const saving = ref(false);
@@ -234,6 +241,24 @@ useUploadLeaveGuard(uploading);
 const canReorder = computed(
 	() => Boolean(seasonId.value) && status.value === "all" && !search.value.trim() && canUpdate.value && !cursor.value,
 );
+watch(canReorder, (allowed) => {
+	if (!allowed) ordering.value = false;
+});
+const thumbStyle = (photo) => {
+	const width = Number(photo?.width) || 16;
+	const height = Number(photo?.height) || 9;
+	const ratio = Math.min(Math.max(width / Math.max(height, 1), 0.75), 1.85);
+	return { aspectRatio: String(ratio) };
+};
+const toggleSelecting = () => {
+	ordering.value = false;
+	selecting.value = !selecting.value;
+};
+const toggleOrdering = () => {
+	selecting.value = false;
+	selected.value = [];
+	ordering.value = !ordering.value;
+};
 const readyLinks = computed(() => linkDrafts.value.filter((link) => !link.error && link.width));
 
 const markBroken = (id) => {
@@ -480,14 +505,22 @@ const saveOrder = async (ids) => {
 };
 
 const onDragStart = (id, event) => {
+	if (!ordering.value) {
+		event.preventDefault();
+		return;
+	}
 	dragId.value = id;
 	event.dataTransfer.effectAllowed = "move";
 	event.dataTransfer.setData("text/plain", String(id));
 };
 
+const onDragOver = (id) => {
+	if (ordering.value) dropId.value = id;
+};
+
 const moveBefore = (targetId) => {
 	dropId.value = null;
-	if (!canReorder.value || dragId.value == null || dragId.value === targetId) return;
+	if (!ordering.value || !canReorder.value || dragId.value == null || dragId.value === targetId) return;
 	const next = photos.value.slice();
 	const from = next.findIndex((photo) => photo.id === dragId.value);
 	const to = next.findIndex((photo) => photo.id === targetId);
@@ -525,6 +558,7 @@ const runBulk = async (action) => {
 };
 
 const openEditor = (photo) => {
+	if (ordering.value) return;
 	if (selecting.value) {
 		toggleSelected(photo.id);
 		return;
@@ -537,7 +571,14 @@ const openEditor = (photo) => {
 		season_ids: [...(photo.season_ids || [])],
 	};
 	draftError.value = "";
+	editorKey.value += 1;
 	editorOpen.value = true;
+};
+
+const resetEditor = () => {
+	draft.value = null;
+	draftError.value = "";
+	editorKey.value += 1;
 };
 
 const saveDraft = async () => {
@@ -717,13 +758,13 @@ onMounted(async () => {
 }
 
 .admin-grid {
-	columns: 4 200px;
-	column-gap: 14px;
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+	gap: 14px;
+	align-items: start;
 }
 
 .admin-card {
-	break-inside: avoid;
-	margin-bottom: 14px;
 	background: #fff;
 	border-radius: 16px;
 	overflow: hidden;
@@ -737,27 +778,27 @@ onMounted(async () => {
 	box-shadow: 0 16px 32px rgba(11, 20, 38, 0.1);
 }
 
+.admin-card.is-ordering {
+	cursor: grab;
+}
+
+.admin-card.is-ordering:hover {
+	transform: none;
+}
+
+.admin-card.is-dragging {
+	opacity: 0.55;
+}
+
 .admin-card.is-selected,
 .admin-card.is-drop {
 	border-color: var(--cpl-gold-500);
 }
 
-.drag-handle {
-	align-self: flex-start;
-	border: 1px dashed rgba(24, 41, 77, 0.35);
-	border-radius: 999px;
-	background: #fff;
-	color: var(--cpl-navy-900);
-	font: inherit;
-	font-size: 12px;
-	font-weight: 700;
-	padding: 4px 10px;
-	cursor: grab;
-}
-
 .admin-thumb {
 	display: block;
 	width: 100%;
+	min-height: 200px;
 	padding: 0;
 	border: 0;
 	background: #e7edf6;
@@ -769,7 +810,7 @@ onMounted(async () => {
 .thumb-fallback {
 	width: 100%;
 	height: 100%;
-	object-fit: cover;
+	object-fit: contain;
 	display: grid;
 	place-items: center;
 }
@@ -842,7 +883,8 @@ onMounted(async () => {
 	border-radius: 14px;
 	overflow: hidden;
 	background: #0b1426;
-	aspect-ratio: 16 / 10;
+	aspect-ratio: 16 / 9;
+	min-height: 240px;
 }
 
 .drawer-stage img,

@@ -81,6 +81,7 @@
 						v-else-if="tilePoster(cell.photo) && !broken.has(cell.photo.id)"
 						:src="tilePoster(cell.photo)"
 						alt=""
+						draggable="false"
 						@error="markBroken(cell.photo.id)"
 					/>
 					<span v-else class="photo-missing">{{ isVideoItem(cell.photo) ? "Video" : "Image unavailable" }}</span>
@@ -223,7 +224,8 @@ const ROW_GAP = 8;
 const aspectOf = (photo) => {
 	const width = Number(photo?.width) || 4;
 	const height = Number(photo?.height) || 3;
-	return width / Math.max(height, 1);
+	const ratio = width / Math.max(height, 1);
+	return Math.min(Math.max(ratio, 0.75), 1.85);
 };
 
 const packRows = (photos, containerWidth) => {
@@ -236,7 +238,7 @@ const packRows = (photos, containerWidth) => {
 		if (!row.length) return;
 		const gaps = ROW_GAP * Math.max(row.length - 1, 0);
 		const fitted = (width - gaps) / ratioSum;
-		const height = last ? Math.min(fitted, target) : Math.max(112, Math.min(fitted, 380));
+		const height = Math.min(fitted, last ? target : 380);
 		rows.push(
 			row.map((photo) => ({
 				photo,
@@ -635,7 +637,7 @@ onBeforeUnmount(() => {
 }
 
 .photo-tile img {
-	object-fit: cover;
+	object-fit: contain;
 	transition: transform 0.35s ease;
 }
 
