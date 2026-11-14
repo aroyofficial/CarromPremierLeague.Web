@@ -78,7 +78,7 @@ onMounted(() => {
 
 const logout = () => {
 	authStore.logout();
-	router.push(Routes.LOGIN);
+	router.push(Routes.HOME);
 };
 </script>
 

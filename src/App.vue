@@ -23,10 +23,8 @@ const isAdminRoute = computed(() => route.path.startsWith(Routes.ADMIN));
 
 const onSessionExpired = () => {
 	authStore.logout();
-	if (isAdminRoute.value) {
-		ElMessage.warning("Your admin session has expired. Please sign in again.");
-		router.push({ path: Routes.LOGIN, query: { redirect: route.fullPath } });
-	}
+	ElMessage.warning("Your admin session has expired. Please sign in again.");
+	if (route.path !== Routes.HOME) router.push(Routes.HOME);
 };
 
 const onPermissionDenied = () => {

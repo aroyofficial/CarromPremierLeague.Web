@@ -297,7 +297,7 @@ const save = async () => {
 	if (changedSelf) {
 		ElMessage.info("Your sign-in details changed. Please sign in again.");
 		authStore.logout();
-		router.push(Routes.LOGIN);
+		router.push(Routes.HOME);
 		return;
 	}
 	await load();

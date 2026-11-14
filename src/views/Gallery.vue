@@ -28,7 +28,7 @@
 					@click="chooseSeason(season.id)"
 				>
 					{{ season.name }}
-					<span>{{ season.photo_count }}</span>
+					<span class="season-count">{{ season.photo_count }}</span>
 				</button>
 			</div>
 
@@ -149,9 +149,15 @@
 				</div>
 				<footer class="viewer-dock">
 					<div class="viewer-tools">
-						<button type="button" :disabled="zoom <= 1" @click="zoomBy(-0.25)">Zoom out</button>
-						<button type="button" :disabled="zoom >= 4" @click="zoomBy(0.25)">Zoom in</button>
-						<button type="button" @click="downloadMedia">Download</button>
+						<button type="button" class="tool-btn" title="Zoom out" aria-label="Zoom out" :disabled="zoom <= 1" @click="zoomBy(-0.25)">
+							<el-icon><ZoomOut /></el-icon>
+						</button>
+						<button type="button" class="tool-btn" title="Zoom in" aria-label="Zoom in" :disabled="zoom >= 4" @click="zoomBy(0.25)">
+							<el-icon><ZoomIn /></el-icon>
+						</button>
+						<button type="button" class="tool-btn" title="Download" aria-label="Download" @click="downloadMedia">
+							<el-icon><Download /></el-icon>
+						</button>
 					</div>
 					<p v-if="viewer.caption || viewer.taken_on" class="viewer-caption">
 						<strong v-if="viewer.caption">{{ viewer.caption }}</strong>
@@ -201,6 +207,7 @@ import GallerySkeleton from "@/components/GallerySkeleton.vue";
 import { adminApi, apiErrorMessage } from "@/services/adminService";
 import { embedUrl, isVideoItem, tilePoster } from "@/utils/galleryMedia";
 import { spokenDate } from "@/utils/media";
+import { Download, ZoomIn, ZoomOut } from "@element-plus/icons-vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -611,9 +618,21 @@ onBeforeUnmount(() => {
 	white-space: nowrap;
 }
 
-.season-chip span {
-	color: var(--cpl-ink-400);
+.season-chip .season-count {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 24px;
+	height: 24px;
+	padding: 0 6px;
+	box-sizing: border-box;
+	border: 1.5px solid var(--cpl-gold-400);
+	border-radius: 999px;
+	color: var(--cpl-gold-400);
 	font-size: 12px;
+	font-weight: 700;
+	line-height: 1;
+	font-variant-numeric: tabular-nums;
 }
 
 .season-chip.is-selected {
@@ -622,7 +641,8 @@ onBeforeUnmount(() => {
 	border-color: var(--cpl-navy-900);
 }
 
-.season-chip.is-selected span {
+.season-chip.is-selected .season-count {
+	border-color: var(--cpl-gold-400);
 	color: var(--cpl-gold-400);
 }
 
@@ -919,19 +939,32 @@ onBeforeUnmount(() => {
 	gap: 8px;
 }
 
-.viewer-tools button {
+.viewer-tools .tool-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 38px;
+	height: 38px;
 	border: 0;
-	border-radius: 999px;
+	border-radius: 50%;
 	background: #fff;
 	color: #0b1426;
-	font: inherit;
-	font-size: 13px;
-	font-weight: 700;
-	padding: 6px 12px;
+	font-size: 18px;
 	cursor: pointer;
+	transition: transform 0.15s ease, background 0.15s ease;
 }
 
-.viewer-tools button:disabled {
+.viewer-tools .tool-btn:hover:not(:disabled) {
+	transform: translateY(-1px);
+	background: var(--cpl-gold-400);
+}
+
+.viewer-tools .tool-btn:focus-visible {
+	outline: 2px solid var(--cpl-gold-400);
+	outline-offset: 2px;
+}
+
+.viewer-tools .tool-btn:disabled {
 	opacity: 0.4;
 	cursor: default;
 }

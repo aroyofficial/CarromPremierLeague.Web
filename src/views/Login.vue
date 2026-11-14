@@ -116,6 +116,7 @@ const submit = async () => {
 
 const logout = () => {
 	authStore.logout();
+	router.push(Routes.HOME);
 };
 </script>
 
