@@ -4,7 +4,7 @@
 			<div>
 				<span class="page-eyebrow">Seasons</span>
 				<h1 class="page-title">Gallery</h1>
-				<p class="page-subtitle">Photos from each season of the Carrom Premier League.</p>
+				<p class="page-subtitle">Photos and videos from every season of the Carrom Premier League.</p>
 			</div>
 		</header>
 
@@ -39,39 +39,48 @@
 				:style="{ aspectRatio: `${cover.width} / ${cover.height}` }"
 				@click="openPhoto(cover)"
 			>
-				<img :src="cover.url" :alt="cover.alt_text || cover.caption || currentSeason?.name || 'Season cover'" />
+				<img
+					v-if="tilePoster(cover)"
+					:src="tilePoster(cover)"
+					:alt="cover.alt_text || cover.caption || currentSeason?.name || 'Season cover'"
+				/>
+				<span v-else class="photo-missing">Video</span>
+				<span v-if="isVideoItem(cover)" class="play-badge is-hero" aria-hidden="true"></span>
 				<span v-if="cover.caption" class="cover-caption">{{ cover.caption }}</span>
 			</button>
 
 			<div v-if="!seasons.length" class="gallery-status">
-				<p>No season gallery is public yet.</p>
+				<p>No season has published photos or videos yet.</p>
 			</div>
 			<div v-else-if="!items.length" class="gallery-status">
-				<p>No published photos in {{ currentSeason?.name || "this season" }} yet.</p>
+				<p>No published photos or videos in {{ currentSeason?.name || "this season" }} yet.</p>
 			</div>
 
-			<div v-else class="photo-grid">
+			<div v-else ref="frameEl" class="photo-grid">
+				<div v-for="(row, rowIndex) in mediaRows" :key="rowIndex" class="photo-row">
 				<button
-					v-for="photo in items"
-					:key="photo.id"
+					v-for="cell in row"
+					:key="cell.photo.id"
 					type="button"
 					class="photo-tile"
-					:style="{ aspectRatio: `${photo.width} / ${photo.height}` }"
-					@click="openPhoto(photo)"
+					:style="{ width: `${cell.width}px`, height: `${cell.height}px` }"
+					@click="openPhoto(cell.photo)"
 				>
 					<span
-						v-if="photo.placeholder_url && !broken.has(photo.id)"
+						v-if="cell.photo.placeholder_url && !broken.has(cell.photo.id)"
 						class="photo-blur"
-						:style="{ backgroundImage: `url(${photo.placeholder_url})` }"
+						:style="{ backgroundImage: `url(${cell.photo.placeholder_url})` }"
 					></span>
 					<img
-						v-if="!broken.has(photo.id)"
-						:src="photo.thumbnail_url"
-						:alt="photo.alt_text || photo.caption || 'Season photo'"
-						@error="markBroken(photo.id)"
+						v-if="tilePoster(cell.photo) && !broken.has(cell.photo.id)"
+						:src="tilePoster(cell.photo)"
+						:alt="cell.photo.alt_text || cell.photo.caption || 'Season media'"
+						@error="markBroken(cell.photo.id)"
 					/>
-					<span v-else class="photo-missing">Image unavailable</span>
+					<span v-else class="photo-missing">{{ isVideoItem(cell.photo) ? "Video" : "Image unavailable" }}</span>
+					<span v-if="isVideoItem(cell.photo)" class="play-badge" aria-hidden="true"></span>
 				</button>
+				</div>
 			</div>
 
 			<GallerySkeleton v-if="loadingMore" compact />
@@ -86,33 +95,96 @@
 		</template>
 
 		<Teleport to="body">
-			<div v-if="viewer" class="viewer" role="dialog" aria-modal="true" :aria-label="viewer.caption || 'Photo'">
-				<button type="button" class="viewer-close" aria-label="Close" @click="closeViewer">×</button>
-				<button type="button" class="viewer-arrow is-prev" aria-label="Previous photo" @click="step(-1)">‹</button>
-				<figure class="viewer-figure" @touchstart.passive="onTouchStart" @touchend.passive="onTouchEnd">
-					<img
-						v-if="!broken.has(viewer.id)"
-						:src="viewer.url"
-						:alt="viewer.alt_text || viewer.caption || 'Season photo'"
-						@error="markBroken(viewer.id)"
-					/>
-					<p v-else class="photo-missing">Image unavailable</p>
-					<figcaption v-if="viewer.caption || viewer.taken_on">
+			<div v-if="viewer" class="viewer" role="dialog" aria-modal="true" :aria-label="viewer.caption || 'Gallery item'">
+				<header class="viewer-bar">
+					<p v-if="viewerIndex >= 0">{{ viewerIndex + 1 }} / {{ items.length }}</p>
+					<div class="viewer-tags">
+						<span v-for="name in viewerSeasons" :key="name">{{ name }}</span>
+					</div>
+					<button type="button" class="viewer-icon" aria-label="Close" @click="closeViewer">×</button>
+				</header>
+				<div class="viewer-stage">
+					<button type="button" class="viewer-icon is-nav" aria-label="Previous" :disabled="!canStepBack" @click="step(-1)">‹</button>
+					<figure class="viewer-figure" @touchstart.passive="onTouchStart" @touchend.passive="onTouchEnd">
+						<div class="viewer-media" :class="{ 'is-embed': isVideoItem(viewer) && embedUrl(viewer.url) }">
+							<iframe
+								v-if="isVideoItem(viewer) && embedUrl(viewer.url)"
+								:key="`embed-${viewer.id}`"
+								:src="embedUrl(viewer.url, { autoplay: true })"
+								:title="viewer.caption || 'Video'"
+								allow="autoplay; fullscreen; picture-in-picture"
+								allowfullscreen
+							></iframe>
+							<video
+								v-else-if="isVideoItem(viewer)"
+								:key="`video-${viewer.id}`"
+								ref="videoEl"
+								:src="viewer.url"
+								:poster="tilePoster(viewer)"
+								autoplay
+								playsinline
+								@play="playing = true"
+								@pause="playing = false"
+								@loadedmetadata="onVideoMeta"
+								@timeupdate="onVideoTime"
+							></video>
+							<img
+								v-else-if="!broken.has(viewer.id)"
+								:src="viewer.url"
+								:alt="viewer.alt_text || viewer.caption || 'Season photo'"
+								@error="markBroken(viewer.id)"
+							/>
+							<p v-else class="photo-missing">Image unavailable</p>
+						</div>
+					</figure>
+					<button type="button" class="viewer-icon is-nav" aria-label="Next" :disabled="!canStepForward" @click="step(1)">›</button>
+				</div>
+				<footer class="viewer-dock">
+					<p v-if="viewer.caption || viewer.taken_on" class="viewer-caption">
 						<strong v-if="viewer.caption">{{ viewer.caption }}</strong>
 						<span v-if="viewer.taken_on">{{ viewer.taken_on }}</span>
-					</figcaption>
-				</figure>
-				<button type="button" class="viewer-arrow is-next" aria-label="Next photo" @click="step(1)">›</button>
+					</p>
+					<div v-if="showFilePlayer" class="player-bar">
+						<button type="button" @click="togglePlay">{{ playing ? "Pause" : "Play" }}</button>
+						<input
+							type="range"
+							min="0"
+							:max="duration || 0"
+							step="0.1"
+							:value="played"
+							aria-label="Seek"
+							@input="seek"
+						/>
+						<span>{{ clock(played) }} / {{ clock(duration) }}</span>
+						<button type="button" @click="toggleMute">{{ muted ? "Unmute" : "Mute" }}</button>
+						<button type="button" @click="toggleFull">Full screen</button>
+					</div>
+					<div v-if="items.length" ref="stripEl" class="filmstrip" aria-label="Items in this season">
+						<button
+							v-for="photo in items"
+							:key="photo.id"
+							type="button"
+							class="film-item"
+							:class="{ 'is-current': photo.id === viewer.id }"
+							:aria-label="photo.caption || (isVideoItem(photo) ? 'Video' : 'Photo')"
+							@click="openPhoto(photo)"
+						>
+							<img v-if="tilePoster(photo)" :src="tilePoster(photo)" alt="" />
+							<span v-else>{{ isVideoItem(photo) ? "Video" : "Photo" }}</span>
+						</button>
+					</div>
+				</footer>
 			</div>
 		</Teleport>
 	</div>
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import GallerySkeleton from "@/components/GallerySkeleton.vue";
 import { adminApi, apiErrorMessage } from "@/services/adminService";
+import { embedUrl, isVideoItem, tilePoster } from "@/utils/galleryMedia";
 
 const route = useRoute();
 const router = useRouter();
@@ -126,11 +198,116 @@ const error = ref("");
 const broken = ref(new Set());
 const viewer = ref(null);
 const sentinel = ref(null);
+const frameEl = ref(null);
+const frameWidth = ref(0);
+const videoEl = ref(null);
+const stripEl = ref(null);
+const playing = ref(false);
+const muted = ref(false);
+const played = ref(0);
+const duration = ref(0);
 let observer;
+let frameObserver;
 let touchX = 0;
+
+const ROW_GAP = 8;
+
+const aspectOf = (photo) => {
+	const width = Number(photo?.width) || 4;
+	const height = Number(photo?.height) || 3;
+	return Math.min(2.8, Math.max(0.45, width / height));
+};
+
+const packRows = (photos, containerWidth) => {
+	const width = Math.max(containerWidth || 0, 280);
+	const target = width < 640 ? 148 : 220;
+	const rows = [];
+	let row = [];
+	let ratioSum = 0;
+	const flush = (last) => {
+		if (!row.length) return;
+		const gaps = ROW_GAP * Math.max(row.length - 1, 0);
+		const fitted = (width - gaps) / ratioSum;
+		const height = last ? Math.min(fitted, target) : Math.max(112, Math.min(fitted, 380));
+		rows.push(
+			row.map((photo) => ({
+				photo,
+				width: Math.round(aspectOf(photo) * height),
+				height: Math.round(height),
+			})),
+		);
+		row = [];
+		ratioSum = 0;
+	};
+	for (const photo of photos) {
+		const ratio = aspectOf(photo);
+		const nextSum = ratioSum + ratio;
+		const height = (width - ROW_GAP * row.length) / nextSum;
+		if (row.length && height < target * 0.78) flush(false);
+		row.push(photo);
+		ratioSum += ratio;
+	}
+	flush(true);
+	return rows;
+};
 
 const currentSeason = computed(() => seasons.value.find((season) => season.id === seasonId.value));
 const cover = computed(() => currentSeason.value?.cover || null);
+const viewerIndex = computed(() =>
+	viewer.value ? items.value.findIndex((photo) => photo.id === viewer.value.id) : -1,
+);
+const viewerSeasons = computed(() =>
+	(viewer.value?.season_ids || [])
+		.map((id) => seasons.value.find((season) => season.id === id)?.name)
+		.filter(Boolean),
+);
+const mediaRows = computed(() => packRows(items.value, frameWidth.value || Math.min(window.innerWidth - 48, 1200)));
+const canStepBack = computed(() => viewerIndex.value > 0);
+const canStepForward = computed(() => viewerIndex.value >= 0 && viewerIndex.value < items.value.length - 1);
+const showFilePlayer = computed(() => Boolean(viewer.value && isVideoItem(viewer.value) && !embedUrl(viewer.value.url)));
+
+const clock = (seconds) => {
+	if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
+	const total = Math.floor(seconds);
+	return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
+};
+
+const onVideoMeta = (event) => {
+	duration.value = event.target.duration || 0;
+	muted.value = event.target.muted;
+};
+
+const onVideoTime = (event) => {
+	played.value = event.target.currentTime || 0;
+	duration.value = event.target.duration || duration.value;
+};
+
+const togglePlay = () => {
+	const video = videoEl.value;
+	if (!video) return;
+	if (video.paused) video.play();
+	else video.pause();
+};
+
+const seek = (event) => {
+	const video = videoEl.value;
+	if (!video) return;
+	video.currentTime = Number(event.target.value);
+};
+
+const toggleMute = () => {
+	const video = videoEl.value;
+	if (!video) return;
+	video.muted = !video.muted;
+	muted.value = video.muted;
+};
+
+const toggleFull = () => {
+	const video = videoEl.value;
+	if (!video) return;
+	if (document.fullscreenElement) document.exitFullscreen();
+	else video.requestFullscreen?.();
+};
 
 const markBroken = (id) => {
 	broken.value = new Set(broken.value).add(id);
@@ -172,7 +349,7 @@ const loadSeasons = async () => {
 	error.value = "";
 	try {
 		const result = await adminApi.gallery.seasons();
-		seasons.value = result.data || [];
+		seasons.value = (result.data || []).filter((season) => Number(season.photo_count) > 0);
 		const requested = Number(route.query.season);
 		const match = seasons.value.find((season) => season.id === requested) || seasons.value[0];
 		seasonId.value = match ? match.id : null;
@@ -244,6 +421,10 @@ const onKey = (event) => {
 	if (event.key === "Escape") closeViewer();
 	if (event.key === "ArrowRight") step(1);
 	if (event.key === "ArrowLeft") step(-1);
+	if (event.key === " " && showFilePlayer.value && event.target?.tagName !== "BUTTON" && event.target?.tagName !== "INPUT") {
+		event.preventDefault();
+		togglePlay();
+	}
 };
 
 const onTouchStart = (event) => {
@@ -260,6 +441,29 @@ watch(
 	() => route.query.photo,
 	() => {
 		if (!loading.value) openFromQuery();
+	},
+);
+
+watch(frameEl, (element, _previous, onCleanup) => {
+	frameObserver?.disconnect();
+	if (!element) return;
+	frameObserver = new ResizeObserver((entries) => {
+		const next = Math.round(entries[0]?.contentRect?.width || 0);
+		if (next > 0 && next !== frameWidth.value) frameWidth.value = next;
+	});
+	frameObserver.observe(element);
+	onCleanup(() => frameObserver?.disconnect());
+});
+
+watch(
+	() => viewer.value?.id,
+	() => {
+		playing.value = false;
+		played.value = 0;
+		duration.value = 0;
+		nextTick(() => {
+			stripEl.value?.querySelector(".is-current")?.scrollIntoView({ inline: "center", block: "nearest" });
+		});
 	},
 );
 
@@ -284,6 +488,7 @@ watch(sentinel, (element) => {
 onBeforeUnmount(() => {
 	window.removeEventListener("keydown", onKey);
 	observer?.disconnect();
+	frameObserver?.disconnect();
 });
 </script>
 
@@ -363,22 +568,28 @@ onBeforeUnmount(() => {
 }
 
 .photo-grid {
-	columns: 4 180px;
-	column-gap: 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.photo-row {
+	display: flex;
+	gap: 8px;
+	justify-content: flex-start;
 }
 
 .photo-tile {
 	position: relative;
 	display: block;
-	width: 100%;
-	margin: 0 0 12px;
+	flex: 0 0 auto;
+	margin: 0;
 	padding: 0;
 	border: 0;
-	border-radius: 14px;
+	border-radius: 8px;
 	overflow: hidden;
 	background: #e7edf6;
 	cursor: pointer;
-	break-inside: avoid;
 }
 
 .photo-tile img,
@@ -391,6 +602,46 @@ onBeforeUnmount(() => {
 
 .photo-tile img {
 	object-fit: cover;
+	transition: transform 0.35s ease;
+}
+
+.photo-tile:hover img,
+.cover-hero:hover img {
+	transform: scale(1.04);
+}
+
+.play-badge {
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	z-index: 1;
+	width: 52px;
+	height: 52px;
+	border-radius: 50%;
+	transform: translate(-50%, -50%);
+	background: rgba(11, 20, 38, 0.72);
+	box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+}
+
+.play-badge.is-hero {
+	width: 74px;
+	height: 74px;
+}
+
+.play-badge::after {
+	content: "";
+	position: absolute;
+	left: 20px;
+	top: 16px;
+	border-style: solid;
+	border-width: 10px 0 10px 16px;
+	border-color: transparent transparent transparent #fff;
+}
+
+.play-badge.is-hero::after {
+	left: 29px;
+	top: 23px;
+	border-width: 14px 0 14px 20px;
 }
 
 .photo-blur {
@@ -408,6 +659,13 @@ onBeforeUnmount(() => {
 	padding: 16px;
 	color: var(--cpl-ink-600);
 	background: #eef2f7;
+}
+
+.photo-tile .photo-missing,
+.cover-hero .photo-missing {
+	position: absolute;
+	inset: 0;
+	min-height: 0;
 }
 
 .gallery-status,
@@ -428,61 +686,229 @@ onBeforeUnmount(() => {
 	position: fixed;
 	inset: 0;
 	z-index: 4000;
-	display: grid;
-	grid-template-columns: auto 1fr auto;
+	display: flex;
+	flex-direction: column;
+	background: #070c18;
+	color: #fff;
+}
+
+.viewer-bar,
+.viewer-dock {
+	flex: 0 0 auto;
+}
+
+.viewer-bar {
+	display: flex;
 	align-items: center;
-	gap: 8px;
-	padding: 24px;
-	background: rgba(11, 20, 38, 0.92);
+	gap: 12px;
+	min-height: 56px;
+	padding: 8px 16px;
+}
+
+.viewer-bar p,
+.viewer-caption {
+	margin: 0;
+}
+
+.viewer-bar p {
+	font-variant-numeric: tabular-nums;
+	letter-spacing: 0.08em;
+}
+
+.viewer-tags {
+	display: flex;
+	flex: 1;
+	gap: 6px;
+	overflow-x: auto;
+}
+
+.viewer-tags span {
+	padding: 4px 10px;
+	border-radius: 999px;
+	background: rgba(255, 255, 255, 0.12);
+	color: var(--cpl-gold-400);
+	font-size: 12px;
+	white-space: nowrap;
+}
+
+.viewer-stage {
+	flex: 1 1 auto;
+	min-height: 0;
+	display: grid;
+	grid-template-columns: 64px minmax(0, 1fr) 64px;
+	align-items: center;
+	justify-items: center;
 }
 
 .viewer-figure {
-	margin: 0;
+	width: 100%;
+	height: 100%;
 	min-width: 0;
-	text-align: center;
-}
-
-.viewer-figure img {
-	max-width: 100%;
-	max-height: calc(100vh - 140px);
-	object-fit: contain;
-}
-
-.viewer-figure figcaption {
+	min-height: 0;
+	margin: 0;
 	display: flex;
+	align-items: center;
 	justify-content: center;
-	gap: 12px;
-	margin-top: 12px;
-	color: #fff;
+	container-type: size;
 }
 
-.viewer-close,
-.viewer-arrow {
-	border: 0;
+.viewer-media {
+	display: contents;
+}
+
+.viewer-media img,
+.viewer-media video {
+	max-width: 100%;
+	max-height: 100%;
+	min-width: 0;
+	min-height: 0;
+	width: auto;
+	height: auto;
+	object-fit: contain;
 	background: transparent;
+}
+
+.viewer-media.is-embed {
+	display: block;
+	width: min(100cqi, calc(100cqb * 16 / 9));
+	height: min(100cqb, calc(100cqi * 9 / 16));
+}
+
+.viewer-media iframe {
+	width: 100%;
+	height: 100%;
+	border: 0;
+	background: #000;
+}
+
+.viewer-icon {
+	width: 44px;
+	height: 44px;
+	border: 0;
+	border-radius: 50%;
+	background: rgba(255, 255, 255, 0.12);
 	color: #fff;
-	font-size: 40px;
+	font-size: 28px;
 	line-height: 1;
 	cursor: pointer;
 }
 
+.viewer-icon:disabled {
+	opacity: 0.28;
+	cursor: default;
+}
+
+.viewer-dock {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 16px 14px;
+}
+
+.viewer-caption {
+	display: flex;
+	justify-content: center;
+	gap: 12px;
+	max-width: 100%;
+	text-align: center;
+}
+
+.player-bar {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	width: min(720px, 100%);
+	padding: 8px 10px;
+	border-radius: 999px;
+	background: rgba(255, 255, 255, 0.08);
+}
+
+.player-bar button {
+	border: 0;
+	border-radius: 999px;
+	background: #fff;
+	color: #0b1426;
+	font: inherit;
+	font-size: 13px;
+	font-weight: 700;
+	padding: 6px 12px;
+	cursor: pointer;
+}
+
+.player-bar input[type="range"] {
+	flex: 1;
+	min-width: 0;
+	accent-color: var(--cpl-gold-400);
+}
+
+.player-bar span {
+	font-variant-numeric: tabular-nums;
+	font-size: 12px;
+	white-space: nowrap;
+}
+
+.filmstrip {
+	display: flex;
+	justify-content: safe center;
+	gap: 8px;
+	width: min(920px, 100%);
+	overflow-x: auto;
+	padding: 2px;
+}
+
+.film-item {
+	flex: 0 0 auto;
+	width: 72px;
+	height: 52px;
+	padding: 0;
+	border: 2px solid transparent;
+	border-radius: 8px;
+	overflow: hidden;
+	background: #1b2740;
+	color: #fff;
+	cursor: pointer;
+}
+
+.film-item img,
+.film-item span {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: grid;
+	place-items: center;
+	font-size: 11px;
+}
+
+.film-item.is-current {
+	border-color: var(--cpl-gold-400);
+}
+
 @media (max-width: 720px) {
-	.viewer {
-		grid-template-columns: 1fr;
-		padding: 56px 12px 16px;
+	.viewer-stage {
+		grid-template-columns: 48px minmax(0, 1fr) 48px;
 	}
 
-	.viewer-arrow {
-		position: absolute;
-		top: 50%;
+	.player-bar {
+		flex-wrap: wrap;
+		border-radius: 16px;
+		justify-content: center;
 	}
 
-	.viewer-arrow.is-prev {
-		left: 4px;
+	.player-bar input[type="range"] {
+		flex-basis: 100%;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.photo-tile img,
+	.cover-hero img {
+		transition: none;
 	}
 
-	.viewer-arrow.is-next {
-		right: 4px;
+	.photo-tile:hover img,
+	.cover-hero:hover img {
+		transform: none;
 	}
 }
 </style>

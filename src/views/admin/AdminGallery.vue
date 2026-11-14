@@ -4,7 +4,7 @@
 			<div>
 				<span class="page-eyebrow">Media</span>
 				<h1>Gallery</h1>
-				<p>New photos stay drafts until they are published.</p>
+				<p>Photos and videos stay drafts until they are published.</p>
 			</div>
 		</header>
 
@@ -31,10 +31,11 @@
 			@dragleave="dragOver = false"
 			@drop.prevent="onDropFiles"
 		>
-			<input ref="fileInput" type="file" multiple :accept="IMAGE_ACCEPT" hidden @change="onPickFiles" />
-			<div>
-				<strong>Drop photos here</strong>
-				<p>JPEG, PNG or WebP, up to 5 MB. Three upload at a time.</p>
+			<input ref="fileInput" type="file" multiple :accept="MEDIA_ACCEPT" hidden @change="onPickFiles" />
+			<div class="drop-copy">
+				<span class="drop-mark" aria-hidden="true"></span>
+				<strong>Drop photos or videos</strong>
+				<p>JPEG, PNG, WebP up to 5 MB. MP4, WebM or MOV up to 50 MB. Three at a time.</p>
 			</div>
 			<el-button type="primary" :disabled="!seasonId" @click="fileInput?.click()">Choose files</el-button>
 		</section>
@@ -53,12 +54,13 @@
 		</ul>
 
 		<section v-if="canCreate" class="link-box">
-			<label for="gallery-links">Public image links, one per line</label>
+			<label for="gallery-links">Public photo or video links, one per line</label>
+			<p class="hint">YouTube, Vimeo, or a direct image or video address.</p>
 			<el-input id="gallery-links" v-model="linkText" type="textarea" :rows="4" placeholder="https://…" />
 			<ul v-if="linkDrafts.length" class="link-preview">
 				<li v-for="link in linkDrafts" :key="link.url" :class="{ 'is-bad': link.error }">
 					<img v-if="link.preview" :src="link.preview" alt="" />
-					<span>{{ link.error || `${link.width} × ${link.height}` }}</span>
+					<span>{{ link.error || (isVideoUrl(link.url) ? "Video" : `${link.width} × ${link.height}`) }}</span>
 				</li>
 			</ul>
 			<el-button :disabled="!readyLinks.length || !seasonId" @click="saveLinks">Save {{ readyLinks.length }} link(s)</el-button>
@@ -93,16 +95,18 @@
 				@drop="moveBefore(photo.id)"
 			>
 				<button type="button" class="admin-thumb" :style="{ aspectRatio: `${photo.width} / ${photo.height}` }" @click="openEditor(photo)">
-					<img v-if="!broken.has(photo.id)" :src="photo.thumbnail_url" :alt="photo.alt_text || photo.caption || ''" @error="markBroken(photo.id)" />
-					<span v-else>Image unavailable</span>
+					<img v-if="tilePoster(photo) && !broken.has(photo.id)" :src="tilePoster(photo)" :alt="photo.alt_text || photo.caption || ''" @error="markBroken(photo.id)" />
+					<span v-else class="thumb-fallback">{{ isVideoItem(photo) ? "Video" : "Unavailable" }}</span>
+					<span v-if="isVideoItem(photo)" class="play-badge" aria-hidden="true"></span>
+					<span class="status-pill" :class="{ 'is-live': photo.is_published }">{{ photo.is_published ? "Published" : "Draft" }}</span>
 				</button>
 				<div class="card-meta">
 					<label v-if="selecting">
 						<input type="checkbox" :checked="selected.includes(photo.id)" @change="toggleSelected(photo.id)" />
 						Select
 					</label>
-					<strong>{{ photo.caption || "Untitled" }}</strong>
-					<span class="hint">{{ photo.is_published ? "Published" : "Draft" }}<template v-if="photo.is_cover"> · Cover</template></span>
+					<strong>{{ photo.caption || (isVideoItem(photo) ? "Untitled video" : "Untitled") }}</strong>
+					<span class="hint">{{ isVideoItem(photo) ? "Video" : "Photo" }}<template v-if="photo.is_cover"> · Cover</template></span>
 					<div v-if="canReorder" class="nudge">
 						<el-button size="small" :disabled="index === 0" @click="nudge(index, -1)">Earlier</el-button>
 						<el-button size="small" :disabled="index === photos.length - 1" @click="nudge(index, 1)">Later</el-button>
@@ -115,9 +119,19 @@
 			<el-button :loading="loadingMore" @click="load(false)">Load more</el-button>
 		</div>
 
-		<el-drawer v-model="editorOpen" title="Edit photo" size="420px" :close-on-click-modal="!saving">
+		<el-drawer v-model="editorOpen" title="Edit item" size="440px" :close-on-click-modal="!saving">
 			<template v-if="draft">
-				<img class="drawer-preview" :src="draft.thumbnail_url" alt="" />
+				<div class="drawer-stage">
+					<iframe
+						v-if="isVideoItem(draft) && embedUrl(draft.url)"
+						:src="embedUrl(draft.url)"
+						title="Video preview"
+						allow="autoplay; fullscreen; picture-in-picture"
+						allowfullscreen
+					></iframe>
+					<video v-else-if="isVideoItem(draft)" :src="draft.url" :poster="tilePoster(draft)" controls playsinline></video>
+					<img v-else :src="draft.thumbnail_url" alt="" />
+				</div>
 				<el-form label-position="top">
 					<el-form-item label="Caption">
 						<el-input v-model="draft.caption" maxlength="500" :disabled="!canUpdate" />
@@ -154,9 +168,11 @@ import { ElMessageBox } from "element-plus";
 import GallerySkeleton from "@/components/GallerySkeleton.vue";
 import { adminApi, apiErrorMessage } from "@/services/adminService";
 import { useAuthStore } from "@/store/authStore";
-import { IMAGE_ACCEPT, imageFileProblem, publicImageLinkProblem } from "@/utils/media";
+import { embedUrl, isVideoItem, isVideoUrl, tilePoster, videoPoster } from "@/utils/galleryMedia";
+import { IMAGE_ACCEPT, VIDEO_ACCEPT, mediaFileProblem, publicImageLinkProblem } from "@/utils/media";
 import { useUploadLeaveGuard } from "@/utils/uploadGuard";
 
+const MEDIA_ACCEPT = `${IMAGE_ACCEPT},${VIDEO_ACCEPT}`;
 const authStore = useAuthStore();
 const canCreate = computed(() => authStore.canAny(["gallery.create"]));
 const canUpdate = computed(() => authStore.canAny(["gallery.update"]));
@@ -261,6 +277,22 @@ const measureUrl = (url) =>
 		image.src = url;
 	});
 
+const measureVideoFile = (file) =>
+	new Promise((resolve) => {
+		const url = URL.createObjectURL(file);
+		const video = document.createElement("video");
+		video.preload = "metadata";
+		const finish = (width, height) => {
+			URL.revokeObjectURL(url);
+			resolve({ width: width || 1920, height: height || 1080 });
+		};
+		video.onloadedmetadata = () => finish(video.videoWidth, video.videoHeight);
+		video.onerror = () => finish(1920, 1080);
+		video.src = url;
+	});
+
+const fileIsVideo = (file) => file?.type?.startsWith("video/") || /\.(mp4|webm|mov|m4v)$/i.test(file?.name || "");
+
 const uploadJob = async (job) => {
 	job.status = "uploading";
 	job.progress = 0;
@@ -279,7 +311,7 @@ const uploadJob = async (job) => {
 		await reload();
 	} catch (err) {
 		job.status = "error";
-		job.error = apiErrorMessage(err, "The photo was not saved.");
+		job.error = apiErrorMessage(err, "That item was not saved.");
 	}
 };
 
@@ -307,13 +339,13 @@ const queueFiles = async (files) => {
 		return;
 	}
 	for (const file of files) {
-		const problem = imageFileProblem(file);
+		const problem = mediaFileProblem(file);
 		if (problem) {
 			jobs.value.push({ id: ++jobSeq, name: file.name, status: "error", error: problem, progress: 0, file });
 			continue;
 		}
 		try {
-			const size = await measureFile(file);
+			const size = fileIsVideo(file) ? await measureVideoFile(file) : await measureFile(file);
 			enqueue({ name: file.name, file, ...size });
 		} catch (err) {
 			jobs.value.push({ id: ++jobSeq, name: file.name, status: "error", error: err.message, progress: 0, file });
@@ -330,7 +362,7 @@ const onPickFiles = (event) => {
 const retryJob = async (job) => {
 	if (!job.width && job.file) {
 		try {
-			Object.assign(job, await measureFile(job.file));
+			Object.assign(job, fileIsVideo(job.file) ? await measureVideoFile(job.file) : await measureFile(job.file));
 		} catch (err) {
 			job.error = err.message;
 			return;
@@ -351,6 +383,10 @@ const refreshLinkDrafts = async () => {
 		const problem = publicImageLinkProblem(url);
 		if (problem) {
 			drafts.push({ url, error: problem });
+			continue;
+		}
+		if (isVideoUrl(url)) {
+			drafts.push({ url, preview: videoPoster(url), width: 1920, height: 1080, error: "" });
 			continue;
 		}
 		try {
@@ -422,7 +458,7 @@ const toggleSelected = (id) => {
 const runBulk = async (action) => {
 	if (action === "delete") {
 		try {
-			await ElMessageBox.confirm(`Delete ${selected.value.length} photo(s)? This cannot be undone.`, "Delete photos", {
+			await ElMessageBox.confirm(`Delete ${selected.value.length} item(s)? This cannot be undone.`, "Delete items", {
 				type: "warning",
 				confirmButtonText: "Delete",
 			});
@@ -492,7 +528,7 @@ const makeCover = async () => {
 
 const removeOne = async () => {
 	try {
-		await ElMessageBox.confirm("Delete this photo? This cannot be undone.", "Delete photo", {
+		await ElMessageBox.confirm("Delete this item? This cannot be undone.", "Delete item", {
 			type: "warning",
 			confirmButtonText: "Delete",
 		});
@@ -545,14 +581,32 @@ onMounted(async () => {
 .drop-zone,
 .link-box {
 	display: flex;
-	flex-wrap: wrap;
-	justify-content: space-between;
+	flex-direction: column;
+	align-items: flex-start;
 	gap: 12px;
-	align-items: center;
-	padding: 16px;
+	padding: 18px;
 	border: 1px dashed var(--cpl-line);
-	border-radius: 16px;
-	background: #fff;
+	border-radius: 18px;
+	background:
+		linear-gradient(180deg, rgba(255, 255, 255, 0.4), #fff 40%),
+		#fff;
+	box-shadow: 0 10px 30px rgba(11, 20, 38, 0.04);
+}
+
+.drop-copy {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.drop-mark {
+	width: 42px;
+	height: 42px;
+	border-radius: 14px;
+	margin-bottom: 4px;
+	background:
+		radial-gradient(circle at 50% 50%, var(--cpl-gold-400) 0 7px, transparent 8px),
+		var(--cpl-navy-900);
 }
 
 .drop-zone.is-over {
@@ -615,17 +669,24 @@ onMounted(async () => {
 }
 
 .admin-grid {
-	columns: 4 180px;
-	column-gap: 12px;
+	columns: 4 200px;
+	column-gap: 14px;
 }
 
 .admin-card {
 	break-inside: avoid;
-	margin-bottom: 12px;
+	margin-bottom: 14px;
 	background: #fff;
-	border-radius: 14px;
+	border-radius: 16px;
 	overflow: hidden;
 	border: 1px solid transparent;
+	box-shadow: 0 10px 24px rgba(11, 20, 38, 0.06);
+	transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.admin-card:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 16px 32px rgba(11, 20, 38, 0.1);
 }
 
 .admin-card.is-selected {
@@ -643,7 +704,7 @@ onMounted(async () => {
 }
 
 .admin-thumb img,
-.admin-thumb span {
+.thumb-fallback {
 	width: 100%;
 	height: 100%;
 	object-fit: cover;
@@ -651,9 +712,59 @@ onMounted(async () => {
 	place-items: center;
 }
 
-.admin-thumb img {
+.play-badge,
+.status-pill {
+	position: absolute;
+	z-index: 1;
+}
+
+.play-badge {
+	left: 50%;
+	top: 50%;
+	width: 46px;
+	height: 46px;
+	border-radius: 50%;
+	transform: translate(-50%, -50%);
+	background: rgba(11, 20, 38, 0.72);
+	box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
+}
+
+.play-badge::after {
+	content: "";
+	position: absolute;
+	left: 18px;
+	top: 14px;
+	border-style: solid;
+	border-width: 9px 0 9px 14px;
+	border-color: transparent transparent transparent #fff;
+}
+
+.status-pill {
+	top: 10px;
+	left: 10px;
+	padding: 3px 8px;
+	border-radius: 999px;
+	background: rgba(11, 20, 38, 0.72);
+	color: #fff;
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}
+
+.status-pill.is-live {
+	background: var(--cpl-gold-400);
+	color: var(--cpl-navy-900);
+}
+
+.admin-thumb img,
+.thumb-fallback {
 	position: absolute;
 	inset: 0;
+}
+
+.link-box :deep(.el-textarea) {
+	width: 100%;
 }
 
 .card-meta {
@@ -663,13 +774,30 @@ onMounted(async () => {
 	padding: 10px 12px 12px;
 }
 
-.drawer-preview {
-	width: 100%;
-	max-height: 220px;
-	object-fit: contain;
-	background: #e7edf6;
-	border-radius: 12px;
+.drawer-stage {
 	margin-bottom: 12px;
+	border-radius: 14px;
+	overflow: hidden;
+	background: #0b1426;
+	aspect-ratio: 16 / 10;
+}
+
+.drawer-stage img,
+.drawer-stage video,
+.drawer-stage iframe {
+	width: 100%;
+	height: 100%;
+	border: 0;
+	object-fit: contain;
+	background: #0b1426;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.admin-card,
+	.admin-card:hover {
+		transition: none;
+		transform: none;
+	}
 }
 
 .gallery-status,

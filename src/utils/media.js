@@ -1,6 +1,9 @@
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+export const MAX_VIDEO_BYTES = 50 * 1024 * 1024;
 export const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+export const VIDEO_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
 export const IMAGE_ACCEPT = IMAGE_TYPES.join(",");
+export const VIDEO_ACCEPT = `${VIDEO_TYPES.join(",")},.mp4,.webm,.mov,.m4v`;
 
 const PALETTE = ["#1f6feb", "#8250df", "#bf3989", "#cf222e", "#bc4c00", "#1a7f37", "#0969da", "#6e7781"];
 
@@ -43,6 +46,18 @@ export const imageFileProblem = (file) => {
 	if (!IMAGE_TYPES.includes(file.type)) return "Choose a JPEG, PNG or WebP image.";
 	if (file.size > MAX_IMAGE_BYTES) return "The image must be 5 MB or smaller.";
 	return "";
+};
+
+const videoName = (file) => VIDEO_TYPES.includes(file?.type) || /\.(mp4|webm|mov|m4v)$/i.test(file?.name || "");
+
+export const mediaFileProblem = (file) => {
+	if (!file) return "Choose a photo or a video to upload.";
+	if (IMAGE_TYPES.includes(file.type)) return imageFileProblem(file);
+	if (videoName(file)) {
+		if (file.size > MAX_VIDEO_BYTES) return "The video must be 50 MB or smaller.";
+		return "";
+	}
+	return "Choose a JPEG, PNG, WebP, MP4, WebM or MOV file.";
 };
 
 export const publicImageLinkProblem = (value) => {

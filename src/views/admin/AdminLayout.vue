@@ -108,14 +108,15 @@ body:has(.admin-shell) .el-message-box {
 	height: calc(100vh - var(--app-header-height));
 	display: flex;
 	flex-direction: column;
-	gap: 16px;
+	gap: 12px;
 	padding: 20px 14px;
 	background: var(--cpl-navy-900);
 	color: #fff;
-	overflow-y: auto;
+	overflow: hidden;
 }
 
 .sidebar-head {
+	flex: 0 0 auto;
 	display: flex;
 	flex-direction: column;
 	gap: 2px;
@@ -128,9 +129,15 @@ body:has(.admin-shell) .el-message-box {
 }
 
 .sidebar-nav {
+	flex: 1 1 auto;
+	min-height: 0;
 	display: flex;
 	flex-direction: column;
 	gap: 4px;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	scrollbar-width: thin;
+	scrollbar-color: rgba(255, 255, 255, 0.35) transparent;
 }
 
 .sidebar-link {
@@ -157,7 +164,9 @@ body:has(.admin-shell) .el-message-box {
 }
 
 .sidebar-foot {
-	margin-top: auto;
+	flex: 0 0 auto;
+	padding-top: 12px;
+	border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .sidebar-toggle,
