@@ -78,6 +78,50 @@ export const clampFrame = ({ naturalWidth, naturalHeight, viewSize, panX, panY, 
 	return { panX: nextPanX, panY: nextPanY, circle: { cx, cy, r: radius } };
 };
 
+export const cropRectToFile = (image, fractions, type) =>
+	new Promise((resolve, reject) => {
+		const sourceWidth = Math.max(1, Math.round(fractions.w * image.naturalWidth));
+		const sourceHeight = Math.max(1, Math.round(fractions.h * image.naturalHeight));
+		const scale = Math.min(1, 2560 / Math.max(sourceWidth, sourceHeight));
+		const width = Math.max(1, Math.round(sourceWidth * scale));
+		const height = Math.max(1, Math.round(sourceHeight * scale));
+		const canvas = document.createElement("canvas");
+		canvas.width = width;
+		canvas.height = height;
+		const context = canvas.getContext("2d");
+		if (!context) {
+			reject(new Error("Could not prepare the picture."));
+			return;
+		}
+		context.drawImage(
+			image,
+			fractions.x * image.naturalWidth,
+			fractions.y * image.naturalHeight,
+			fractions.w * image.naturalWidth,
+			fractions.h * image.naturalHeight,
+			0,
+			0,
+			width,
+			height,
+		);
+		const mime = type === "image/png" ? "image/png" : "image/jpeg";
+		canvas.toBlob(
+			(blob) => {
+				if (!blob) {
+					reject(new Error("Could not prepare the picture."));
+					return;
+				}
+				resolve({
+					file: new File([blob], mime === "image/png" ? "picture.png" : "picture.jpg", { type: mime }),
+					width,
+					height,
+				});
+			},
+			mime,
+			0.92,
+		);
+	});
+
 export const cropToFile = (image, fractions, type) =>
 	new Promise((resolve, reject) => {
 		const canvas = document.createElement("canvas");

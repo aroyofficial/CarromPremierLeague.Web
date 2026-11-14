@@ -85,17 +85,21 @@
 		<div v-else-if="!photos.length" class="gallery-status">No photos match this filter.</div>
 		<div v-else class="admin-grid">
 			<article
-				v-for="(photo, index) in photos"
+				v-for="photo in photos"
 				:key="photo.id"
 				class="admin-card"
-				:class="{ 'is-selected': selected.includes(photo.id) }"
-				:draggable="canReorder"
-				@dragstart="dragId = photo.id"
-				@dragover.prevent
-				@drop="moveBefore(photo.id)"
+				:class="{ 'is-selected': selected.includes(photo.id), 'is-drop': dropId === photo.id }"
+				@dragover.prevent="dropId = photo.id"
+				@drop.prevent="moveBefore(photo.id)"
 			>
 				<button type="button" class="admin-thumb" :style="{ aspectRatio: `${photo.width} / ${photo.height}` }" @click="openEditor(photo)">
-					<img v-if="tilePoster(photo) && !broken.has(photo.id)" :src="tilePoster(photo)" :alt="photo.alt_text || photo.caption || ''" @error="markBroken(photo.id)" />
+					<FramedPicture
+						v-if="!isVideoItem(photo) && !broken.has(photo.id)"
+						:src="photo.url"
+						:alt="photo.alt_text || photo.caption || ''"
+						@error="markBroken(photo.id)"
+					/>
+					<img v-else-if="tilePoster(photo) && !broken.has(photo.id)" :src="tilePoster(photo)" :alt="photo.alt_text || photo.caption || ''" @error="markBroken(photo.id)" />
 					<span v-else class="thumb-fallback">{{ isVideoItem(photo) ? "Video" : "Unavailable" }}</span>
 					<span v-if="isVideoItem(photo)" class="play-badge" aria-hidden="true"></span>
 					<span class="status-pill" :class="{ 'is-live': photo.is_published }">{{ photo.is_published ? "Published" : "Draft" }}</span>
@@ -107,10 +111,17 @@
 					</label>
 					<strong>{{ photo.caption || (isVideoItem(photo) ? "Untitled video" : "Untitled") }}</strong>
 					<span class="hint">{{ isVideoItem(photo) ? "Video" : "Photo" }}<template v-if="photo.is_cover"> · Cover</template></span>
-					<div v-if="canReorder" class="nudge">
-						<el-button size="small" :disabled="index === 0" @click="nudge(index, -1)">Earlier</el-button>
-						<el-button size="small" :disabled="index === photos.length - 1" @click="nudge(index, 1)">Later</el-button>
-					</div>
+					<button
+						v-if="canReorder"
+						type="button"
+						class="drag-handle"
+						draggable="true"
+						title="Drag to reorder"
+						@dragstart.stop="onDragStart(photo.id, $event)"
+						@dragend="dragId = null"
+					>
+						Drag
+					</button>
 				</div>
 			</article>
 		</div>
@@ -130,7 +141,7 @@
 						allowfullscreen
 					></iframe>
 					<video v-else-if="isVideoItem(draft)" :src="draft.url" :poster="tilePoster(draft)" controls playsinline></video>
-					<img v-else :src="draft.thumbnail_url" alt="" />
+					<FramedPicture v-else :src="draft.url" alt="" />
 				</div>
 				<el-form label-position="top">
 					<el-form-item label="Caption">
@@ -159,12 +170,21 @@
 				<p v-if="draftError" class="job-error">{{ draftError }}</p>
 			</template>
 		</el-drawer>
+		<GalleryFramePicker
+			:model-value="Boolean(cropRequest)"
+			:src="cropRequest?.src || ''"
+			:source-file="cropRequest?.file || null"
+			@confirm="onCropConfirm"
+			@cancel="onCropCancel"
+		/>
 	</div>
 </template>
 
 <script setup>
 import { computed, onMounted, ref, watch } from "vue";
 import { ElMessageBox } from "element-plus";
+import FramedPicture from "@/components/FramedPicture.vue";
+import GalleryFramePicker from "@/components/admin/GalleryFramePicker.vue";
 import GallerySkeleton from "@/components/GallerySkeleton.vue";
 import { adminApi, apiErrorMessage } from "@/services/adminService";
 import { useAuthStore } from "@/store/authStore";
@@ -195,6 +215,8 @@ const bulkSeasonId = ref(null);
 const jobs = ref([]);
 const dragOver = ref(false);
 const dragId = ref(null);
+const dropId = ref(null);
+const cropRequest = ref(null);
 const fileInput = ref(null);
 const linkText = ref("");
 const linkDrafts = ref([]);
@@ -332,6 +354,22 @@ const enqueue = (partial) => {
 	pump();
 };
 
+const askCrop = (payload) =>
+	new Promise((resolve) => {
+		cropRequest.value = { ...payload, resolve, settled: false };
+	});
+
+const settleCrop = (result) => {
+	const request = cropRequest.value;
+	if (!request || request.settled) return;
+	request.settled = true;
+	cropRequest.value = null;
+	request.resolve(result);
+};
+
+const onCropConfirm = (result) => settleCrop(result);
+const onCropCancel = () => settleCrop(null);
+
 const queueFiles = async (files) => {
 	dragOver.value = false;
 	if (!seasonId.value) {
@@ -344,11 +382,17 @@ const queueFiles = async (files) => {
 			jobs.value.push({ id: ++jobSeq, name: file.name, status: "error", error: problem, progress: 0, file });
 			continue;
 		}
-		try {
-			const size = fileIsVideo(file) ? await measureVideoFile(file) : await measureFile(file);
+		if (fileIsVideo(file)) {
+			const size = await measureVideoFile(file);
 			enqueue({ name: file.name, file, ...size });
-		} catch (err) {
-			jobs.value.push({ id: ++jobSeq, name: file.name, status: "error", error: err.message, progress: 0, file });
+			continue;
+		}
+		const local = URL.createObjectURL(file);
+		try {
+			const result = await askCrop({ src: local, file });
+			if (result?.file) enqueue({ name: file.name, file: result.file, width: result.width, height: result.height });
+		} finally {
+			URL.revokeObjectURL(local);
 		}
 	}
 };
@@ -409,10 +453,15 @@ watch(search, () => {
 	searchTimer = setTimeout(() => reload(), 300);
 });
 
-const saveLinks = () => {
+const saveLinks = async () => {
 	if (!seasonId.value) return;
 	for (const link of readyLinks.value) {
-		enqueue({ name: link.url, url: link.url, width: link.width, height: link.height });
+		if (isVideoUrl(link.url)) {
+			enqueue({ name: link.url, url: link.url, width: link.width, height: link.height });
+			continue;
+		}
+		const result = await askCrop({ src: link.url });
+		if (result?.url) enqueue({ name: result.url, url: result.url, width: result.width, height: result.height });
 	}
 	linkText.value = linkDrafts.value
 		.filter((link) => link.error)
@@ -430,7 +479,14 @@ const saveOrder = async (ids) => {
 	}
 };
 
+const onDragStart = (id, event) => {
+	dragId.value = id;
+	event.dataTransfer.effectAllowed = "move";
+	event.dataTransfer.setData("text/plain", String(id));
+};
+
 const moveBefore = (targetId) => {
+	dropId.value = null;
 	if (!canReorder.value || dragId.value == null || dragId.value === targetId) return;
 	const next = photos.value.slice();
 	const from = next.findIndex((photo) => photo.id === dragId.value);
@@ -440,14 +496,6 @@ const moveBefore = (targetId) => {
 	next.splice(to, 0, moved);
 	photos.value = next;
 	dragId.value = null;
-	saveOrder(next.map((photo) => photo.id));
-};
-
-const nudge = (index, direction) => {
-	const next = photos.value.slice();
-	const target = index + direction;
-	[next[index], next[target]] = [next[target], next[index]];
-	photos.value = next;
 	saveOrder(next.map((photo) => photo.id));
 };
 
@@ -689,8 +737,22 @@ onMounted(async () => {
 	box-shadow: 0 16px 32px rgba(11, 20, 38, 0.1);
 }
 
-.admin-card.is-selected {
+.admin-card.is-selected,
+.admin-card.is-drop {
 	border-color: var(--cpl-gold-500);
+}
+
+.drag-handle {
+	align-self: flex-start;
+	border: 1px dashed rgba(24, 41, 77, 0.35);
+	border-radius: 999px;
+	background: #fff;
+	color: var(--cpl-navy-900);
+	font: inherit;
+	font-size: 12px;
+	font-weight: 700;
+	padding: 4px 10px;
+	cursor: grab;
 }
 
 .admin-thumb {
@@ -758,6 +820,7 @@ onMounted(async () => {
 }
 
 .admin-thumb img,
+.admin-thumb :deep(.framed),
 .thumb-fallback {
 	position: absolute;
 	inset: 0;
@@ -784,7 +847,8 @@ onMounted(async () => {
 
 .drawer-stage img,
 .drawer-stage video,
-.drawer-stage iframe {
+.drawer-stage iframe,
+.drawer-stage :deep(.framed) {
 	width: 100%;
 	height: 100%;
 	border: 0;

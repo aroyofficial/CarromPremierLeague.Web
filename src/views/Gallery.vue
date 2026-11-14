@@ -71,10 +71,16 @@
 						class="photo-blur"
 						:style="{ backgroundImage: `url(${cell.photo.placeholder_url})` }"
 					></span>
-					<img
-						v-if="tilePoster(cell.photo) && !broken.has(cell.photo.id)"
-						:src="tilePoster(cell.photo)"
+					<FramedPicture
+						v-if="!isVideoItem(cell.photo) && !broken.has(cell.photo.id)"
+						:src="cell.photo.url"
 						:alt="cell.photo.alt_text || cell.photo.caption || 'Season media'"
+						@error="markBroken(cell.photo.id)"
+					/>
+					<img
+						v-else-if="tilePoster(cell.photo) && !broken.has(cell.photo.id)"
+						:src="tilePoster(cell.photo)"
+						alt=""
 						@error="markBroken(cell.photo.id)"
 					/>
 					<span v-else class="photo-missing">{{ isVideoItem(cell.photo) ? "Video" : "Image unavailable" }}</span>
@@ -103,41 +109,39 @@
 					</div>
 					<button type="button" class="viewer-icon" aria-label="Close" @click="closeViewer">×</button>
 				</header>
-				<div class="viewer-stage">
-					<button type="button" class="viewer-icon is-nav" aria-label="Previous" :disabled="!canStepBack" @click="step(-1)">‹</button>
-					<figure class="viewer-figure" @touchstart.passive="onTouchStart" @touchend.passive="onTouchEnd">
-						<div class="viewer-media" :class="{ 'is-embed': isVideoItem(viewer) && embedUrl(viewer.url) }">
-							<iframe
-								v-if="isVideoItem(viewer) && embedUrl(viewer.url)"
-								:key="`embed-${viewer.id}`"
-								:src="embedUrl(viewer.url, { autoplay: true })"
-								:title="viewer.caption || 'Video'"
-								allow="autoplay; fullscreen; picture-in-picture"
-								allowfullscreen
-							></iframe>
-							<video
-								v-else-if="isVideoItem(viewer)"
-								:key="`video-${viewer.id}`"
-								ref="videoEl"
-								:src="viewer.url"
-								:poster="tilePoster(viewer)"
-								autoplay
-								playsinline
-								@play="playing = true"
-								@pause="playing = false"
-								@loadedmetadata="onVideoMeta"
-								@timeupdate="onVideoTime"
-							></video>
-							<img
-								v-else-if="!broken.has(viewer.id)"
-								:src="viewer.url"
-								:alt="viewer.alt_text || viewer.caption || 'Season photo'"
-								@error="markBroken(viewer.id)"
-							/>
-							<p v-else class="photo-missing">Image unavailable</p>
-						</div>
-					</figure>
-					<button type="button" class="viewer-icon is-nav" aria-label="Next" :disabled="!canStepForward" @click="step(1)">›</button>
+				<div ref="stageEl" class="viewer-stage" @touchstart.passive="onTouchStart" @touchend.passive="onTouchEnd">
+					<button type="button" class="viewer-icon is-nav is-prev" aria-label="Previous" :disabled="!canStepBack" @click="step(-1)">‹</button>
+					<div v-if="fitted" class="viewer-fit" :style="{ width: `${fitted.width}px`, height: `${fitted.height}px` }">
+						<iframe
+							v-if="isVideoItem(viewer) && embedUrl(viewer.url)"
+							:key="`embed-${viewer.id}`"
+							:src="embedUrl(viewer.url, { autoplay: true })"
+							:title="viewer.caption || 'Video'"
+							allow="autoplay; fullscreen; picture-in-picture"
+							allowfullscreen
+						></iframe>
+						<video
+							v-else-if="isVideoItem(viewer)"
+							:key="`video-${viewer.id}`"
+							ref="videoEl"
+							:src="viewer.url"
+							:poster="tilePoster(viewer)"
+							autoplay
+							playsinline
+							@play="playing = true"
+							@pause="playing = false"
+							@loadedmetadata="onVideoMeta"
+							@timeupdate="onVideoTime"
+						></video>
+						<FramedPicture
+							v-else-if="!broken.has(viewer.id)"
+							:src="viewer.url"
+							:alt="viewer.alt_text || viewer.caption || 'Season photo'"
+							@error="markBroken(viewer.id)"
+						/>
+						<p v-else class="photo-missing">Image unavailable</p>
+					</div>
+					<button type="button" class="viewer-icon is-nav is-next" aria-label="Next" :disabled="!canStepForward" @click="step(1)">›</button>
 				</div>
 				<footer class="viewer-dock">
 					<p v-if="viewer.caption || viewer.taken_on" class="viewer-caption">
@@ -169,7 +173,8 @@
 							:aria-label="photo.caption || (isVideoItem(photo) ? 'Video' : 'Photo')"
 							@click="openPhoto(photo)"
 						>
-							<img v-if="tilePoster(photo)" :src="tilePoster(photo)" alt="" />
+							<FramedPicture v-if="!isVideoItem(photo)" :src="photo.url" alt="" />
+							<img v-else-if="tilePoster(photo)" :src="tilePoster(photo)" alt="" />
 							<span v-else>{{ isVideoItem(photo) ? "Video" : "Photo" }}</span>
 						</button>
 					</div>
@@ -182,6 +187,7 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import FramedPicture from "@/components/FramedPicture.vue";
 import GallerySkeleton from "@/components/GallerySkeleton.vue";
 import { adminApi, apiErrorMessage } from "@/services/adminService";
 import { embedUrl, isVideoItem, tilePoster } from "@/utils/galleryMedia";
@@ -202,6 +208,8 @@ const frameEl = ref(null);
 const frameWidth = ref(0);
 const videoEl = ref(null);
 const stripEl = ref(null);
+const stageEl = ref(null);
+const stageBox = ref({ width: 0, height: 0 });
 const playing = ref(false);
 const muted = ref(false);
 const played = ref(0);
@@ -215,7 +223,7 @@ const ROW_GAP = 8;
 const aspectOf = (photo) => {
 	const width = Number(photo?.width) || 4;
 	const height = Number(photo?.height) || 3;
-	return Math.min(2.8, Math.max(0.45, width / height));
+	return width / Math.max(height, 1);
 };
 
 const packRows = (photos, containerWidth) => {
@@ -265,6 +273,19 @@ const mediaRows = computed(() => packRows(items.value, frameWidth.value || Math.
 const canStepBack = computed(() => viewerIndex.value > 0);
 const canStepForward = computed(() => viewerIndex.value >= 0 && viewerIndex.value < items.value.length - 1);
 const showFilePlayer = computed(() => Boolean(viewer.value && isVideoItem(viewer.value) && !embedUrl(viewer.value.url)));
+const fitted = computed(() => {
+	const item = viewer.value;
+	const box = stageBox.value;
+	if (!item || box.width < 40 || box.height < 40) return null;
+	const ratio = Math.max(0.05, (Number(item.width) || 16) / Math.max(1, Number(item.height) || 9));
+	let width = box.width;
+	let height = width / ratio;
+	if (height > box.height) {
+		height = box.height;
+		width = height * ratio;
+	}
+	return { width: Math.max(1, Math.round(width)), height: Math.max(1, Math.round(height)) };
+});
 
 const clock = (seconds) => {
 	if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
@@ -444,6 +465,18 @@ watch(
 	},
 );
 
+watch(stageEl, (element, _previous, onCleanup) => {
+	if (!element) return;
+	const observer = new ResizeObserver((entries) => {
+		const rect = entries[0]?.contentRect;
+		const width = Math.round(rect?.width || 0);
+		const height = Math.round(rect?.height || 0);
+		if (width !== stageBox.value.width || height !== stageBox.value.height) stageBox.value = { width, height };
+	});
+	observer.observe(element);
+	onCleanup(() => observer.disconnect());
+});
+
 watch(frameEl, (element, _previous, onCleanup) => {
 	frameObserver?.disconnect();
 	if (!element) return;
@@ -593,6 +626,7 @@ onBeforeUnmount(() => {
 }
 
 .photo-tile img,
+.photo-tile :deep(.framed),
 .photo-blur {
 	position: absolute;
 	inset: 0;
@@ -732,53 +766,45 @@ onBeforeUnmount(() => {
 }
 
 .viewer-stage {
+	position: relative;
 	flex: 1 1 auto;
 	min-height: 0;
-	display: grid;
-	grid-template-columns: 64px minmax(0, 1fr) 64px;
-	align-items: center;
-	justify-items: center;
-}
-
-.viewer-figure {
-	width: 100%;
-	height: 100%;
-	min-width: 0;
-	min-height: 0;
-	margin: 0;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	container-type: size;
+	padding: 0 72px;
 }
 
-.viewer-media {
-	display: contents;
+.viewer-fit {
+	position: relative;
+	flex: 0 0 auto;
+	overflow: hidden;
+	background: transparent;
 }
 
-.viewer-media img,
-.viewer-media video {
-	max-width: 100%;
-	max-height: 100%;
-	min-width: 0;
-	min-height: 0;
-	width: auto;
-	height: auto;
+.viewer-fit iframe,
+.viewer-fit video,
+.viewer-fit :deep(.framed) {
+	width: 100%;
+	height: 100%;
+	border: 0;
 	object-fit: contain;
 	background: transparent;
 }
 
-.viewer-media.is-embed {
-	display: block;
-	width: min(100cqi, calc(100cqb * 16 / 9));
-	height: min(100cqb, calc(100cqi * 9 / 16));
+.viewer-icon.is-nav {
+	position: absolute;
+	top: 50%;
+	z-index: 2;
+	transform: translateY(-50%);
 }
 
-.viewer-media iframe {
-	width: 100%;
-	height: 100%;
-	border: 0;
-	background: #000;
+.viewer-icon.is-prev {
+	left: 14px;
+}
+
+.viewer-icon.is-next {
+	right: 14px;
 }
 
 .viewer-icon {
@@ -858,6 +884,7 @@ onBeforeUnmount(() => {
 }
 
 .film-item {
+	position: relative;
 	flex: 0 0 auto;
 	width: 72px;
 	height: 52px;
@@ -871,6 +898,7 @@ onBeforeUnmount(() => {
 }
 
 .film-item img,
+.film-item :deep(.framed),
 .film-item span {
 	width: 100%;
 	height: 100%;
@@ -880,13 +908,18 @@ onBeforeUnmount(() => {
 	font-size: 11px;
 }
 
+.film-item :deep(.framed) {
+	position: absolute;
+	inset: 0;
+}
+
 .film-item.is-current {
 	border-color: var(--cpl-gold-400);
 }
 
 @media (max-width: 720px) {
 	.viewer-stage {
-		grid-template-columns: 48px minmax(0, 1fr) 48px;
+		padding: 0 52px;
 	}
 
 	.player-bar {
