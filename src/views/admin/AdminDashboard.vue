@@ -14,8 +14,9 @@
 		</div>
 
 		<div v-if="authStore.profileLoaded && !cards.length" class="admin-card no-access">
-			<h2>No sections yet</h2>
-			<p>Your account has no permissions. Ask an admin who can manage permissions to give you access.</p>
+			<h2>No league sections yet</h2>
+			<p>Your account has no permissions for the league tools. You can still update your own profile.</p>
+			<router-link :to="{ name: 'admin-profile' }" class="profile-link">Open your profile</router-link>
 		</div>
 
 		<div class="dash-grid" v-loading="loading">
@@ -167,5 +168,12 @@ onMounted(async () => {
 		margin: 0;
 		color: var(--cpl-ink-600);
 	}
+}
+
+.profile-link {
+	display: inline-block;
+	margin-top: 12px;
+	font-weight: 700;
+	color: var(--cpl-navy-700);
 }
 </style>

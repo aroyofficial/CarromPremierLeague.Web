@@ -207,6 +207,7 @@ import FramedPicture from "@/components/FramedPicture.vue";
 import GallerySkeleton from "@/components/GallerySkeleton.vue";
 import api from "@/services/api";
 import { adminApi, apiErrorMessage } from "@/services/adminService";
+import { packGalleryRows } from "@/utils/galleryLayout";
 import { embedUrl, isVideoItem, tilePoster } from "@/utils/galleryMedia";
 import { spokenDate } from "@/utils/media";
 import { correctedQuery, galleryChoice, positiveId } from "@/utils/queryState";
@@ -242,48 +243,6 @@ let observer;
 let frameObserver;
 let touchX = 0;
 
-const ROW_GAP = 8;
-
-const aspectOf = (photo) => {
-	const width = Number(photo?.width) || 4;
-	const height = Number(photo?.height) || 3;
-	const ratio = width / Math.max(height, 1);
-	return Math.min(Math.max(ratio, 0.75), 1.85);
-};
-
-const packRows = (photos, containerWidth) => {
-	const width = Math.max(containerWidth || 0, 280);
-	const target = width < 640 ? 148 : 220;
-	const rows = [];
-	let row = [];
-	let ratioSum = 0;
-	const flush = (last) => {
-		if (!row.length) return;
-		const gaps = ROW_GAP * Math.max(row.length - 1, 0);
-		const fitted = (width - gaps) / ratioSum;
-		const height = Math.min(fitted, last ? target : 380);
-		rows.push(
-			row.map((photo) => ({
-				photo,
-				width: Math.round(aspectOf(photo) * height),
-				height: Math.round(height),
-			})),
-		);
-		row = [];
-		ratioSum = 0;
-	};
-	for (const photo of photos) {
-		const ratio = aspectOf(photo);
-		const nextSum = ratioSum + ratio;
-		const height = (width - ROW_GAP * row.length) / nextSum;
-		if (row.length && height < target * 0.78) flush(false);
-		row.push(photo);
-		ratioSum += ratio;
-	}
-	flush(true);
-	return rows;
-};
-
 const currentSeason = computed(() => seasons.value.find((season) => season.id === seasonId.value));
 const cover = computed(() => currentSeason.value?.cover || null);
 const viewerIndex = computed(() =>
@@ -294,7 +253,7 @@ const viewerSeasons = computed(() =>
 		.map((id) => seasons.value.find((season) => season.id === id)?.name)
 		.filter(Boolean),
 );
-const mediaRows = computed(() => packRows(items.value, frameWidth.value || Math.min(window.innerWidth - 48, 1200)));
+const mediaRows = computed(() => packGalleryRows(items.value, frameWidth.value || Math.min(window.innerWidth - 48, 1200)));
 const canStepBack = computed(() => viewerIndex.value > 0);
 const canStepForward = computed(() => viewerIndex.value >= 0 && viewerIndex.value < items.value.length - 1);
 const showFilePlayer = computed(() => Boolean(viewer.value && isVideoItem(viewer.value) && !embedUrl(viewer.value.url)));
@@ -744,12 +703,12 @@ onBeforeUnmount(() => {
 .photo-grid {
 	display: flex;
 	flex-direction: column;
-	gap: 8px;
+	gap: 4px;
 }
 
 .photo-row {
 	display: flex;
-	gap: 8px;
+	gap: 4px;
 	justify-content: flex-start;
 }
 
@@ -760,7 +719,6 @@ onBeforeUnmount(() => {
 	margin: 0;
 	padding: 0;
 	border: 0;
-	border-radius: 8px;
 	overflow: hidden;
 	background: #e7edf6;
 	cursor: pointer;
@@ -768,21 +726,23 @@ onBeforeUnmount(() => {
 
 .photo-tile img,
 .photo-tile :deep(.framed),
-.photo-blur {
+.photo-blur,
+.photo-tile .photo-missing {
 	position: absolute;
 	inset: 0;
 	width: 100%;
 	height: 100%;
 }
 
-.photo-tile img {
-	object-fit: contain;
-	transition: transform 0.35s ease;
+.photo-tile img,
+.photo-tile :deep(.framed:not(.has-frame) img) {
+	object-fit: cover;
+	transition: transform 0.25s ease;
 }
 
-.photo-tile:hover img,
+.photo-tile:hover :deep(img),
 .cover-hero:hover img {
-	transform: scale(1.04);
+	transform: scale(1.03);
 }
 
 .play-badge {
@@ -790,12 +750,12 @@ onBeforeUnmount(() => {
 	left: 50%;
 	top: 50%;
 	z-index: 1;
-	width: 52px;
-	height: 52px;
+	width: 46px;
+	height: 46px;
 	border-radius: 50%;
 	transform: translate(-50%, -50%);
 	background: rgba(11, 20, 38, 0.72);
-	box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+	box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
 }
 
 .play-badge.is-hero {
@@ -806,10 +766,10 @@ onBeforeUnmount(() => {
 .play-badge::after {
 	content: "";
 	position: absolute;
-	left: 20px;
-	top: 16px;
+	left: 18px;
+	top: 14px;
 	border-style: solid;
-	border-width: 10px 0 10px 16px;
+	border-width: 9px 0 9px 14px;
 	border-color: transparent transparent transparent #fff;
 }
 
@@ -836,7 +796,6 @@ onBeforeUnmount(() => {
 	background: #eef2f7;
 }
 
-.photo-tile .photo-missing,
 .cover-hero .photo-missing {
 	position: absolute;
 	inset: 0;
@@ -1131,12 +1090,12 @@ onBeforeUnmount(() => {
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.photo-tile img,
+	.photo-tile :deep(img),
 	.cover-hero img {
 		transition: none;
 	}
 
-	.photo-tile:hover img,
+	.photo-tile:hover :deep(img),
 	.cover-hero:hover img {
 		transform: none;
 	}

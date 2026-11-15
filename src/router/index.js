@@ -22,6 +22,7 @@ const adminViews = {
 	"admin-users": () => import("@/views/admin/AdminUsers.vue"),
 	"admin-permissions": () => import("@/views/admin/AdminPermissions.vue"),
 	"admin-settings": () => import("@/views/admin/AdminSettings.vue"),
+	"admin-profile": () => import("@/views/admin/AdminProfile.vue"),
 };
 
 const routes = [

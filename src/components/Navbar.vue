@@ -28,9 +28,9 @@
 						<span class="btn-glyph" aria-hidden="true"><el-icon><Setting /></el-icon></span>
 						Admin
 					</router-link>
-					<span class="admin-chip" :title="authStore.username">
+					<span class="admin-chip" :title="chipTitle">
 						<span class="admin-avatar" aria-hidden="true">{{ userInitial }}</span>
-						<span class="admin-name">{{ authStore.username }}</span>
+						<span class="admin-name">{{ authStore.displayName }}</span>
 					</span>
 					<button type="button" class="btn-logout" @click="logout">
 						<span class="btn-glyph" aria-hidden="true"><el-icon><SwitchButton /></el-icon></span>
@@ -77,9 +77,9 @@
 							<span class="btn-glyph" aria-hidden="true"><el-icon><Setting /></el-icon></span>
 							Admin Console
 						</router-link>
-						<span class="admin-chip" :title="authStore.username">
+						<span class="admin-chip" :title="chipTitle">
 							<span class="admin-avatar" aria-hidden="true">{{ userInitial }}</span>
-							<span class="admin-name">{{ authStore.username }}</span>
+							<span class="admin-name">{{ authStore.displayName }}</span>
 						</span>
 						<button type="button" class="btn-logout" @click="logout">
 							<span class="btn-glyph" aria-hidden="true"><el-icon><SwitchButton /></el-icon></span>
@@ -105,6 +105,7 @@ import { useRoute, useRouter } from "vue-router";
 import { Lock, Setting, SwitchButton } from "@element-plus/icons-vue";
 import { NavItems, Routes } from "@/utils/constants";
 import { resolveAsset } from "@/utils/common";
+import { initial } from "@/utils/adminNames";
 import { useAuthStore } from "@/store/authStore";
 
 const route = useRoute();
@@ -114,10 +115,12 @@ const isStatsSection = (item) =>
 	item.path === Routes.STATS &&
 	(route.path === Routes.STATS || route.path.startsWith(`${Routes.STATS}/`));
 const authStore = useAuthStore();
-const userInitial = computed(() => {
-	const name = (authStore.username || "").trim();
-	return name ? name.charAt(0).toUpperCase() : "A";
-});
+const userInitial = computed(() => initial(authStore));
+const chipTitle = computed(() =>
+	authStore.displayName && authStore.displayName !== authStore.username
+		? `${authStore.displayName} (${authStore.username})`
+		: authStore.username,
+);
 const isMenuOpen = ref(false);
 const isScrolled = ref(false);
 const logoSrc = resolveAsset("public/assets/images/favicon.png");

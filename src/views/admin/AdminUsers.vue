@@ -41,7 +41,7 @@
 						<span v-if="contactLine(admin)" class="user-handle">{{ contactLine(admin) }}</span>
 						<span class="user-tags">
 							<el-tag v-if="admin.id === authStore.adminId" size="small" effect="plain">You</el-tag>
-							<el-tag v-if="admin.must_change_password" size="small" type="warning">Awaiting password change</el-tag>
+							<el-tag v-if="admin.must_change_password" size="small" type="warning">Awaiting email verification</el-tag>
 							<el-tag v-else-if="!admin.is_active" size="small" type="info">Disabled</el-tag>
 						</span>
 					</div>
@@ -71,8 +71,8 @@
 				</div>
 
 				<div class="user-actions">
-					<el-button v-if="canEdit(admin)" size="small" @click="openEdit(admin)">
-						<el-icon class="me-1"><Key /></el-icon>{{ admin.id === authStore.adminId ? "My profile" : "Edit" }}
+					<el-button v-if="admin.id === authStore.adminId" size="small" @click="router.push({ name: 'admin-profile' })">
+						<el-icon class="me-1"><Key /></el-icon>My profile
 					</el-button>
 					<el-button
 						v-if="canManage"
@@ -113,7 +113,7 @@
 			:before-close="closeDialog"
 		>
 			<el-form ref="formRef" :model="form" :rules="rules" label-position="top" class="admin-form-grid" @submit.prevent>
-				<el-form-item label="Profile picture" class="span-2">
+				<el-form-item v-if="editingAdmin" label="Profile picture" class="span-2">
 					<ImageUploadField
 						v-model:pending-file="pendingPhoto"
 						v-model:pending-link="pendingLink"
@@ -171,29 +171,13 @@
 				<el-form-item label="Username" prop="username">
 					<el-input v-model="form.username" autocomplete="off" />
 				</el-form-item>
-				<template v-if="editingAdmin">
-					<el-form-item label="New password (leave blank to keep it)" prop="password">
-						<el-input v-model="form.password" type="password" show-password autocomplete="new-password" />
-					</el-form-item>
-					<el-form-item label="Confirm password" prop="confirm" class="span-2">
-						<el-input v-model="form.confirm" type="password" show-password autocomplete="new-password" />
-					</el-form-item>
-					<el-alert
-						v-if="form.password"
-						class="span-2"
-						type="info"
-						:closable="false"
-						show-icon
-						title="Changing the password signs this admin out and emails them that it changed."
-					/>
-				</template>
 				<el-alert
-					v-else
+					v-if="!editingAdmin"
 					class="span-2"
 					type="info"
 					:closable="false"
 					show-icon
-					title="A default password is generated and emailed with this address. The account stays off until they sign in and change it."
+					title="A default password is emailed. The account stays off until that admin verifies the email and sets their own password. You cannot edit or activate it for them."
 				/>
 
 				<div v-if="!editingAdmin" class="span-2">
@@ -239,6 +223,7 @@ import { accessLabel as describeAccess, buildIndex, emptyTree } from "@/utils/pe
 import { useIsPhone } from "@/utils/viewport";
 import { useAuthStore } from "@/store/authStore";
 import { Permission, Routes } from "@/utils/constants";
+import { contactNumberError } from "@/utils/contactNumber";
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -249,8 +234,6 @@ const canCreate = computed(() => authStore.can(Permission.ADMINS_CREATE));
 const canUpdate = computed(() => authStore.can(Permission.ADMINS_UPDATE));
 const canDelete = computed(() => authStore.can(Permission.ADMINS_DELETE));
 const canManage = computed(() => authStore.can(Permission.PERMISSIONS_MANAGE));
-const canEdit = (admin) => canUpdate.value || admin.id === authStore.adminId;
-
 const admins = ref([]);
 const tree = ref(emptyTree());
 const index = computed(() => buildIndex(tree.value));
@@ -403,9 +386,8 @@ const rules = {
 			validator: (_rule, value, callback) => {
 				const number = (value || "").trim();
 				const hasCode = Boolean(form.phone_country_id);
-				if (!number || !hasCode) return callback(new Error("Enter both a country code and a contact number"));
-				if (!/^\d{6,15}$/.test(number)) return callback(new Error("Enter 6–15 digits, without spaces"));
-				return callback();
+				const problem = contactNumberError(number, hasCode);
+				return problem ? callback(new Error(problem)) : callback();
 			},
 			trigger: "blur",
 		},
@@ -511,8 +493,12 @@ const save = async () => {
 	let action;
 	if (editing) {
 		const payload = { ...profile };
+		if (editing.id !== authStore.adminId) {
+			saving.value = false;
+			ElMessage.error("You can change only your own profile. Use the profile page.");
+			return;
+		}
 		if (form.username.trim() !== editing.username) payload.username = form.username.trim();
-		if (form.password) payload.password = form.password;
 		if (emailChanged.value) {
 			if (!/^\d{6}$/.test(form.email_code)) {
 				saving.value = false;
@@ -532,7 +518,9 @@ const save = async () => {
 	}
 	const { ok, result } = await runAction(
 		action,
-		editing ? "Admin updated" : "Admin created. The temporary password was emailed and the account stays off until they change it.",
+		editing
+			? "Admin updated"
+			: "Admin created. The temporary password was emailed. The account activates after they verify their email and set a password.",
 	);
 	let pictureOk = true;
 	if (ok && !editing && (pendingPhoto.value || pendingLink.value)) {

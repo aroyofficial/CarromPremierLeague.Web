@@ -75,6 +75,7 @@ const AdminSections = Object.freeze([
 		permissions: [Permission.PERMISSIONS_MANAGE],
 	},
 	{ name: "admin-settings", path: "settings", label: "Settings", icon: "Setting", permissions: [Permission.SETTINGS_UPDATE] },
+	{ name: "admin-profile", path: "profile", label: "Profile", icon: "Avatar", permissions: [] },
 ]);
 
 const NavItems = Object.freeze([

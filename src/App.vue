@@ -50,6 +50,8 @@ const onStorage = (event) => {
 	if (!event.newValue) {
 		authStore.token = null;
 		authStore.username = null;
+		authStore.firstName = "";
+		authStore.lastName = "";
 		authStore.adminId = null;
 		authStore.permissions = [];
 		authStore.mustChangePassword = false;

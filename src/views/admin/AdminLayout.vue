@@ -1,12 +1,12 @@
 <template>
 	<div v-if="authStore.mustChangePassword" class="admin-activate">
-		<ActivateAccount />
+		<ActivateAccount @done="router.push(Routes.LOGIN)" />
 	</div>
 	<div v-else class="admin-shell">
 		<aside class="admin-sidebar" :class="{ 'is-open': sidebarOpen }">
 			<div class="sidebar-head">
 				<span class="page-eyebrow">Admin Console</span>
-				<strong>{{ authStore.username }}</strong>
+				<strong :title="authStore.username">{{ authStore.displayName }}</strong>
 			</div>
 			<nav class="sidebar-nav" aria-label="Admin sections">
 				<router-link
@@ -52,6 +52,7 @@
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import {
+	Avatar,
 	Calendar,
 	Connection,
 	DataBoard,
@@ -74,7 +75,7 @@ import { AdminSections, Routes } from "@/utils/constants";
 import { useAuthStore } from "@/store/authStore";
 import { useSettingsStore } from "@/store/settingsStore";
 
-const icons = { Calendar, Connection, DataBoard, Flag, Location, Lock, Picture, Setting, Trophy, User, UserFilled };
+const icons = { Avatar, Calendar, Connection, DataBoard, Flag, Location, Lock, Picture, Setting, Trophy, User, UserFilled };
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -124,8 +125,8 @@ const logout = () => {
 }
 
 .admin-activate form {
-	width: min(420px, 100%);
-	padding: 28px;
+	width: min(460px, 100%);
+	padding: clamp(24px, 5vw, 40px);
 	background: #fff;
 	border: 1px solid var(--cpl-line);
 	border-radius: var(--cpl-radius-lg);

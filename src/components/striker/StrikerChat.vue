@@ -256,7 +256,7 @@ const subtitle = computed(() =>
 );
 const greeting = computed(() => {
 	if (props.mode !== "admin") return "Hi, I'm Striker!";
-	return authStore.username ? `Hi ${authStore.username}, I'm Striker.` : "Hi, I'm Striker.";
+	return authStore.greetingName ? `Hi ${authStore.greetingName}, I'm Striker.` : "Hi, I'm Striker.";
 });
 const intro = computed(() =>
 	props.mode === "admin"

@@ -46,4 +46,52 @@ export const authService = {
 	async resetPassword(username, code, password) {
 		return await api.post("auth/reset-password", { username, code, password });
 	},
+
+	async passwordCode() {
+		return await api.post("auth/password-code");
+	},
+
+	async mfaStatus() {
+		return await api.get("auth/mfa");
+	},
+
+	async mfaEmailCode(mfaToken) {
+		return await api.post("auth/mfa/email-code", { mfa_token: mfaToken });
+	},
+
+	async mfaPasskeyOptions(mfaToken) {
+		return await api.post("auth/mfa/passkey-options", { mfa_token: mfaToken });
+	},
+
+	async verifyMfa(payload) {
+		return await api.post("auth/mfa/verify", payload);
+	},
+
+	async setEmailFactor(enabled) {
+		return await api.put("auth/mfa/email", { enabled });
+	},
+
+	async startTotp() {
+		return await api.post("auth/mfa/totp");
+	},
+
+	async confirmTotp(code) {
+		return await api.post("auth/mfa/totp/confirm", { code });
+	},
+
+	async removeTotp() {
+		return await api.delete("auth/mfa/totp");
+	},
+
+	async passkeySetupOptions() {
+		return await api.post("auth/mfa/passkeys/options");
+	},
+
+	async savePasskey(payload) {
+		return await api.post("auth/mfa/passkeys", payload);
+	},
+
+	async removePasskey(id) {
+		return await api.delete(`auth/mfa/passkeys/${id}`);
+	},
 };
