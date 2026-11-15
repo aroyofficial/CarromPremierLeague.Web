@@ -337,6 +337,7 @@ const load = async () => {
 
 const pictureChanged = (admin) => {
 	avatar.value = admin?.avatar_url || "";
+	authStore.avatarUrl = avatar.value;
 	if (account.value) account.value = { ...account.value, avatar_url: avatar.value || null };
 };
 

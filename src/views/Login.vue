@@ -106,19 +106,25 @@
 						</template>
 					</div>
 
-					<div v-else-if="view === 'signed-in'" class="panel-body signed-in">
+					<div v-else-if="view === 'signed-in' || view === 'session'" class="panel-body signed-in">
 						<div class="account-chip">
-							<span class="avatar" aria-hidden="true">{{ initials }}</span>
+							<span class="avatar" aria-hidden="true">
+								<img v-if="authStore.avatarUrl" :src="authStore.avatarUrl" alt="" />
+								<template v-else>{{ initials }}</template>
+							</span>
 							<div>
 								<span class="chip-label">Signed in as</span>
-								<strong>{{ authStore.username }}</strong>
+								<strong>{{ authStore.displayName || authStore.username }}</strong>
 							</div>
 						</div>
-						<el-button type="primary" size="large" class="w-100 submit-btn" @click="router.push(Routes.ADMIN)">
-							Open admin console<el-icon class="ms-2"><Right /></el-icon>
-						</el-button>
-						<el-button size="large" class="w-100 mt-2 ms-0" @click="logout">Log out</el-button>
-						<p class="fine-print">Logging out ends the session on this device only.</p>
+						<template v-if="view === 'signed-in'">
+							<el-button type="primary" size="large" class="w-100 submit-btn" @click="router.push(Routes.ADMIN)">
+								Open admin console<el-icon class="ms-2"><Right /></el-icon>
+							</el-button>
+							<el-button size="large" class="w-100 mt-2 ms-0" @click="logout">Log out</el-button>
+							<p class="fine-print">Logging out ends the session on this device only.</p>
+						</template>
+						<p v-else class="fine-print">Confirming this session…</p>
 					</div>
 
 					<el-form
@@ -187,7 +193,8 @@
 						<el-alert v-if="recoverError" :title="recoverError" type="error" show-icon class="mb-3" role="alert" @close="recoverError = ''" />
 						<p class="ticket-note">
 							<el-icon aria-hidden="true"><CircleCheckFilled /></el-icon>
-							Code accepted. Choose a new password within {{ formatDuration(ticketLeft) }}.
+							<span>Email verified</span>
+							<span class="ticket-time">{{ formatDuration(ticketLeft) }} left</span>
 						</p>
 						<NewPasswordFields
 							v-model:password="forgot.password"
@@ -318,6 +325,7 @@ const notice = ref("");
 const recoverError = ref("");
 const recoverNotice = ref("");
 const step = ref("login");
+const leaving = ref(false);
 const resetting = ref(false);
 const capsLock = ref(false);
 const waitStatus = ref("Waiting for the other device…");
@@ -360,10 +368,13 @@ const resetRules = {
 };
 
 const view = computed(() => {
-	const settled = authStore.isAuthenticated && !authStore.loading;
-	if (settled && authStore.mustChangePassword) return "activate";
 	if (step.value === "wait") return "wait";
-	if (settled) return "signed-in";
+	if (leaving.value) return ["forgot", "reset", "newpass", "mfa"].includes(step.value) ? step.value : "login";
+	if (authStore.isAuthenticated) {
+		if (!authStore.profileLoaded) return "session";
+		if (authStore.mustChangePassword) return "activate";
+		return "signed-in";
+	}
 	if (["forgot", "reset", "newpass", "mfa"].includes(step.value)) return step.value;
 	return "login";
 });
@@ -425,13 +436,14 @@ const header = computed(() => {
 						title: "Sign-in not approved",
 						text: "",
 					};
+		case "session":
 		case "signed-in":
 			return {
 				icon: UserFilled,
 				tone: "navy",
 				eyebrow: "Admin console",
 				title: "You're already signed in",
-				text: "Continue to the console or log out to switch accounts.",
+				text: view.value === "session" ? "Confirming this session…" : "Continue to the console or log out to switch accounts.",
 			};
 		default:
 			return {
@@ -604,6 +616,15 @@ watch(ticketLeft, (left) => {
 	if (step.value === "newpass" && forgot.deadline && left === 0) ticketExpired();
 });
 
+const goIn = async () => {
+	leaving.value = true;
+	try {
+		await router.push(safeRedirect());
+	} catch {
+		leaving.value = false;
+	}
+};
+
 const safeRedirect = () =>
 	appRedirect(route.query.redirect, (path) => {
 		const resolved = router.resolve(path);
@@ -629,7 +650,7 @@ const submit = async () => {
 			step.value = "mfa";
 			return;
 		}
-		router.push(safeRedirect());
+		await goIn();
 	} catch (error) {
 		form.password = "";
 		await nextTick();
@@ -647,7 +668,7 @@ const finishMfa = async (data) => {
 	}
 	await authStore.adopt(data.access_token, form.username);
 	step.value = "login";
-	router.push(safeRedirect());
+	await goIn();
 };
 
 const startWait = (requestId) => {
@@ -679,7 +700,7 @@ const pollClaim = (requestId) => {
 			waitStatus.value = "Approved. Signing you in…";
 			await authStore.adopt(response.data.access_token, form.username);
 			step.value = "login";
-			router.push(safeRedirect());
+			await goIn();
 		} catch (error) {
 			failWait(error?.detail || error?.message || "The other device did not approve this sign-in.");
 		}
@@ -1007,14 +1028,17 @@ const logout = () => {
 .ticket-note {
 	display: flex;
 	align-items: center;
-	gap: 8px;
-	margin: 0 0 16px;
-	padding: 10px 12px;
-	border-radius: var(--cpl-radius-md);
-	background: #f4fbf6;
+	gap: 6px;
+	margin: 0 0 18px;
 	color: #17643a;
-	font-size: 14px;
+	font-size: 13px;
 	font-weight: 600;
+}
+
+.ticket-time {
+	margin-left: auto;
+	color: var(--cpl-ink-600);
+	font-weight: 500;
 	font-variant-numeric: tabular-nums;
 }
 
@@ -1238,9 +1262,16 @@ const logout = () => {
 	border-radius: 50%;
 	display: grid;
 	place-items: center;
+	overflow: hidden;
 	font-weight: 800;
 	color: var(--cpl-navy-900);
 	background: linear-gradient(135deg, var(--cpl-gold-400), var(--cpl-gold-500));
+
+	img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
 }
 
 @media (min-width: 1200px) {

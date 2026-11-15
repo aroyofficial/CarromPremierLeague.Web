@@ -40,9 +40,11 @@ const showPublicAssistant = computed(
 );
 
 const onSessionExpired = () => {
-	authStore.logout();
+	authStore.dropLocal();
 	ElMessage.warning("Your admin session has expired. Please sign in again.");
-	if (route.path !== Routes.HOME) router.push(Routes.HOME);
+	// The login page stays put, so "You're already signed in" is not replaced by the public site.
+	if (route.path === Routes.LOGIN || route.path === Routes.HOME) return;
+	router.push(Routes.HOME);
 };
 
 const onStorage = (event) => {

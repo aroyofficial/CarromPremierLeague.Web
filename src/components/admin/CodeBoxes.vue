@@ -108,13 +108,15 @@ onMounted(() => focusAt(0));
 <style scoped>
 .code-boxes {
 	display: flex;
-	justify-content: space-between;
-	gap: 8px;
+	justify-content: center;
+	gap: 10px;
+	width: fit-content;
+	max-width: 100%;
 }
 
 .box {
-	width: 100%;
-	max-width: 48px;
+	flex: 0 0 48px;
+	width: 48px;
 	height: 52px;
 	border: 1.5px solid var(--cpl-line, #d9d3c5);
 	border-radius: 12px;
@@ -134,5 +136,18 @@ onMounted(() => focusAt(0));
 .box:disabled {
 	background: #f4f1ea;
 	color: var(--cpl-ink-600, #667);
+}
+
+@media (max-width: 380px) {
+	.code-boxes {
+		gap: 6px;
+	}
+
+	.box {
+		flex-basis: 42px;
+		width: 42px;
+		height: 48px;
+		font-size: 20px;
+	}
 }
 </style>

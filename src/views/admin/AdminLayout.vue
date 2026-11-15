@@ -5,7 +5,10 @@
 	<div v-else class="admin-shell" :class="{ 'is-expanded': expanded, 'is-phone': phone }">
 		<aside id="admin-sidebar" class="admin-sidebar" aria-label="Admin console">
 			<div class="sidebar-head">
-				<span class="sidebar-avatar" aria-hidden="true">{{ userInitial }}</span>
+				<span class="sidebar-avatar" aria-hidden="true">
+					<img v-if="authStore.avatarUrl" :src="authStore.avatarUrl" alt="" @error="authStore.avatarUrl = ''" />
+					<template v-else>{{ userInitial }}</template>
+				</span>
 				<span class="sidebar-who">
 					<span class="page-eyebrow">Admin Console</span>
 					<strong :title="authStore.username">{{ authStore.displayName }}</strong>
@@ -225,13 +228,13 @@ body:has(.admin-shell) .el-message-box {
 		radial-gradient(120% 40% at 0% 0%, rgba(255, 201, 74, 0.12), transparent 60%),
 		var(--cpl-navy-900);
 	color: #fff;
-	overflow: hidden;
+	overflow: visible;
 }
 
 .sidebar-head {
 	flex: 0 0 auto;
 	display: grid;
-	grid-template-columns: 40px minmax(0, 1fr) auto;
+	grid-template-columns: 40px minmax(0, 1fr);
 	align-items: center;
 	gap: 10px;
 	padding: 0 2px 14px;
@@ -248,10 +251,17 @@ body:has(.admin-shell) .el-message-box {
 	border-radius: 50%;
 	display: grid;
 	place-items: center;
+	overflow: hidden;
 	background: linear-gradient(160deg, #ffe7a8, #e2a01a);
 	color: var(--cpl-navy-900);
 	font-weight: 800;
 	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+
+	img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
 }
 
 .sidebar-who {
@@ -268,19 +278,26 @@ body:has(.admin-shell) .el-message-box {
 }
 
 .sidebar-collapse {
+	position: absolute;
+	top: 36px;
+	right: 0;
+	z-index: 2;
 	width: 32px;
 	height: 32px;
 	display: grid;
 	place-items: center;
-	border: 1px solid rgba(255, 255, 255, 0.16);
-	border-radius: 10px;
-	background: rgba(255, 255, 255, 0.06);
-	color: #fff;
+	padding: 6px;
+	border: 1px solid var(--cpl-line);
+	border-radius: 50%;
+	background: #fff;
+	color: var(--cpl-navy-900);
+	box-shadow: 0 4px 12px rgba(11, 20, 38, 0.28);
+	transform: translate(50%, -50%);
 	cursor: pointer;
 
 	&:hover {
-		background: rgba(255, 255, 255, 0.14);
-		color: var(--cpl-gold-400);
+		background: var(--cpl-gold-100);
+		color: var(--cpl-navy-900);
 	}
 
 	&:focus-visible {
@@ -326,13 +343,39 @@ body:has(.admin-shell) .el-message-box {
 .sidebar-nav {
 	flex: 1 1 auto;
 	min-height: 0;
+	min-width: 0;
 	display: flex;
 	flex-direction: column;
 	gap: 4px;
+	overflow-x: hidden;
 	overflow-y: auto;
 	overscroll-behavior: contain;
 	scrollbar-width: thin;
-	scrollbar-color: rgba(255, 255, 255, 0.35) transparent;
+	scrollbar-color: rgba(255, 255, 255, 0.45) transparent;
+
+	&::-webkit-scrollbar {
+		width: 6px;
+		height: 0;
+	}
+
+	&::-webkit-scrollbar-button {
+		display: none;
+		width: 0;
+		height: 0;
+	}
+
+	&::-webkit-scrollbar-track {
+		background: transparent;
+	}
+
+	&::-webkit-scrollbar-thumb {
+		border-radius: 999px;
+		background: rgba(255, 255, 255, 0.28);
+	}
+
+	&::-webkit-scrollbar-thumb:hover {
+		background: rgba(255, 209, 102, 0.85);
+	}
 }
 
 .sidebar-link {

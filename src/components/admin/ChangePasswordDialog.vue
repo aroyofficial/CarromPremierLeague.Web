@@ -2,7 +2,7 @@
 	<el-dialog
 		:model-value="modelValue"
 		class="change-password-dialog"
-		width="min(640px, 94vw)"
+		width="min(520px, 94vw)"
 		align-center
 		append-to-body
 		:close-on-click-modal="false"
@@ -13,19 +13,12 @@
 		@open="reset"
 	>
 		<template #header>
-			<span class="page-eyebrow">My profile · Sign-in</span>
+			<span class="page-eyebrow">Change password · Step {{ stepIndex + 1 }} of 3</span>
 			<h2 id="change-password-title" class="dialog-title">{{ titles[step] }}</h2>
+			<div class="progress" aria-hidden="true">
+				<span v-for="index in 3" :key="index" :class="{ 'is-on': index <= stepIndex + 1 }"></span>
+			</div>
 		</template>
-
-		<ol class="stepper" aria-label="Steps">
-			<li v-for="(label, index) in stepLabels" :key="label" :class="stepClass(index)" :aria-current="index === stepIndex ? 'step' : undefined">
-				<span class="dot" aria-hidden="true">
-					<el-icon v-if="index < stepIndex"><Check /></el-icon>
-					<template v-else>{{ index + 1 }}</template>
-				</span>
-				<span>{{ label }}</span>
-			</li>
-		</ol>
 
 		<el-alert v-if="errorMessage" :title="errorMessage" type="error" show-icon class="mb-3" role="alert" @close="errorMessage = ''" />
 
@@ -63,9 +56,10 @@
 			autocomplete="on"
 			@submit.prevent="submit"
 		>
-			<p class="intro verified">
+			<p class="verified">
 				<el-icon aria-hidden="true"><CircleCheckFilled /></el-icon>
-				Code accepted. Choose a new password within {{ formatDuration(ticketLeft) }}.
+				<span>Email verified</span>
+				<span class="verified-time" :title="`Choose a password within ${formatDuration(ticketLeft)}`">{{ formatDuration(ticketLeft) }} left</span>
 			</p>
 			<NewPasswordFields
 				v-model:password="form.password"
@@ -74,8 +68,8 @@
 				:username="username"
 				:disabled="busy"
 			/>
-			<p class="hint">Saving signs you out everywhere, including here. Sign in again with the new password.</p>
 			<div class="actions end">
+				<p class="footnote">You'll be signed out on every device, including this one.</p>
 				<el-button :disabled="busy" @click="close(false)">Cancel</el-button>
 				<el-button type="primary" native-type="submit" :loading="saving" :disabled="busy || !ready">Change password</el-button>
 			</div>
@@ -96,7 +90,7 @@
 
 <script setup>
 import { computed, onUnmounted, reactive, ref, watch } from "vue";
-import { Check, CircleCheckFilled, Message } from "@element-plus/icons-vue";
+import { CircleCheckFilled, Message } from "@element-plus/icons-vue";
 import CodeBoxes from "@/components/admin/CodeBoxes.vue";
 import NewPasswordFields from "@/components/admin/NewPasswordFields.vue";
 import { authService } from "@/services/authService";
@@ -115,7 +109,6 @@ const props = defineProps({
 const emit = defineEmits(["update:modelValue", "changed"]);
 
 const titles = { verify: "Confirm it's you", password: "Choose a new password", done: "Password changed" };
-const stepLabels = ["Email code", "New password", "Done"];
 const step = ref("verify");
 const code = ref("");
 const ticket = ref("");
@@ -158,8 +151,6 @@ const rules = {
 		},
 	],
 };
-
-const stepClass = (index) => ({ "is-done": index < stepIndex.value, "is-active": index === stepIndex.value });
 
 const reset = () => {
 	step.value = "verify";
@@ -258,66 +249,6 @@ onUnmounted(() => window.clearInterval(clock));
 	color: var(--cpl-ink-900);
 }
 
-.stepper {
-	list-style: none;
-	display: grid;
-	grid-template-columns: repeat(3, minmax(0, 1fr));
-	gap: 8px;
-	margin: 0 0 18px;
-	padding: 0;
-}
-
-.stepper li {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	padding: 8px 10px;
-	border-radius: 12px;
-	border: 1px solid var(--cpl-line);
-	color: var(--cpl-ink-400);
-	font-size: 13px;
-	font-weight: 600;
-	min-width: 0;
-}
-
-.stepper li > span:last-child {
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-
-.stepper .dot {
-	flex: none;
-	width: 24px;
-	height: 24px;
-	border-radius: 50%;
-	display: grid;
-	place-items: center;
-	font-size: 12px;
-	background: var(--cpl-surface-muted);
-}
-
-.stepper .is-active {
-	border-color: var(--cpl-gold-500);
-	background: var(--cpl-gold-100);
-	color: var(--cpl-ink-900);
-}
-
-.stepper .is-active .dot {
-	background: var(--cpl-gold-500);
-	color: var(--cpl-navy-900);
-}
-
-.stepper .is-done {
-	color: var(--cpl-ink-900);
-	background: #f4fbf6;
-}
-
-.stepper .is-done .dot {
-	background: #1f9d55;
-	color: #fff;
-}
-
 .pane {
 	display: block;
 }
@@ -333,17 +264,46 @@ onUnmounted(() => window.clearInterval(clock));
 	color: var(--cpl-ink-900);
 }
 
+.progress {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 6px;
+	margin-top: 14px;
+}
+
+.progress span {
+	height: 3px;
+	border-radius: 999px;
+	background: var(--cpl-line);
+	transition: background 0.2s ease;
+}
+
+.progress .is-on {
+	background: var(--cpl-gold-500);
+}
+
 .verified {
 	display: flex;
 	align-items: center;
-	gap: 8px;
-	padding: 10px 12px;
-	border-radius: 12px;
-	background: #f4fbf6;
+	gap: 6px;
+	margin: 0 0 18px;
 	color: #17643a;
-	font-size: 14px;
+	font-size: 13px;
 	font-weight: 600;
+}
+
+.verified-time {
+	margin-left: auto;
+	color: var(--cpl-ink-600);
+	font-weight: 500;
 	font-variant-numeric: tabular-nums;
+}
+
+.footnote {
+	flex: 1 1 200px;
+	margin: 0;
+	font-size: 12px;
+	color: var(--cpl-ink-600);
 }
 
 .code-label {
@@ -414,13 +374,12 @@ onUnmounted(() => window.clearInterval(clock));
 }
 
 @media (max-width: 480px) {
-	.stepper li {
-		justify-content: center;
-		padding: 8px 6px;
+	.footnote {
+		flex-basis: 100%;
 	}
 
-	.stepper li > span:last-child {
-		display: none;
+	.actions.end :deep(.el-button) {
+		flex: 1 1 0;
 	}
 
 	.actions:not(.end) {

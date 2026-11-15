@@ -15,6 +15,7 @@ export const useAuthStore = defineStore("auth", {
 		username: authToken.getUser(),
 		firstName: authToken.getNames().firstName,
 		lastName: authToken.getNames().lastName,
+		avatarUrl: "",
 		adminId: null,
 		permissions: [],
 		mustChangePassword: false,
@@ -84,6 +85,7 @@ export const useAuthStore = defineStore("auth", {
 						this.username = admin.username || this.username;
 						this.firstName = admin.first_name || "";
 						this.lastName = admin.last_name || "";
+						this.avatarUrl = admin.avatar_url || "";
 						authToken.setNames(this.firstName, this.lastName);
 						this.permissions = Array.isArray(admin.permissions) ? admin.permissions : [];
 						this.mustChangePassword = Boolean(admin.must_change_password);
@@ -121,6 +123,7 @@ export const useAuthStore = defineStore("auth", {
 			this.username = null;
 			this.firstName = "";
 			this.lastName = "";
+			this.avatarUrl = "";
 			this.adminId = null;
 			this.permissions = [];
 			this.mustChangePassword = false;
@@ -143,6 +146,7 @@ export const useAuthStore = defineStore("auth", {
 			this.username = null;
 			this.firstName = "";
 			this.lastName = "";
+			this.avatarUrl = "";
 			this.adminId = null;
 			this.permissions = [];
 			this.mustChangePassword = false;

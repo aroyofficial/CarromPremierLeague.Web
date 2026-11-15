@@ -12,25 +12,11 @@
 			readonly
 		/>
 
-		<div class="password-head">
-			<label :for="`${uid}-password`" class="password-label">New password</label>
-			<div class="password-tools">
-				<button type="button" class="tool" :disabled="disabled" @click="generate">
-					<el-icon aria-hidden="true"><MagicStick /></el-icon>Generate
-				</button>
-				<button type="button" class="tool" :disabled="disabled || !password" @click="copy">
-					<el-icon aria-hidden="true"><DocumentCopy /></el-icon>{{ copied ? "Copied" : "Copy" }}
-				</button>
-				<button
-					type="button"
-					class="tool"
-					:aria-pressed="reveal"
-					:disabled="disabled"
-					@click="reveal = !reveal"
-				>
-					<el-icon aria-hidden="true"><View v-if="!reveal" /><Hide v-else /></el-icon>{{ reveal ? "Hide" : "Show" }}
-				</button>
-			</div>
+		<div class="field-head">
+			<label :for="`${uid}-password`" class="field-label">New password</label>
+			<button type="button" class="suggest" :disabled="disabled" @click="generate">
+				<el-icon aria-hidden="true"><MagicStick /></el-icon>Generate
+			</button>
 		</div>
 		<el-form-item :prop="passwordProp" class="password-item">
 			<el-input
@@ -39,61 +25,86 @@
 				:type="reveal ? 'text' : 'password'"
 				name="new-password"
 				autocomplete="new-password"
-				:prefix-icon="Lock"
 				placeholder="At least 12 characters"
 				:disabled="disabled"
-				:aria-describedby="`${uid}-strength ${uid}-checks`"
-				@update:model-value="$emit('update:password', $event)"
-			/>
+				:aria-describedby="`${uid}-meter ${uid}-rules`"
+				:class="{ 'is-revealed': reveal }"
+				@update:model-value="setPassword"
+			>
+				<template #suffix>
+					<button
+						v-if="reveal && password"
+						type="button"
+						class="field-icon"
+						:aria-label="copied ? 'Copied' : 'Copy password'"
+						:title="copied ? 'Copied' : 'Copy'"
+						:disabled="disabled"
+						@click="copy"
+					>
+						<el-icon><Check v-if="copied" /><DocumentCopy v-else /></el-icon>
+					</button>
+					<button
+						type="button"
+						class="field-icon"
+						:aria-label="reveal ? 'Hide password' : 'Show password'"
+						:aria-pressed="reveal"
+						:title="reveal ? 'Hide' : 'Show'"
+						:disabled="disabled"
+						@click="toggleReveal"
+					>
+						<el-icon><Hide v-if="reveal" /><View v-else /></el-icon>
+					</button>
+				</template>
+			</el-input>
 		</el-form-item>
 
-		<div :id="`${uid}-strength`" class="strength" :data-score="strength.score" aria-live="polite">
-			<div class="strength-bar" aria-hidden="true">
-				<span v-for="index in 5" :key="index" :class="{ 'is-on': index <= strength.score }"></span>
+		<div :id="`${uid}-meter`" class="meter" :data-score="strength.score" aria-live="polite">
+			<div class="meter-track" aria-hidden="true">
+				<span class="meter-fill" :style="{ width: `${(strength.score / 5) * 100}%` }"></span>
 			</div>
-			<div class="strength-text">
-				<strong>{{ strength.label || "Password strength" }}</strong>
-				<span>{{ tip }}</span>
-			</div>
+			<p class="meter-text">
+				<span class="meter-tip">{{ tip }}</span>
+				<strong v-if="strength.label" class="meter-label">{{ strength.label }}</strong>
+			</p>
 		</div>
+		<ul :id="`${uid}-rules`" class="visually-hidden">
+			<li v-for="check in checks" :key="check.id">{{ check.label }}: {{ check.met ? "done" : "not yet" }}</li>
+		</ul>
 
-		<el-form-item label="Confirm password" :prop="confirmProp">
+		<el-form-item v-if="!reveal" label="Confirm password" :prop="confirmProp" class="confirm-item">
 			<el-input
 				:model-value="confirm"
-				:type="reveal ? 'text' : 'password'"
+				type="password"
 				name="confirm-password"
 				autocomplete="new-password"
-				:prefix-icon="Lock"
 				placeholder="Type it again"
 				:disabled="disabled"
 				@update:model-value="$emit('update:confirm', $event)"
-			/>
+			>
+				<template #suffix>
+					<el-icon v-if="matches" class="match-icon" aria-label="Passwords match"><CircleCheckFilled /></el-icon>
+				</template>
+			</el-input>
 		</el-form-item>
 
-		<ul :id="`${uid}-checks`" class="checks" aria-label="Password rules">
-			<li v-for="check in checks" :key="check.id" :class="{ 'is-met': check.met, 'is-optional': !check.required }">
-				<el-icon aria-hidden="true"><CircleCheckFilled v-if="check.met" /><CircleClose v-else /></el-icon>
-				<span>{{ check.label }}</span>
-				<span class="visually-hidden">{{ check.met ? "done" : check.required ? "required" : "suggested" }}</span>
-			</li>
-		</ul>
-
-		<label v-if="offerSave" class="save-option">
-			<el-checkbox :model-value="save" :disabled="disabled" @update:model-value="$emit('update:save', $event)" />
-			<span>
-				<strong>Save in this browser's password manager</strong>
-				<small>{{ saveNote }}</small>
-			</span>
-		</label>
+		<el-checkbox
+			v-if="offerSave"
+			class="save-option"
+			:model-value="save"
+			:disabled="disabled"
+			@update:model-value="$emit('update:save', $event)"
+		>
+			Save to this browser's password manager
+		</el-checkbox>
 		<p class="visually-hidden" aria-live="polite">{{ announcement }}</p>
 	</div>
 </template>
 
 <script setup>
 import { computed, ref } from "vue";
-import { CircleCheckFilled, CircleClose, DocumentCopy, Hide, Lock, MagicStick, View } from "@element-plus/icons-vue";
-import { passwordChecks, passwordStrength } from "@/utils/passwordRules";
-import { canStoreCredential, generatePassword } from "@/utils/passwordTools";
+import { Check, CircleCheckFilled, DocumentCopy, Hide, MagicStick, View } from "@element-plus/icons-vue";
+import { MIN_PASSWORD_LENGTH, passwordChecks, passwordStrength } from "@/utils/passwordRules";
+import { generatePassword } from "@/utils/passwordTools";
 
 const props = defineProps({
 	password: { type: String, default: "" },
@@ -113,28 +124,38 @@ const copied = ref(false);
 const announcement = ref("");
 const strength = computed(() => passwordStrength(props.password));
 const checks = computed(() => passwordChecks(props.password, props.confirm));
-const saveNote = canStoreCredential()
-	? "Your browser asks to save it after the change."
-	: "Your browser can offer to save it once the change goes through.";
+const matches = computed(() => Boolean(props.password) && props.password === props.confirm);
 
 const tip = computed(() => {
 	const value = props.password || "";
-	if (!value) return "Type one or press Generate for a strong random password.";
-	if (value.length < 12) return `${12 - value.length} more character${12 - value.length === 1 ? "" : "s"} needed.`;
-	if (!/[a-z]/.test(value) || !/[A-Z]/.test(value)) return "Mix upper and lower case letters.";
-	if (!/\d/.test(value)) return "Add a number.";
-	if (!/[^A-Za-z0-9]/.test(value)) return "Add a symbol.";
-	if (value.length < 16) return "Longer is stronger. 16 or more characters is best.";
-	return "Great password.";
+	const short = MIN_PASSWORD_LENGTH - value.length;
+	if (!value) return `Use ${MIN_PASSWORD_LENGTH} or more characters, or generate one.`;
+	if (short > 0) return `${short} more character${short === 1 ? "" : "s"}`;
+	if (!/[a-z]/.test(value) || !/[A-Z]/.test(value)) return "Add upper and lower case letters";
+	if (!/\d/.test(value)) return "Add a number";
+	if (!/[^A-Za-z0-9]/.test(value)) return "Add a symbol";
+	if (value.length < 16) return "16 or more characters is even better";
+	return "Good to go";
 });
+
+// A visible password needs no retyping, so the confirm field follows it.
+const setPassword = (value) => {
+	emit("update:password", value);
+	if (reveal.value) emit("update:confirm", value);
+};
+
+const toggleReveal = () => {
+	reveal.value = !reveal.value;
+	if (reveal.value) emit("update:confirm", props.password);
+};
 
 const generate = () => {
 	const value = generatePassword();
-	emit("update:password", value);
-	emit("update:confirm", value);
 	reveal.value = true;
 	copied.value = false;
-	announcement.value = "A strong password was generated and filled in both fields.";
+	emit("update:password", value);
+	emit("update:confirm", value);
+	announcement.value = "A strong password was generated and filled in.";
 };
 
 const copy = async () => {
@@ -147,166 +168,145 @@ const copy = async () => {
 		}, 2000);
 	} catch {
 		announcement.value = "The password could not be copied. Select it and copy it instead.";
-		reveal.value = true;
 	}
 };
 </script>
 
 <style scoped>
-.password-head {
+.field-head {
 	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
+	align-items: baseline;
 	justify-content: space-between;
-	gap: 6px 12px;
+	gap: 12px;
 	margin-bottom: 8px;
 }
 
-.password-label {
+.field-label {
 	font-size: 14px;
 	font-weight: 500;
 	color: var(--el-text-color-regular);
 }
 
-.password-tools {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 6px;
-}
-
-.tool {
+.suggest {
 	display: inline-flex;
 	align-items: center;
 	gap: 5px;
-	padding: 4px 10px;
-	border: 1px solid var(--cpl-line);
-	border-radius: 999px;
-	background: #fff;
+	padding: 0;
+	border: 0;
+	background: none;
 	color: var(--cpl-navy-700);
-	font-size: 12px;
+	font-size: 13px;
 	font-weight: 600;
 	cursor: pointer;
-	transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-.tool:hover:not(:disabled) {
-	border-color: var(--cpl-gold-500);
-	background: var(--cpl-gold-100);
+.suggest:hover:not(:disabled) {
+	text-decoration: underline;
+	text-underline-offset: 3px;
 }
 
-.tool:disabled {
+.suggest:disabled {
 	opacity: 0.5;
 	cursor: not-allowed;
 }
 
-.tool:focus-visible {
+.suggest:focus-visible,
+.field-icon:focus-visible {
 	outline: 2px solid var(--cpl-gold-500);
 	outline-offset: 2px;
+	border-radius: 4px;
 }
 
 .password-item {
-	margin-bottom: 12px;
+	margin-bottom: 8px;
 }
 
-.strength {
-	display: grid;
-	gap: 6px;
-	margin: 0 0 18px;
-	font-size: 12px;
-	color: var(--cpl-ink-600);
+.is-revealed :deep(.el-input__inner) {
+	font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+	letter-spacing: 0.02em;
 }
 
-.strength-bar {
-	display: grid;
-	grid-template-columns: repeat(5, 1fr);
-	gap: 4px;
-}
-
-.strength-bar span {
-	height: 6px;
-	border-radius: 999px;
-	background: var(--cpl-line);
-	transition: background 0.2s ease;
-}
-
-.strength-text {
-	display: flex;
-	flex-wrap: wrap;
-	justify-content: space-between;
-	gap: 4px 12px;
-}
-
-.strength-text strong {
-	color: var(--cpl-ink-900);
-}
-
-.strength[data-score="1"] .is-on { background: var(--cpl-red-500); }
-.strength[data-score="2"] .is-on { background: #f08c2e; }
-.strength[data-score="3"] .is-on { background: var(--cpl-gold-500); }
-.strength[data-score="4"] .is-on,
-.strength[data-score="5"] .is-on { background: #1f9d55; }
-
-.checks {
-	list-style: none;
-	margin: -4px 0 16px;
-	padding: 12px 14px;
-	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-	gap: 6px 14px;
-	background: var(--cpl-surface-muted);
-	border-radius: var(--cpl-radius-md);
-	font-size: 13px;
-	color: var(--cpl-ink-600);
-}
-
-.checks li {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-}
-
-.checks li .el-icon {
-	flex: none;
+.field-icon {
+	display: inline-grid;
+	place-items: center;
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	border: 0;
+	border-radius: 6px;
+	background: none;
 	color: var(--cpl-ink-400);
-}
-
-.checks li.is-met {
-	color: var(--cpl-ink-900);
-}
-
-.checks li.is-met .el-icon {
-	color: #1f9d55;
-}
-
-.checks li.is-optional:not(.is-met) {
-	opacity: 0.8;
-}
-
-.save-option {
-	display: flex;
-	align-items: flex-start;
-	gap: 10px;
-	margin: 0 0 18px;
-	padding: 10px 12px;
-	border: 1px solid var(--cpl-line);
-	border-radius: var(--cpl-radius-md);
+	font-size: 16px;
 	cursor: pointer;
 }
 
-.save-option :deep(.el-checkbox) {
-	height: auto;
-	margin-top: 1px;
+.field-icon:hover:not(:disabled) {
+	color: var(--cpl-navy-700);
+	background: var(--cpl-surface-muted);
 }
 
-.save-option span {
-	display: grid;
-	gap: 2px;
-	font-size: 13px;
-	color: var(--cpl-ink-900);
+.meter {
+	margin: 0 0 18px;
 }
 
-.save-option small {
-	color: var(--cpl-ink-600);
+.meter-track {
+	height: 4px;
+	border-radius: 999px;
+	background: var(--cpl-line);
+	overflow: hidden;
+}
+
+.meter-fill {
+	display: block;
+	height: 100%;
+	border-radius: inherit;
+	background: var(--cpl-ink-400);
+	transition: width 0.25s ease, background 0.25s ease;
+}
+
+.meter-text {
+	display: flex;
+	justify-content: space-between;
+	gap: 12px;
+	margin: 6px 0 0;
 	font-size: 12px;
+	color: var(--cpl-ink-600);
+}
+
+.meter-label {
+	flex: none;
+	font-weight: 700;
+}
+
+.meter[data-score="1"] .meter-fill { background: var(--cpl-red-500); }
+.meter[data-score="1"] .meter-label { color: var(--cpl-red-500); }
+.meter[data-score="2"] .meter-fill { background: #f08c2e; }
+.meter[data-score="2"] .meter-label { color: #c2610c; }
+.meter[data-score="3"] .meter-fill { background: var(--cpl-gold-500); }
+.meter[data-score="3"] .meter-label { color: #a16207; }
+.meter[data-score="4"] .meter-fill,
+.meter[data-score="5"] .meter-fill { background: #1f9d55; }
+.meter[data-score="4"] .meter-label,
+.meter[data-score="5"] .meter-label { color: #17643a; }
+
+.confirm-item {
+	margin-bottom: 14px;
+}
+
+.match-icon {
+	color: #1f9d55;
+	font-size: 16px;
+}
+
+.save-option {
+	height: auto;
+	margin: 0 0 18px;
+	white-space: normal;
+}
+
+.save-option :deep(.el-checkbox__label) {
+	font-size: 13px;
+	color: var(--cpl-ink-600);
+	line-height: 1.4;
 }
 </style>

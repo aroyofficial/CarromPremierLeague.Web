@@ -32,7 +32,7 @@
 			<button v-if="canSwitch" type="button" class="text-link" :disabled="locked" @click="backToChoices">
 				Use a different method
 			</button>
-			<el-button v-if="methods.includes('passkey') && method !== 'passkey'" class="w-100" :disabled="locked" @click="signInWithPasskey">
+			<el-button v-if="methods.includes('passkey') && !canSwitch" class="w-100" :disabled="locked" @click="signInWithPasskey">
 				Use a passkey
 			</el-button>
 		</div>
