@@ -3,7 +3,7 @@
 		<div class="admin-page-head">
 			<div>
 				<h1>Settings</h1>
-				<p>Match clock and Queen rules. The public site and match completion both use these values.</p>
+				<p>Match clock, Queen rules, and the Striker chatbot. The public site and match completion both use these values.</p>
 			</div>
 		</div>
 
@@ -28,6 +28,11 @@
 					<span>League Queen</span>
 					<strong>{{ queenHeadline }}</strong>
 					<small>{{ queenDetail }}</small>
+				</article>
+				<article class="preview-card">
+					<span>Striker</span>
+					<strong>{{ form.assistant_enabled ? "On" : "Off" }}</strong>
+					<small>{{ form.assistant_enabled ? "Visible on the site and in admin" : "Hidden, and it will not answer" }}</small>
 				</article>
 			</section>
 
@@ -115,6 +120,26 @@
 					</div>
 				</section>
 
+				<section class="admin-card setting-group">
+					<header class="group-head">
+						<h2>Striker</h2>
+						<p>Striker answers from league data. Turning it off hides it everywhere and stops it from answering.</p>
+					</header>
+
+					<div class="setting-row">
+						<div class="setting-copy">
+							<h3 id="assistant-label">Enable Striker chatbot</h3>
+							<p>Applies to the public site and the admin console. A confirmed change still needs this switch on.</p>
+						</div>
+						<el-switch
+							v-model="form.assistant_enabled"
+							class="setting-switch"
+							size="large"
+							aria-labelledby="assistant-label"
+						/>
+					</div>
+				</section>
+
 				<div class="save-bar">
 					<p :class="{ 'is-dirty': dirty }">{{ statusText }}</p>
 					<el-button type="primary" size="large" native-type="submit" :loading="saving" :disabled="!canSave">
@@ -140,6 +165,7 @@ const form = reactive({
 	extra_minutes: 5,
 	league_queen: false,
 	queen_needs_cover: false,
+	assistant_enabled: true,
 });
 
 const wholeNumber = (value, min, max) => Number.isInteger(value) && value >= min && value <= max;
@@ -153,7 +179,8 @@ const dirty = computed(
 		form.regulation_minutes !== settingsStore.regulation_minutes ||
 		form.extra_minutes !== settingsStore.extra_minutes ||
 		form.league_queen !== settingsStore.league_queen ||
-		(form.league_queen && form.queen_needs_cover) !== settingsStore.queen_needs_cover,
+		(form.league_queen && form.queen_needs_cover) !== settingsStore.queen_needs_cover ||
+		form.assistant_enabled !== settingsStore.assistant_enabled,
 );
 
 const canSave = computed(() => formValid.value && dirty.value && !saving.value);
@@ -179,6 +206,7 @@ const copyFromStore = () => {
 	form.extra_minutes = settingsStore.extra_minutes;
 	form.league_queen = settingsStore.league_queen;
 	form.queen_needs_cover = settingsStore.queen_needs_cover;
+	form.assistant_enabled = settingsStore.assistant_enabled;
 };
 
 const onLeagueQueenChange = (enabled) => {
@@ -207,6 +235,7 @@ const save = async () => {
 			extra_minutes: form.extra_minutes,
 			league_queen: form.league_queen,
 			queen_needs_cover: form.league_queen && form.queen_needs_cover,
+			assistant_enabled: form.assistant_enabled,
 		});
 		copyFromStore();
 		ElMessage.success("Settings saved.");
@@ -233,7 +262,7 @@ onMounted(load);
 
 .preview {
 	display: grid;
-	grid-template-columns: repeat(3, minmax(0, 1fr));
+	grid-template-columns: repeat(4, minmax(0, 1fr));
 	gap: 12px;
 }
 
@@ -394,11 +423,15 @@ onMounted(load);
 
 @media (max-width: 720px) {
 	.preview {
-		grid-template-columns: 1fr;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
 }
 
 @media (max-width: 575.98px) {
+	.preview {
+		grid-template-columns: 1fr;
+	}
+
 	.setting-group {
 		padding: 4px 12px 8px;
 	}

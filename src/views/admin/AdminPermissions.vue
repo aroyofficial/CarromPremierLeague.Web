@@ -142,6 +142,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from "vue";
 import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
+import { correctedQuery, matchingId } from "@/utils/queryState";
 import { ElMessageBox } from "element-plus";
 import { Search } from "@element-plus/icons-vue";
 import EntityImage from "@/components/EntityImage.vue";
@@ -225,9 +226,19 @@ const confirmDiscard = async () => {
 	}
 };
 
+const alignAdminQuery = () => {
+	if (route.query.admin == null) return;
+	if (String(route.query.admin) === String(selectedId.value ?? "")) return;
+	const next = correctedQuery(route.query, { admin: selectedId.value ?? null });
+	if (next) router.replace({ query: next });
+};
+
 const selectAdmin = async (id) => {
 	if (id === selectedId.value) return;
-	if (!(await confirmDiscard())) return;
+	if (!(await confirmDiscard())) {
+		alignAdminQuery();
+		return;
+	}
 	selectedId.value = id;
 	resetDraft();
 	router.replace({ query: { ...route.query, admin: String(id) } });
@@ -244,7 +255,10 @@ const load = async () => {
 		]);
 		tree.value = unwrap(treeResponse) || emptyTree();
 		admins.value = unwrap(adminsResponse) || [];
-		const wanted = Number(route.query.admin);
+		const wanted = matchingId(
+			route.query.admin,
+			admins.value.map((admin) => admin.id),
+		);
 		const initialAdmin =
 			admins.value.find((admin) => admin.id === wanted) ||
 			admins.value.find((admin) => admin.id === selectedId.value) ||
@@ -252,6 +266,7 @@ const load = async () => {
 			admins.value[0];
 		selectedId.value = initialAdmin?.id ?? null;
 		resetDraft();
+		alignAdminQuery();
 	} catch (error) {
 		loadError.value = apiErrorMessage(error, "The permissions could not be loaded.");
 	} finally {
@@ -278,10 +293,15 @@ const save = async () => {
 watch(
 	() => route.query.admin,
 	(value) => {
-		const id = Number(value);
-		if (id && id !== selectedId.value && admins.value.some((admin) => admin.id === id)) {
+		const id = matchingId(
+			value,
+			admins.value.map((admin) => admin.id),
+		);
+		if (id && id !== selectedId.value) {
 			selectAdmin(id);
+			return;
 		}
+		if (value != null && String(value) !== String(selectedId.value ?? "")) alignAdminQuery();
 	},
 );
 

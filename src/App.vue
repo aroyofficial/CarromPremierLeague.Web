@@ -15,14 +15,18 @@ import Navbar from "./components/Navbar.vue";
 import Footer from "./components/Footer.vue";
 import StrikerChat from "./components/striker/StrikerChat.vue";
 import { useAuthStore } from "@/store/authStore";
+import { useSettingsStore } from "@/store/settingsStore";
 import { Routes } from "@/utils/constants";
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const settingsStore = useSettingsStore();
 
 const isAdminRoute = computed(() => route.path.startsWith(Routes.ADMIN));
-const showPublicAssistant = computed(() => !isAdminRoute.value && route.path !== Routes.LOGIN);
+const showPublicAssistant = computed(
+	() => !isAdminRoute.value && route.path !== Routes.LOGIN && settingsStore.loaded && settingsStore.assistant_enabled,
+);
 
 const onSessionExpired = () => {
 	authStore.logout();
@@ -38,6 +42,7 @@ onMounted(() => {
 	window.addEventListener("cpl:session-expired", onSessionExpired);
 	window.addEventListener("cpl:permission-denied", onPermissionDenied);
 	if (authStore.isAuthenticated) authStore.loadProfile().catch(() => undefined);
+	if (!settingsStore.loaded) settingsStore.fetchSettings().catch(() => undefined);
 });
 onUnmounted(() => {
 	window.removeEventListener("cpl:session-expired", onSessionExpired);

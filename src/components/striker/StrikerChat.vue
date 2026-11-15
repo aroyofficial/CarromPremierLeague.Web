@@ -6,10 +6,15 @@
 				ref="launcher"
 				type="button"
 				class="striker-launcher"
-				:class="{ 'is-open': open, 'is-fresh': fresh }"
+				:class="{ 'is-open': open, 'is-fresh': fresh, 'is-placed': placed, 'is-dragging': dragging }"
+				:style="launcherStyle"
 				:aria-expanded="open"
 				aria-controls="striker-panel"
 				:aria-label="open ? 'Close Striker assistant' : 'Open Striker assistant'"
+				@pointerdown="onPointerDown"
+				@pointermove="onPointerMove"
+				@pointerup="onPointerUp"
+				@pointercancel="onPointerUp"
 				@click="toggle"
 			>
 				<span class="launcher-icon">
@@ -25,6 +30,7 @@
 				v-if="open"
 				id="striker-panel"
 				class="striker-panel"
+				:style="panelStyle"
 				role="dialog"
 				:aria-modal="isPhone ? 'true' : 'false'"
 				aria-labelledby="striker-title"
@@ -358,7 +364,89 @@ const close = () => {
 	nextTick(() => launcher.value?.focus({ preventScroll: true }));
 };
 
-const toggle = () => (open.value ? close() : openPanel());
+const spot = ref(null);
+const dragging = ref(false);
+const viewport = ref({ width: 0, height: 0 });
+const placed = computed(() => Boolean(spot.value));
+let drag = null;
+let ignoreClick = false;
+
+const clamp = (value, min, max) => Math.min(Math.max(value, min), Math.max(min, max));
+
+const launcherStyle = computed(() => {
+	if (!spot.value) return {};
+	return { left: `${spot.value.x}px`, top: `${spot.value.y}px`, right: "auto", bottom: "auto" };
+});
+
+const panelStyle = computed(() => {
+	if (!spot.value || isPhone.value) return {};
+	const width = Math.min(420, viewport.value.width - 32);
+	const height = Math.min(660, viewport.value.height - 80);
+	const buttonWidth = launcher.value?.offsetWidth || 160;
+	const buttonHeight = launcher.value?.offsetHeight || 56;
+	const left = clamp(spot.value.x + buttonWidth - width, 8, viewport.value.width - width - 8);
+	let top = spot.value.y - height - 12;
+	if (top < 8) top = spot.value.y + buttonHeight + 12;
+	top = clamp(top, 8, viewport.value.height - height - 8);
+	return { left: `${left}px`, top: `${top}px`, right: "auto", bottom: "auto" };
+});
+
+const keepInside = () => {
+	if (!spot.value || !launcher.value) return;
+	const rect = launcher.value.getBoundingClientRect();
+	spot.value = {
+		x: clamp(spot.value.x, 8, window.innerWidth - rect.width - 8),
+		y: clamp(spot.value.y, 8, window.innerHeight - rect.height - 8),
+	};
+};
+
+const syncViewport = () => {
+	viewport.value = { width: window.innerWidth, height: window.innerHeight };
+	keepInside();
+};
+
+const onPointerDown = (event) => {
+	if (event.button != null && event.button !== 0) return;
+	const rect = launcher.value.getBoundingClientRect();
+	drag = {
+		id: event.pointerId,
+		x: event.clientX,
+		y: event.clientY,
+		ox: event.clientX - rect.left,
+		oy: event.clientY - rect.top,
+		moved: false,
+	};
+	launcher.value.setPointerCapture?.(event.pointerId);
+};
+
+const onPointerMove = (event) => {
+	if (!drag || event.pointerId !== drag.id) return;
+	if (!drag.moved && Math.hypot(event.clientX - drag.x, event.clientY - drag.y) < 6) return;
+	drag.moved = true;
+	dragging.value = true;
+	const rect = launcher.value.getBoundingClientRect();
+	spot.value = {
+		x: clamp(event.clientX - drag.ox, 8, window.innerWidth - rect.width - 8),
+		y: clamp(event.clientY - drag.oy, 8, window.innerHeight - rect.height - 8),
+	};
+};
+
+const onPointerUp = (event) => {
+	if (!drag || event.pointerId !== drag.id) return;
+	if (drag.moved) ignoreClick = true;
+	dragging.value = false;
+	drag = null;
+	syncViewport();
+};
+
+const toggle = () => {
+	if (ignoreClick) {
+		ignoreClick = false;
+		return;
+	}
+	if (open.value) close();
+	else openPanel();
+};
 
 const reset = () => {
 	messages.value = [];
@@ -479,6 +567,8 @@ onMounted(() => {
 	media = window.matchMedia(phoneQuery);
 	onMedia();
 	media.addEventListener?.("change", onMedia);
+	syncViewport();
+	window.addEventListener("resize", syncViewport);
 	load();
 	try {
 		fresh.value = !localStorage.getItem("cpl-striker-seen");
@@ -489,6 +579,7 @@ onMounted(() => {
 
 onUnmounted(() => {
 	media?.removeEventListener?.("change", onMedia);
+	window.removeEventListener("resize", syncViewport);
 	document.documentElement.classList.remove("striker-lock");
 });
 </script>
@@ -547,7 +638,9 @@ html.striker-lock body {
 	font-size: 15px;
 	letter-spacing: 0.01em;
 	box-shadow: 0 12px 28px rgba(11, 20, 38, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.08) inset;
-	cursor: pointer;
+	cursor: grab;
+	touch-action: none;
+	user-select: none;
 	-webkit-tap-highlight-color: transparent;
 	transition: transform 0.2s ease, box-shadow 0.2s ease;
 
@@ -565,6 +658,16 @@ html.striker-lock body {
 		width: 56px;
 		padding: 0;
 		justify-content: center;
+	}
+
+	&.is-placed:hover,
+	&.is-dragging,
+	&.is-dragging:hover {
+		transform: none;
+	}
+
+	&.is-dragging {
+		cursor: grabbing;
 	}
 
 	&.is-fresh::after {

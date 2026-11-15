@@ -6,6 +6,7 @@ const defaults = {
 	extra_minutes: 5,
 	league_queen: false,
 	queen_needs_cover: false,
+	assistant_enabled: true,
 };
 
 export const useSettingsStore = defineStore("settings", {

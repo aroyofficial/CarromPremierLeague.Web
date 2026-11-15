@@ -41,7 +41,8 @@
 						<span v-if="contactLine(admin)" class="user-handle">{{ contactLine(admin) }}</span>
 						<span class="user-tags">
 							<el-tag v-if="admin.id === authStore.adminId" size="small" effect="plain">You</el-tag>
-							<el-tag v-if="!admin.is_active" size="small" type="info">Disabled</el-tag>
+							<el-tag v-if="admin.must_change_password" size="small" type="warning">Awaiting password change</el-tag>
+							<el-tag v-else-if="!admin.is_active" size="small" type="info">Disabled</el-tag>
 						</span>
 					</div>
 				</div>
@@ -60,7 +61,7 @@
 				<div class="user-status">
 					<el-switch
 						:model-value="admin.is_active"
-						:disabled="!canUpdate || admin.id === authStore.adminId"
+						:disabled="!canUpdate || admin.id === authStore.adminId || admin.must_change_password"
 						active-text="Active"
 						inactive-text="Off"
 						inline-prompt
@@ -163,22 +164,36 @@
 				<el-form-item label="Email" prop="email" class="span-2">
 					<el-input v-model="form.email" type="email" autocomplete="off" />
 				</el-form-item>
+				<div v-if="emailChanged" class="span-2 email-code">
+					<el-input v-model.trim="form.email_code" maxlength="6" placeholder="6-digit code" />
+					<el-button :loading="sendingCode" @click="sendEmailCode">Email code</el-button>
+				</div>
 				<el-form-item label="Username" prop="username">
 					<el-input v-model="form.username" autocomplete="off" />
 				</el-form-item>
-				<el-form-item :label="editingAdmin ? 'New password (leave blank to keep it)' : 'Password'" prop="password">
-					<el-input v-model="form.password" type="password" show-password autocomplete="new-password" />
-				</el-form-item>
-				<el-form-item label="Confirm password" prop="confirm" class="span-2">
-					<el-input v-model="form.confirm" type="password" show-password autocomplete="new-password" />
-				</el-form-item>
+				<template v-if="editingAdmin">
+					<el-form-item label="New password (leave blank to keep it)" prop="password">
+						<el-input v-model="form.password" type="password" show-password autocomplete="new-password" />
+					</el-form-item>
+					<el-form-item label="Confirm password" prop="confirm" class="span-2">
+						<el-input v-model="form.confirm" type="password" show-password autocomplete="new-password" />
+					</el-form-item>
+					<el-alert
+						v-if="form.password"
+						class="span-2"
+						type="info"
+						:closable="false"
+						show-icon
+						title="Changing the password signs this admin out and emails them that it changed."
+					/>
+				</template>
 				<el-alert
-					v-if="editingAdmin && form.password"
+					v-else
 					class="span-2"
 					type="info"
 					:closable="false"
 					show-icon
-					title="Changing the password signs this admin out of every existing session."
+					title="A default password is generated and emailed with this address. The account stays off until they sign in and change it."
 				/>
 
 				<div v-if="!editingAdmin" class="span-2">
@@ -309,12 +324,14 @@ const load = async () => {
 
 const dialogOpen = ref(false);
 const saving = ref(false);
+const sendingCode = ref(false);
 const editingAdmin = ref(null);
 const formRef = ref(null);
 const emptyAccount = () => ({
 	username: "",
 	password: "",
 	confirm: "",
+	email_code: "",
 	permissions: [],
 	first_name: "",
 	last_name: "",
@@ -354,8 +371,7 @@ const rules = {
 	password: [
 		{
 			validator: (_rule, value, callback) => {
-				if (!value && editingAdmin.value) return callback();
-				if (!value) return callback(new Error("Password is required"));
+				if (!value) return callback();
 				if (value.length < 12) return callback(new Error("Use at least 12 characters"));
 				return callback();
 			},
@@ -375,7 +391,7 @@ const rules = {
 		{
 			validator: (_rule, value, callback) => {
 				const text = (value || "").trim();
-				if (!text) return callback();
+				if (!text) return callback(new Error("Email is required"));
 				if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text)) return callback(new Error("Enter a valid email address"));
 				return callback();
 			},
@@ -387,7 +403,6 @@ const rules = {
 			validator: (_rule, value, callback) => {
 				const number = (value || "").trim();
 				const hasCode = Boolean(form.phone_country_id);
-				if (!number && !hasCode) return callback();
 				if (!number || !hasCode) return callback(new Error("Enter both a country code and a contact number"));
 				if (!/^\d{6,15}$/.test(number)) return callback(new Error("Enter 6–15 digits, without spaces"));
 				return callback();
@@ -396,6 +411,12 @@ const rules = {
 		},
 	],
 };
+
+const emailChanged = computed(
+	() =>
+		Boolean(editingAdmin.value) &&
+		form.email.trim().toLowerCase() !== (editingAdmin.value.email || "").toLowerCase(),
+);
 
 const closeDialog = (done) => {
 	if (!uploadBlocked.value) done();
@@ -463,6 +484,23 @@ const profilePayload = () =>
 		email: form.email.trim(),
 	});
 
+const sendEmailCode = async () => {
+	const text = form.email.trim();
+	if (!editingAdmin.value || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text)) {
+		ElMessage.error("Enter the new email address first.");
+		return;
+	}
+	sendingCode.value = true;
+	try {
+		await adminApi.admins.emailCode(editingAdmin.value.id, text);
+		ElMessage.success("A code was sent to that email address.");
+	} catch (error) {
+		ElMessage.error(error?.message || "The code could not be sent.");
+	} finally {
+		sendingCode.value = false;
+	}
+};
+
 const save = async () => {
 	const valid = await formRef.value.validate().catch(() => false);
 	if (!valid) return;
@@ -475,17 +513,27 @@ const save = async () => {
 		const payload = { ...profile };
 		if (form.username.trim() !== editing.username) payload.username = form.username.trim();
 		if (form.password) payload.password = form.password;
+		if (emailChanged.value) {
+			if (!/^\d{6}$/.test(form.email_code)) {
+				saving.value = false;
+				ElMessage.error("Email the code to the new address, then enter it here.");
+				return;
+			}
+			payload.email_code = form.email_code;
+		}
 		action = () => adminApi.admins.update(editing.id, payload);
 	} else {
 		action = () =>
 			adminApi.admins.create({
 				...profile,
 				username: form.username.trim(),
-				password: form.password,
 				permissions: canManage.value ? form.permissions : [],
 			});
 	}
-	const { ok, result } = await runAction(action, editing ? "Admin updated" : "Admin created");
+	const { ok, result } = await runAction(
+		action,
+		editing ? "Admin updated" : "Admin created. The temporary password was emailed and the account stays off until they change it.",
+	);
 	let pictureOk = true;
 	if (ok && !editing && (pendingPhoto.value || pendingLink.value)) {
 		const created = unwrap(result);
@@ -708,6 +756,12 @@ onMounted(load);
 		color: var(--cpl-ink-600);
 		font-size: 13px;
 	}
+}
+
+.email-code {
+	display: flex;
+	gap: 8px;
+	align-items: center;
 }
 
 .dialog-footer {

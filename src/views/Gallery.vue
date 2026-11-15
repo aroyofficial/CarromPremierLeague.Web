@@ -209,11 +209,13 @@ import api from "@/services/api";
 import { adminApi, apiErrorMessage } from "@/services/adminService";
 import { embedUrl, isVideoItem, tilePoster } from "@/utils/galleryMedia";
 import { spokenDate } from "@/utils/media";
+import { correctedQuery, galleryChoice, positiveId } from "@/utils/queryState";
 import { Download, ZoomIn, ZoomOut } from "@element-plus/icons-vue";
 
 const route = useRoute();
 const router = useRouter();
 const seasons = ref([]);
+const seasonsLoaded = ref(false);
 const seasonId = ref(null);
 const items = ref([]);
 const cursor = ref(null);
@@ -449,32 +451,80 @@ const loadPage = async (reset) => {
 	}
 };
 
+let queryGeneration = 0;
+
+const applyQuery = async () => {
+	const generation = ++queryGeneration;
+	try {
+		await resolveQuery(generation);
+	} catch (err) {
+		if (generation !== queryGeneration) return;
+		error.value = apiErrorMessage(err, "The gallery could not be loaded.");
+		loading.value = false;
+	}
+};
+
+const resolveQuery = async (generation) => {
+	const seasonIds = seasons.value.map((season) => season.id);
+	const photoId = positiveId(route.query.photo);
+	let photo = null;
+	let photoSeasons = null;
+	if (photoId != null) {
+		try {
+			photo = (await adminApi.gallery.photo(photoId)).data || null;
+			photoSeasons = photo?.season_ids || [];
+		} catch (error) {
+			if (error?.success !== false) throw error;
+			photo = null;
+			photoSeasons = null;
+		}
+	}
+	if (generation !== queryGeneration) return;
+	const choice = galleryChoice(route.query.season, route.query.photo, seasonIds, photoId != null ? photoSeasons : null);
+	if (choice.seasonId !== seasonId.value || (choice.seasonId && !items.value.length)) {
+		seasonId.value = choice.seasonId;
+		if (choice.seasonId) await loadPage(true);
+		else {
+			items.value = [];
+			loading.value = false;
+		}
+	} else {
+		seasonId.value = choice.seasonId;
+		loading.value = false;
+	}
+	if (generation !== queryGeneration) return;
+	viewer.value = choice.photoId ? items.value.find((item) => item.id === choice.photoId) || photo : null;
+
+	const corrections = {};
+	const seasonText = choice.seasonId == null ? null : String(choice.seasonId);
+	const photoText = choice.photoId == null ? null : String(choice.photoId);
+	if (route.query.season != null && String(route.query.season) !== (seasonText ?? "")) corrections.season = seasonText;
+	if ((route.query.season == null || route.query.season === "") && choice.photoId && seasonText) corrections.season = seasonText;
+	if (route.query.photo != null && String(route.query.photo) !== (photoText ?? "")) corrections.photo = photoText;
+	const next = correctedQuery(route.query, corrections);
+	if (next) await router.replace({ query: next });
+};
+
 const loadSeasons = async () => {
 	loading.value = true;
 	error.value = "";
 	try {
 		const result = await adminApi.gallery.seasons();
 		seasons.value = (result.data || []).filter((season) => Number(season.photo_count) > 0);
-		const requested = Number(route.query.season);
-		const match = seasons.value.find((season) => season.id === requested) || seasons.value[0];
-		seasonId.value = match ? match.id : null;
-		if (seasonId.value) await loadPage(true);
-		else loading.value = false;
-		await openFromQuery();
+		seasonsLoaded.value = true;
+		await applyQuery();
 	} catch (err) {
 		error.value = apiErrorMessage(err, "The gallery could not be loaded.");
 		loading.value = false;
 	}
 };
 
-const chooseSeason = async (id) => {
+const chooseSeason = (id) => {
 	if (id === seasonId.value) return;
-	seasonId.value = id;
 	const query = { ...route.query, season: String(id) };
 	delete query.photo;
 	viewer.value = null;
-	await router.replace({ query });
-	await loadPage(true);
+	router.replace({ query });
 };
 
 const openPhoto = (photo) => {
@@ -487,31 +537,6 @@ const closeViewer = () => {
 	const query = { ...route.query };
 	delete query.photo;
 	router.push({ query });
-};
-
-const openFromQuery = async () => {
-	const photoId = route.query.photo;
-	if (!photoId) {
-		viewer.value = null;
-		return;
-	}
-	const found = items.value.find((photo) => String(photo.id) === String(photoId));
-	if (found) {
-		viewer.value = found;
-		return;
-	}
-	try {
-		const result = await adminApi.gallery.photo(photoId);
-		const photo = result.data;
-		viewer.value = photo;
-		const season = photo?.season_ids?.find((id) => seasons.value.some((item) => item.id === id));
-		if (season && season !== seasonId.value) {
-			seasonId.value = season;
-			await loadPage(true);
-		}
-	} catch {
-		viewer.value = null;
-	}
 };
 
 const step = (direction) => {
@@ -543,9 +568,9 @@ const onTouchEnd = (event) => {
 };
 
 watch(
-	() => route.query.photo,
+	() => [String(route.query.season ?? ""), String(route.query.photo ?? "")],
 	() => {
-		if (!loading.value) openFromQuery();
+		if (seasonsLoaded.value) applyQuery();
 	},
 );
 

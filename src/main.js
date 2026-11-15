@@ -19,4 +19,7 @@ app.use(ElementPlus);
 
 app.config.globalProperties.$dayjs = dayjs;
 
-app.mount("#app");
+// Mounting before the first navigation resolves leaves the router view empty
+// on pages whose guard returns immediately, so a fresh /login?redirect= link
+// never shows the form.
+router.isReady().then(() => app.mount("#app"));

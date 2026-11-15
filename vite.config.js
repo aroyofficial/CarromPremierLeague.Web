@@ -35,6 +35,14 @@ export default defineConfig({
 		},
 	},
 
+	css: {
+		preprocessorOptions: {
+			scss: {
+				api: "modern",
+			},
+		},
+	},
+
 	plugins: [
 		serveFresh(),
 		vue(),

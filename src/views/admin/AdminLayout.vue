@@ -1,5 +1,8 @@
 <template>
-	<div class="admin-shell">
+	<div v-if="authStore.mustChangePassword" class="admin-activate">
+		<ActivateAccount />
+	</div>
+	<div v-else class="admin-shell">
 		<aside class="admin-sidebar" :class="{ 'is-open': sidebarOpen }">
 			<div class="sidebar-head">
 				<span class="page-eyebrow">Admin Console</span>
@@ -37,7 +40,11 @@
 				<component :is="Component" :key="refreshKey" />
 			</router-view>
 		</section>
-		<StrikerChat v-if="authStore.isAuthenticated" mode="admin" @changed="onAssistantChange" />
+		<StrikerChat
+			v-if="authStore.isAuthenticated && !authStore.mustChangePassword && settingsStore.loaded && settingsStore.assistant_enabled"
+			mode="admin"
+			@changed="onAssistantChange"
+		/>
 	</div>
 </template>
 
@@ -60,14 +67,17 @@ import {
 	User,
 	UserFilled,
 } from "@element-plus/icons-vue";
+import ActivateAccount from "@/components/admin/ActivateAccount.vue";
 import StrikerChat from "@/components/striker/StrikerChat.vue";
 import { AdminSections, Routes } from "@/utils/constants";
 import { useAuthStore } from "@/store/authStore";
+import { useSettingsStore } from "@/store/settingsStore";
 
 const icons = { Calendar, Connection, DataBoard, Flag, Location, Lock, Picture, Setting, Trophy, User, UserFilled };
 
 const router = useRouter();
 const authStore = useAuthStore();
+const settingsStore = useSettingsStore();
 const sidebarOpen = ref(false);
 const refreshKey = ref(0);
 
@@ -82,6 +92,7 @@ const visibleSections = computed(() =>
 
 onMounted(() => {
 	authStore.loadProfile().catch(() => undefined);
+	if (!settingsStore.loaded) settingsStore.fetchSettings().catch(() => undefined);
 });
 
 const logout = () => {
@@ -91,6 +102,22 @@ const logout = () => {
 </script>
 
 <style lang="scss">
+.admin-activate {
+	min-height: calc(100vh - var(--app-header-height, 64px));
+	display: grid;
+	place-items: center;
+	padding: 24px;
+}
+
+.admin-activate form {
+	width: min(420px, 100%);
+	padding: 28px;
+	background: #fff;
+	border: 1px solid var(--cpl-line);
+	border-radius: var(--cpl-radius-lg);
+	box-shadow: var(--cpl-shadow-card);
+}
+
 .admin-shell,
 body:has(.admin-shell) .el-overlay,
 body:has(.admin-shell) .el-message-box {

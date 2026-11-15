@@ -10,6 +10,7 @@ export const useAuthStore = defineStore("auth", {
 		username: authToken.getUser(),
 		adminId: null,
 		permissions: [],
+		mustChangePassword: false,
 		profileLoaded: false,
 		loading: false,
 	}),
@@ -32,6 +33,7 @@ export const useAuthStore = defineStore("auth", {
 				}
 				this.token = token;
 				this.username = username;
+				this.mustChangePassword = Boolean(response?.data?.must_change_password);
 				authToken.set(token, username);
 				this.profileLoaded = false;
 				await this.loadProfile({ force: true });
@@ -51,6 +53,7 @@ export const useAuthStore = defineStore("auth", {
 						this.adminId = admin.id ?? null;
 						this.username = admin.username || this.username;
 						this.permissions = Array.isArray(admin.permissions) ? admin.permissions : [];
+						this.mustChangePassword = Boolean(admin.must_change_password);
 						this.profileLoaded = true;
 						if (this.token && this.username) authToken.set(this.token, this.username);
 						return admin;
@@ -67,6 +70,7 @@ export const useAuthStore = defineStore("auth", {
 			this.username = null;
 			this.adminId = null;
 			this.permissions = [];
+			this.mustChangePassword = false;
 			this.profileLoaded = false;
 			authToken.clear();
 		},

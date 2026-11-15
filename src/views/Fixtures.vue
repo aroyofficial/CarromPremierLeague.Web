@@ -243,7 +243,8 @@
 
 <script setup>
 import { ref, onMounted, watch } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
+import { correctedQuery, matchingId } from "@/utils/queryState";
 import { useSeasonStore } from "@/store/seasonStore";
 import { useTeamStore } from "@/store/teamStore";
 import { useMatchStore } from "@/store/matchStore";
@@ -258,6 +259,7 @@ import { startLoader, pauseLoader } from "../utils/common";
 
 const seasonStore = useSeasonStore();
 const route = useRoute();
+const router = useRouter();
 const teamStore = useTeamStore();
 const matchStore = useMatchStore();
 const rosterStore = useRosterStore();
@@ -442,10 +444,19 @@ const scheduleMatch = async () => {
 onMounted(async () => {
 	seasons.value = seasonStore.visibleSeasons;
 	teams.value = teamStore.teams;
-	const requestedSeason = Number(route.query.season);
-	fixtureFilter.value.season = seasons.value.some((season) => season.id === requestedSeason)
-		? requestedSeason
+	const known = seasons.value.map((season) => season.id);
+	const requestedSeason = seasonStore.seasons.length ? matchingId(route.query.season, known) : null;
+	fixtureFilter.value.season = seasonStore.seasons.length
+		? (requestedSeason ?? seasonStore.selectedSeason)
 		: seasonStore.selectedSeason;
+	if (
+		seasonStore.seasons.length &&
+		route.query.season != null &&
+		String(route.query.season) !== String(fixtureFilter.value.season ?? "")
+	) {
+		const next = correctedQuery(route.query, { season: fixtureFilter.value.season ?? null });
+		if (next) router.replace({ query: next });
+	}
 	matchObject.value.order = matchStore.nextMatchOrder;
 	matches.value = matchStore.matches;
 	if (fixtureFilter.value.season) await fetchMatches();

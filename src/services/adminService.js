@@ -68,6 +68,7 @@ export const adminApi = {
 		get: (id) => api.get(`admins/${id}`),
 		create: (payload) => api.post("admins", payload),
 		update: (id, payload) => api.patch(`admins/${id}`, payload),
+		emailCode: (id, email) => api.post(`admins/${id}/email-code`, { email }),
 		setPermissions: (id, permissions) => api.put(`admins/${id}/permissions`, { permissions }),
 		remove: (id) => api.delete(`admins/${id}`),
 		uploadAvatar: (id, file, onProgress) => uploadImage(`admins/${id}/avatar`, file, onProgress),
