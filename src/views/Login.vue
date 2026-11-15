@@ -14,6 +14,16 @@
 				<ActivateAccount @done="step = 'login'" />
 			</div>
 
+			<div v-else-if="step === 'wait'" class="signed-in">
+				<h2>Waiting for approval</h2>
+				<p class="login-subtitle">
+					This account is already signed in on another device. That device has to approve before this one can sign in.
+					Nothing changes until they do.
+				</p>
+				<p class="wait-status">{{ waitStatus }}</p>
+				<button type="button" class="text-link" @click="cancelWait">Cancel</button>
+			</div>
+
 			<div v-else-if="authStore.isAuthenticated" class="signed-in">
 				<p>
 					You are signed in as <strong>{{ authStore.username }}</strong>.
@@ -117,7 +127,7 @@
 </template>
 
 <script setup>
-import { ref, reactive } from "vue";
+import { onUnmounted, ref, reactive } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import { Lock, User } from "@element-plus/icons-vue";
@@ -137,6 +147,8 @@ const resetRef = ref(null);
 const errorMessage = ref("");
 const step = ref("login");
 const resetting = ref(false);
+const waitStatus = ref("Waiting for the other device…");
+let waitTimer = 0;
 const form = reactive({ username: "", password: "" });
 const forgot = reactive({ username: "", code: "", password: "", confirm: "" });
 
@@ -217,8 +229,14 @@ const submit = async () => {
 	if (!valid) return;
 
 	try {
-		await authStore.login(form.username, form.password);
+		const result = await authStore.login(form.username, form.password);
 		form.password = "";
+		if (result?.pending) {
+			step.value = "wait";
+			waitStatus.value = "Waiting for the other device…";
+			pollClaim(result.requestId);
+			return;
+		}
 		router.push(safeRedirect());
 	} catch (error) {
 		form.password = "";
@@ -228,6 +246,31 @@ const submit = async () => {
 				: "Unable to sign in. Check your credentials and try again.";
 	}
 };
+
+const pollClaim = (requestId) => {
+	window.clearInterval(waitTimer);
+	waitTimer = window.setInterval(async () => {
+		try {
+			const response = await authService.claimLogin(requestId);
+			if (response?.data?.pending) return;
+			window.clearInterval(waitTimer);
+			step.value = "login";
+			await authStore.adopt(response.data.access_token, form.username);
+			router.push(safeRedirect());
+		} catch (error) {
+			window.clearInterval(waitTimer);
+			step.value = "login";
+			errorMessage.value = error?.detail || error?.message || "The other device did not approve this sign-in.";
+		}
+	}, 3000);
+};
+
+const cancelWait = () => {
+	window.clearInterval(waitTimer);
+	step.value = "login";
+};
+
+onUnmounted(() => window.clearInterval(waitTimer));
 
 const logout = () => {
 	authStore.logout();

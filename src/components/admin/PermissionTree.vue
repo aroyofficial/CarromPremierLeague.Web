@@ -154,12 +154,14 @@ import { computed, ref, watch } from "vue";
 import {
 	ArrowDown,
 	Calendar,
+	ChatDotRound,
 	Check,
 	Flag,
 	Key,
 	List,
 	Location,
 	Lock,
+	Picture,
 	Search,
 	Setting,
 	Trophy,
@@ -184,7 +186,7 @@ const props = defineProps({
 
 const emit = defineEmits(["update:modelValue"]);
 
-const icons = { Calendar, Flag, User, Location, List, Trophy, Setting, UserFilled, Lock };
+const icons = { Calendar, ChatDotRound, Flag, User, Location, List, Picture, Trophy, Setting, UserFilled, Lock };
 const iconFor = (name) => icons[name] || Key;
 const uid = Math.random().toString(36).slice(2, 8);
 

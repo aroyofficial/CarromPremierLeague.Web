@@ -69,7 +69,7 @@ import {
 } from "@element-plus/icons-vue";
 import ActivateAccount from "@/components/admin/ActivateAccount.vue";
 import StrikerChat from "@/components/striker/StrikerChat.vue";
-import { assistantIsVisible } from "@/utils/assistantVisibility";
+import { adminAssistantIsVisible } from "@/utils/assistantVisibility";
 import { AdminSections, Routes } from "@/utils/constants";
 import { useAuthStore } from "@/store/authStore";
 import { useSettingsStore } from "@/store/settingsStore";
@@ -93,13 +93,14 @@ const visibleSections = computed(() =>
 
 const showAssistant = computed(
 	() =>
-		authStore.isAuthenticated &&
-		!authStore.mustChangePassword &&
 		settingsStore.loaded &&
-		assistantIsVisible({
-			enabled: settingsStore.assistant_enabled,
+		adminAssistantIsVisible({
+			enabled: settingsStore.assistant_admin_enabled,
 			checked: settingsStore.assistantChecked,
 			available: settingsStore.assistantAvailable,
+			signedIn: authStore.isAuthenticated,
+			mustChangePassword: authStore.mustChangePassword,
+			hasAccess: authStore.assistantAccess,
 		}),
 );
 

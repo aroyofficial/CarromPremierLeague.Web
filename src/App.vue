@@ -5,6 +5,7 @@
 	</main>
 	<Footer v-if="!isAdminRoute" />
 	<StrikerChat v-if="showPublicAssistant" mode="public" />
+	<SessionHandoff v-if="authStore.isAuthenticated" />
 </template>
 
 <script setup>
@@ -14,6 +15,7 @@ import { ElMessage } from "element-plus";
 import Navbar from "./components/Navbar.vue";
 import Footer from "./components/Footer.vue";
 import StrikerChat from "./components/striker/StrikerChat.vue";
+import SessionHandoff from "./components/admin/SessionHandoff.vue";
 import { useAuthStore } from "@/store/authStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import { assistantIsVisible } from "@/utils/assistantVisibility";
@@ -31,7 +33,7 @@ const showPublicAssistant = computed(
 		route.path !== Routes.LOGIN &&
 		settingsStore.loaded &&
 		assistantIsVisible({
-			enabled: settingsStore.assistant_enabled,
+			enabled: settingsStore.assistant_public_enabled,
 			checked: settingsStore.assistantChecked,
 			available: settingsStore.assistantAvailable,
 		}),
@@ -43,6 +45,22 @@ const onSessionExpired = () => {
 	if (route.path !== Routes.HOME) router.push(Routes.HOME);
 };
 
+const onStorage = (event) => {
+	if (event.key !== "cpl_admin_token") return;
+	if (!event.newValue) {
+		authStore.token = null;
+		authStore.username = null;
+		authStore.adminId = null;
+		authStore.permissions = [];
+		authStore.mustChangePassword = false;
+		authStore.profileLoaded = false;
+		return;
+	}
+	authStore.token = event.newValue;
+	authStore.profileLoaded = false;
+	authStore.loadProfile({ force: true }).catch(() => undefined);
+};
+
 const onPermissionDenied = () => {
 	authStore.loadProfile({ force: true }).catch(() => undefined);
 };
@@ -50,12 +68,14 @@ const onPermissionDenied = () => {
 onMounted(() => {
 	window.addEventListener("cpl:session-expired", onSessionExpired);
 	window.addEventListener("cpl:permission-denied", onPermissionDenied);
+	window.addEventListener("storage", onStorage);
 	if (authStore.isAuthenticated) authStore.loadProfile().catch(() => undefined);
 	if (!settingsStore.loaded) settingsStore.fetchSettings().catch(() => undefined);
 });
 onUnmounted(() => {
 	window.removeEventListener("cpl:session-expired", onSessionExpired);
 	window.removeEventListener("cpl:permission-denied", onPermissionDenied);
+	window.removeEventListener("storage", onStorage);
 });
 </script>
 

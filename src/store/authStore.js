@@ -1,8 +1,12 @@
 import { defineStore } from "pinia";
 import { authService } from "@/services/authService";
+import { ASSISTANT_PERMISSION } from "@/utils/assistantVisibility";
 import { authToken } from "@/utils/authToken";
+import { readClaims } from "@/utils/tokenClaims";
 
 let profileRequest = null;
+let endingSession = false;
+let reissuedFor = null;
 
 export const useAuthStore = defineStore("auth", {
 	state: () => ({
@@ -20,6 +24,13 @@ export const useAuthStore = defineStore("auth", {
 		can: (state) => (code) => Boolean(state.token) && state.permissions.includes(code),
 		canAny: (state) => (codes) => Boolean(state.token) && (codes || []).some((code) => state.permissions.includes(code)),
 		canAll: (state) => (codes) => Boolean(state.token) && (codes || []).every((code) => state.permissions.includes(code)),
+		// Whether this admin may use Striker. The token claim answers until the profile loads, then the
+		// permissions the server just returned decide. The server checks the database either way.
+		assistantAccess: (state) => {
+			if (!state.token) return false;
+			if (state.profileLoaded) return state.permissions.includes(ASSISTANT_PERMISSION);
+			return readClaims(state.token).ast === true;
+		},
 	},
 
 	actions: {
@@ -27,19 +38,30 @@ export const useAuthStore = defineStore("auth", {
 			this.loading = true;
 			try {
 				const response = await authService.login(username, password);
-				const token = response?.data?.access_token;
+				const data = response?.data || {};
+				if (data.pending) return { pending: true, requestId: data.request_id };
+				const token = data.access_token;
 				if (!token) {
 					throw new Error("Login response did not include an access token.");
 				}
 				this.token = token;
 				this.username = username;
-				this.mustChangePassword = Boolean(response?.data?.must_change_password);
+				this.mustChangePassword = Boolean(data.must_change_password);
 				authToken.set(token, username);
 				this.profileLoaded = false;
 				await this.loadProfile({ force: true });
+				return { pending: false };
 			} finally {
 				this.loading = false;
 			}
+		},
+
+		adopt(token, username) {
+			this.token = token;
+			this.username = username;
+			authToken.set(token, username);
+			this.profileLoaded = false;
+			return this.loadProfile({ force: true });
 		},
 
 		async loadProfile({ force = false } = {}) {
@@ -56,7 +78,7 @@ export const useAuthStore = defineStore("auth", {
 						this.mustChangePassword = Boolean(admin.must_change_password);
 						this.profileLoaded = true;
 						if (this.token && this.username) authToken.set(this.token, this.username);
-						return admin;
+						return this.reissueStaleClaims().then(() => admin);
 					})
 					.finally(() => {
 						profileRequest = null;
@@ -65,7 +87,45 @@ export const useAuthStore = defineStore("auth", {
 			return profileRequest;
 		},
 
-		logout() {
+		// A grant or revoke after sign-in leaves the token claim behind. Ask once for a token that matches.
+		async reissueStaleClaims() {
+			if (!this.token || this.mustChangePassword || reissuedFor === this.token) return;
+			const claimed = readClaims(this.token).ast === true;
+			if (claimed === this.permissions.includes(ASSISTANT_PERMISSION)) return;
+			reissuedFor = this.token;
+			try {
+				const response = await authService.refresh();
+				const fresh = response?.data?.access_token;
+				if (fresh && this.token) {
+					this.token = fresh;
+					if (this.username) authToken.set(fresh, this.username);
+				}
+			} catch {
+				/* The permissions from the server still decide what is shown. */
+			}
+		},
+
+		dropLocal() {
+			this.token = null;
+			this.username = null;
+			this.adminId = null;
+			this.permissions = [];
+			this.mustChangePassword = false;
+			this.profileLoaded = false;
+			authToken.clear();
+		},
+
+		async logout() {
+			if (this.token && !endingSession) {
+				endingSession = true;
+				try {
+					await authService.logout();
+				} catch {
+					/* The local session still ends if the server is unreachable. */
+				} finally {
+					endingSession = false;
+				}
+			}
 			this.token = null;
 			this.username = null;
 			this.adminId = null;

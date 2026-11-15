@@ -41,6 +41,7 @@ const Permission = Object.freeze({
 	ADMINS_UPDATE: "admins.update",
 	ADMINS_DELETE: "admins.delete",
 	PERMISSIONS_MANAGE: "permissions.manage",
+	ASSISTANT_USE: "assistant.use",
 	GALLERY_CREATE: "gallery.create",
 	GALLERY_UPDATE: "gallery.update",
 	GALLERY_PUBLISH: "gallery.publish",

@@ -31,8 +31,8 @@
 				</article>
 				<article class="preview-card">
 					<span>Striker</span>
-					<strong>{{ form.assistant_enabled ? "On" : "Off" }}</strong>
-					<small>{{ form.assistant_enabled ? "Shown while an AI provider can answer" : "Hidden, and it will not answer" }}</small>
+					<strong>{{ assistantHeadline }}</strong>
+					<small>{{ assistantDetail }}</small>
 				</article>
 			</section>
 
@@ -123,19 +123,39 @@
 				<section class="admin-card setting-group">
 					<header class="group-head">
 						<h2>Striker</h2>
-						<p>Striker answers from league data. Turning it off hides it everywhere and stops it from answering.</p>
+						<p>Striker answers from league data. Choose who sees it. A switch that is off hides Striker from that audience and stops it from answering.</p>
 					</header>
 
 					<div class="setting-row">
 						<div class="setting-copy">
-							<h3 id="assistant-label">Enable Striker chatbot</h3>
-							<p>Applies to the public site and the admin console. A confirmed change still needs this switch on.</p>
+							<h3 id="assistant-public-label">For public</h3>
+							<p>Visitors to the public site can ask Striker about the league. It only reads public data and never changes anything.</p>
 						</div>
 						<el-switch
-							v-model="form.assistant_enabled"
+							v-model="form.assistant_public_enabled"
 							class="setting-switch"
 							size="large"
-							aria-labelledby="assistant-label"
+							aria-labelledby="assistant-public-label"
+						/>
+					</div>
+
+					<div class="setting-row">
+						<div class="setting-copy">
+							<h3 id="assistant-admin-label">For admins</h3>
+							<p v-if="form.assistant_admin_enabled">
+								Signed-in admins who hold the <strong>Use Striker</strong> permission see Striker in the console.
+								<template v-if="canManagePermissions">
+									Give it to each admin from <router-link :to="permissionsPath">Permissions</router-link>.
+								</template>
+								<template v-else>A permission manager gives it to each admin.</template>
+							</p>
+							<p v-else>Off. No admin sees Striker in the console, whatever permissions they hold.</p>
+						</div>
+						<el-switch
+							v-model="form.assistant_admin_enabled"
+							class="setting-switch"
+							size="large"
+							aria-labelledby="assistant-admin-label"
 						/>
 					</div>
 				</section>
@@ -154,9 +174,14 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
 import { ElMessage } from "element-plus";
+import { useAuthStore } from "@/store/authStore";
 import { useSettingsStore } from "@/store/settingsStore";
+import { Permission, Routes } from "@/utils/constants";
 
 const settingsStore = useSettingsStore();
+const authStore = useAuthStore();
+const canManagePermissions = computed(() => authStore.can(Permission.PERMISSIONS_MANAGE));
+const permissionsPath = `${Routes.ADMIN}/permissions`;
 const loading = ref(false);
 const saving = ref(false);
 const loadError = ref("");
@@ -165,7 +190,8 @@ const form = reactive({
 	extra_minutes: 5,
 	league_queen: false,
 	queen_needs_cover: false,
-	assistant_enabled: true,
+	assistant_public_enabled: true,
+	assistant_admin_enabled: true,
 });
 
 const wholeNumber = (value, min, max) => Number.isInteger(value) && value >= min && value <= max;
@@ -180,7 +206,8 @@ const dirty = computed(
 		form.extra_minutes !== settingsStore.extra_minutes ||
 		form.league_queen !== settingsStore.league_queen ||
 		(form.league_queen && form.queen_needs_cover) !== settingsStore.queen_needs_cover ||
-		form.assistant_enabled !== settingsStore.assistant_enabled,
+		form.assistant_public_enabled !== settingsStore.assistant_public_enabled ||
+		form.assistant_admin_enabled !== settingsStore.assistant_admin_enabled,
 );
 
 const canSave = computed(() => formValid.value && dirty.value && !saving.value);
@@ -192,6 +219,17 @@ const statusText = computed(() => {
 });
 
 const clockText = (minutes) => (Number.isInteger(minutes) ? `${minutes}:00` : "–");
+
+const assistantHeadline = computed(() => {
+	if (form.assistant_public_enabled && form.assistant_admin_enabled) return "On";
+	if (!form.assistant_public_enabled && !form.assistant_admin_enabled) return "Off";
+	return "Partly";
+});
+
+const assistantDetail = computed(
+	() =>
+		`Public ${form.assistant_public_enabled ? "on" : "off"} · Admins ${form.assistant_admin_enabled ? "on" : "off"}`,
+);
 
 const queenHeadline = computed(() => (form.league_queen ? "On" : "Off"));
 
@@ -206,7 +244,8 @@ const copyFromStore = () => {
 	form.extra_minutes = settingsStore.extra_minutes;
 	form.league_queen = settingsStore.league_queen;
 	form.queen_needs_cover = settingsStore.queen_needs_cover;
-	form.assistant_enabled = settingsStore.assistant_enabled;
+	form.assistant_public_enabled = settingsStore.assistant_public_enabled;
+	form.assistant_admin_enabled = settingsStore.assistant_admin_enabled;
 };
 
 const onLeagueQueenChange = (enabled) => {
@@ -235,7 +274,8 @@ const save = async () => {
 			extra_minutes: form.extra_minutes,
 			league_queen: form.league_queen,
 			queen_needs_cover: form.league_queen && form.queen_needs_cover,
-			assistant_enabled: form.assistant_enabled,
+			assistant_public_enabled: form.assistant_public_enabled,
+			assistant_admin_enabled: form.assistant_admin_enabled,
 		});
 		copyFromStore();
 		ElMessage.success("Settings saved.");
