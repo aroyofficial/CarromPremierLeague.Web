@@ -89,47 +89,34 @@
 		<p v-if="ordering" class="hint">Drag a card onto another to change the order.</p>
 		<div ref="frameEl" class="admin-grid">
 			<div v-for="(row, rowIndex) in mediaRows" :key="rowIndex" class="admin-row">
-				<article
+				<div
 					v-for="cell in row"
 					:key="cell.photo.id"
-					class="gallery-card"
+					class="gallery-tile"
 					:class="{ 'is-selected': selected.includes(cell.photo.id), 'is-drop': dropId === cell.photo.id, 'is-ordering': ordering, 'is-dragging': dragId === cell.photo.id }"
-					:style="{ width: `${cell.width}px` }"
+					:style="{ width: `${cell.width}px`, height: `${cell.height}px` }"
+					role="button"
+					:tabindex="ordering ? -1 : 0"
+					:aria-label="cell.photo.caption || (isVideoItem(cell.photo) ? 'Video' : 'Photo')"
 					:draggable="ordering"
+					@click="openEditor(cell.photo)"
+					@keydown.enter.prevent="openEditor(cell.photo)"
 					@dragstart="onDragStart(cell.photo.id, $event)"
 					@dragend="dragId = null; dropId = null"
 					@dragover.prevent="onDragOver(cell.photo.id)"
 					@drop.prevent="moveBefore(cell.photo.id)"
 				>
-					<div
-						class="gallery-thumb"
-						:style="{ height: `${cell.height}px` }"
-						role="button"
-						:tabindex="ordering ? -1 : 0"
-						@click="openEditor(cell.photo)"
-						@keydown.enter.prevent="openEditor(cell.photo)"
-					>
-						<FramedPicture
-							v-if="!isVideoItem(cell.photo) && !broken.has(cell.photo.id)"
-							:src="cell.photo.url"
-							:alt="cell.photo.alt_text || cell.photo.caption || ''"
-							@error="markBroken(cell.photo.id)"
-						/>
-						<img v-else-if="tilePoster(cell.photo) && !broken.has(cell.photo.id)" :src="tilePoster(cell.photo)" :alt="cell.photo.alt_text || cell.photo.caption || ''" draggable="false" @error="markBroken(cell.photo.id)" />
-						<span v-else class="thumb-fallback">{{ isVideoItem(cell.photo) ? "Video" : "Unavailable" }}</span>
-						<span v-if="isVideoItem(cell.photo)" class="play-badge" aria-hidden="true"></span>
-						<span class="status-pill" :class="{ 'is-live': cell.photo.is_published }">{{ cell.photo.is_published ? "Published" : "Draft" }}</span>
-					</div>
-					<div class="card-meta">
-						<label v-if="selecting">
-							<input type="checkbox" :checked="selected.includes(cell.photo.id)" @change="toggleSelected(cell.photo.id)" />
-							Select
-						</label>
-						<strong class="card-caption" :title="cell.photo.caption || ''">{{ cell.photo.caption || (isVideoItem(cell.photo) ? "Untitled video" : "Untitled") }}</strong>
-						<span class="hint">{{ isVideoItem(cell.photo) ? "Video" : "Photo" }}<template v-if="cell.photo.is_cover"> · Cover</template></span>
-						<span v-if="cell.photo.taken_on" class="hint">{{ spokenDate(cell.photo.taken_on) }}</span>
-					</div>
-				</article>
+					<FramedPicture
+						v-if="!isVideoItem(cell.photo) && !broken.has(cell.photo.id)"
+						:src="cell.photo.url"
+						:alt="cell.photo.alt_text || cell.photo.caption || ''"
+						@error="markBroken(cell.photo.id)"
+					/>
+					<img v-else-if="tilePoster(cell.photo) && !broken.has(cell.photo.id)" :src="tilePoster(cell.photo)" :alt="cell.photo.alt_text || cell.photo.caption || ''" draggable="false" @error="markBroken(cell.photo.id)" />
+					<span v-else class="thumb-fallback">{{ isVideoItem(cell.photo) ? "Video" : "Unavailable" }}</span>
+					<span v-if="isVideoItem(cell.photo)" class="play-badge" aria-hidden="true"></span>
+					<span v-if="selecting" class="select-mark" :class="{ 'is-on': selected.includes(cell.photo.id) }" aria-hidden="true"></span>
+				</div>
 			</div>
 		</div>
 		</template>
@@ -197,7 +184,7 @@ import GallerySkeleton from "@/components/GallerySkeleton.vue";
 import { adminApi, apiErrorMessage } from "@/services/adminService";
 import { useAuthStore } from "@/store/authStore";
 import { embedUrl, isVideoItem, isVideoUrl, tilePoster, videoPoster } from "@/utils/galleryMedia";
-import { IMAGE_ACCEPT, VIDEO_ACCEPT, mediaFileProblem, publicImageLinkProblem, spokenDate } from "@/utils/media";
+import { IMAGE_ACCEPT, VIDEO_ACCEPT, mediaFileProblem, publicImageLinkProblem } from "@/utils/media";
 import { useUploadLeaveGuard } from "@/utils/uploadGuard";
 
 const MEDIA_ACCEPT = `${IMAGE_ACCEPT},${VIDEO_ACCEPT}`;
@@ -229,7 +216,7 @@ const cropRequest = ref(null);
 const fileInput = ref(null);
 const frameEl = ref(null);
 const frameWidth = ref(0);
-const ROW_GAP = 14;
+const ROW_GAP = 4;
 const linkText = ref("");
 const linkDrafts = ref([]);
 const editorOpen = ref(false);
@@ -725,7 +712,6 @@ onMounted(async () => {
 	try {
 		const result = await adminApi.seasons.list();
 		seasons.value = result.data || [];
-		seasonId.value = seasons.value[0]?.id ?? null;
 	} catch (err) {
 		pageError.value = apiErrorMessage(err, "Seasons could not be loaded.");
 	}
@@ -848,74 +834,84 @@ onMounted(async () => {
 .admin-grid {
 	display: flex;
 	flex-direction: column;
-	gap: 14px;
+	gap: 4px;
 }
 
 .admin-row {
 	display: flex;
-	gap: 14px;
-	align-items: flex-start;
+	gap: 4px;
 }
 
-.gallery-card {
-	flex: 0 0 auto;
-	min-width: 0;
-	background: #fff;
-	border-radius: 16px;
-	overflow: hidden;
-	border: 1px solid transparent;
-	box-shadow: 0 10px 24px rgba(11, 20, 38, 0.06);
-	transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.gallery-card:hover {
-	transform: translateY(-2px);
-	box-shadow: 0 16px 32px rgba(11, 20, 38, 0.1);
-}
-
-.gallery-card.is-ordering {
-	cursor: grab;
-}
-
-.gallery-card.is-ordering:hover {
-	transform: none;
-}
-
-.gallery-card.is-dragging {
-	opacity: 0.55;
-}
-
-.gallery-card.is-selected,
-.gallery-card.is-drop {
-	border-color: var(--cpl-gold-500);
-}
-
-.gallery-thumb {
-	display: block;
-	width: 100%;
-	padding: 0;
-	border: 0;
-	background: #e7edf6;
-	border-radius: 0;
+.gallery-tile {
 	position: relative;
+	flex: 0 0 auto;
 	overflow: hidden;
+	background: #e7edf6;
 	cursor: pointer;
+	outline: 3px solid transparent;
+	outline-offset: -3px;
 }
 
-.gallery-thumb img,
-.gallery-thumb :deep(.framed:not(.has-frame) img),
+.gallery-tile img,
+.gallery-tile :deep(.framed:not(.has-frame) img),
 .thumb-fallback {
 	width: 100%;
 	height: 100%;
 	object-fit: cover;
 	display: grid;
 	place-items: center;
+	transition: transform 0.25s ease;
+}
+
+.gallery-tile:hover img {
+	transform: scale(1.03);
+}
+
+.gallery-tile:focus-visible,
+.gallery-tile.is-selected,
+.gallery-tile.is-drop {
+	outline-color: var(--cpl-gold-500);
+}
+
+.gallery-tile.is-ordering {
+	cursor: grab;
+}
+
+.gallery-tile.is-dragging {
+	opacity: 0.55;
 }
 
 .play-badge,
-.status-pill {
+.select-mark {
 	position: absolute;
 	z-index: 1;
+}
+
+.select-mark {
+	top: 8px;
+	left: 8px;
+	width: 22px;
+	height: 22px;
+	border-radius: 50%;
+	border: 2px solid #fff;
+	background: rgba(11, 20, 38, 0.35);
+	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.select-mark.is-on {
+	background: var(--cpl-gold-500);
+}
+
+.select-mark.is-on::after {
+	content: "";
+	position: absolute;
+	left: 6px;
+	top: 2px;
+	width: 5px;
+	height: 10px;
+	border: solid var(--cpl-navy-900);
+	border-width: 0 2px 2px 0;
+	transform: rotate(45deg);
 }
 
 .play-badge {
@@ -939,26 +935,8 @@ onMounted(async () => {
 	border-color: transparent transparent transparent #fff;
 }
 
-.status-pill {
-	top: 10px;
-	left: 10px;
-	padding: 3px 8px;
-	border-radius: 999px;
-	background: rgba(11, 20, 38, 0.72);
-	color: #fff;
-	font-size: 11px;
-	font-weight: 700;
-	letter-spacing: 0.04em;
-	text-transform: uppercase;
-}
-
-.status-pill.is-live {
-	background: var(--cpl-gold-400);
-	color: var(--cpl-navy-900);
-}
-
-.gallery-thumb img,
-.gallery-thumb :deep(.framed),
+.gallery-tile img,
+.gallery-tile :deep(.framed),
 .thumb-fallback {
 	position: absolute;
 	inset: 0;
@@ -966,22 +944,6 @@ onMounted(async () => {
 
 .link-box :deep(.el-textarea) {
 	width: 100%;
-}
-
-.card-meta {
-	display: flex;
-	flex-direction: column;
-	gap: 4px;
-	min-width: 0;
-	padding: 10px 12px 12px;
-}
-
-.card-caption {
-	display: -webkit-box;
-	-webkit-line-clamp: 3;
-	-webkit-box-orient: vertical;
-	overflow: hidden;
-	overflow-wrap: anywhere;
 }
 
 .drawer-stage {
@@ -1005,8 +967,8 @@ onMounted(async () => {
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.gallery-card,
-	.gallery-card:hover {
+	.gallery-tile img,
+	.gallery-tile:hover img {
 		transition: none;
 		transform: none;
 	}
