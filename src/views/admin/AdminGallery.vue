@@ -60,10 +60,10 @@
 				<el-option label="Published" value="published" />
 			</el-select>
 			<el-input v-model="search" placeholder="Search captions" clearable />
-			<el-button v-if="canUpdate" :disabled="!canReorder" @click="toggleSelecting">
+			<el-button v-if="canUpdate" @click="toggleSelecting">
 				{{ selecting ? "Done" : "Select" }}
 			</el-button>
-			<el-button v-if="canUpdate && photos.length > 1" :disabled="!canReorder" :type="ordering ? 'primary' : 'default'" @click="toggleOrdering">
+			<el-button v-if="canUpdate && photos.length > 1" :type="ordering ? 'primary' : 'default'" @click="toggleOrdering">
 				{{ ordering ? "Done" : "Reorder" }}
 			</el-button>
 		</div>
@@ -231,9 +231,7 @@ let searchTimer;
 
 const uploading = computed(() => jobs.value.some((job) => job.status === "uploading" || job.status === "waiting"));
 useUploadLeaveGuard(uploading);
-const canReorder = computed(
-	() => Boolean(seasonId.value) && status.value === "all" && !search.value.trim() && canUpdate.value && !cursor.value,
-);
+const canReorder = computed(() => status.value === "all" && !search.value.trim() && canUpdate.value && !cursor.value);
 watch(canReorder, (allowed) => {
 	if (!allowed) ordering.value = false;
 });
@@ -344,7 +342,7 @@ const load = async (reset) => {
 		photos.value = reset ? page.items : photos.value.concat(page.items);
 		cursor.value = page.next_cursor;
 		pageError.value = "";
-		const wantAll = Boolean(seasonId.value) && status.value === "all" && !search.value.trim() && canUpdate.value;
+		const wantAll = status.value === "all" && !search.value.trim() && canUpdate.value;
 		if (wantAll && cursor.value && page.items.length) await load(false);
 	} catch (err) {
 		pageError.value = apiErrorMessage(err, "The gallery could not be loaded.");
@@ -547,7 +545,7 @@ const saveLinks = async () => {
 
 const saveOrder = async (ids) => {
 	try {
-		await adminApi.gallery.order(seasonId.value, ids);
+		await adminApi.gallery.order(seasonId.value || null, ids);
 		pageError.value = "";
 	} catch (err) {
 		pageError.value = apiErrorMessage(err, "The order was not saved.");
@@ -571,7 +569,12 @@ const onDragOver = (id) => {
 
 const moveBefore = (targetId) => {
 	dropId.value = null;
-	if (!ordering.value || !canReorder.value || dragId.value == null || dragId.value === targetId) return;
+	if (!ordering.value || dragId.value == null || dragId.value === targetId) return;
+	if (!canReorder.value) {
+		dragId.value = null;
+		pageError.value = "Show every item, with no caption search, to save a new order.";
+		return;
+	}
 	const next = photos.value.slice();
 	const from = next.findIndex((photo) => photo.id === dragId.value);
 	const to = next.findIndex((photo) => photo.id === targetId);

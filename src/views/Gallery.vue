@@ -155,10 +155,11 @@
 						<button type="button" class="tool-btn" title="Zoom in" aria-label="Zoom in" :disabled="zoom >= 4" @click="zoomBy(0.25)">
 							<el-icon><ZoomIn /></el-icon>
 						</button>
-						<button type="button" class="tool-btn" title="Download" aria-label="Download" @click="downloadMedia">
+						<button type="button" class="tool-btn" title="Download" aria-label="Download" :disabled="downloading" @click="downloadMedia">
 							<el-icon><Download /></el-icon>
 						</button>
 					</div>
+					<p v-if="downloadError" class="viewer-caption">{{ downloadError }}</p>
 					<p v-if="viewer.caption || viewer.taken_on" class="viewer-caption">
 						<strong v-if="viewer.caption">{{ viewer.caption }}</strong>
 						<span v-if="viewer.taken_on">{{ spokenDate(viewer.taken_on) }}</span>
@@ -204,6 +205,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router";
 import FramedPicture from "@/components/FramedPicture.vue";
 import GallerySkeleton from "@/components/GallerySkeleton.vue";
+import api from "@/services/api";
 import { adminApi, apiErrorMessage } from "@/services/adminService";
 import { embedUrl, isVideoItem, tilePoster } from "@/utils/galleryMedia";
 import { spokenDate } from "@/utils/media";
@@ -228,6 +230,8 @@ const stripEl = ref(null);
 const stageEl = ref(null);
 const stageBox = ref({ width: 0, height: 0 });
 const zoom = ref(1);
+const downloading = ref(false);
+const downloadError = ref("");
 const playing = ref(false);
 const muted = ref(false);
 const played = ref(0);
@@ -316,37 +320,54 @@ const zoomBy = (delta) => {
 	const next = Math.round((zoom.value + delta) * 100) / 100;
 	zoom.value = Math.min(4, Math.max(1, next));
 };
-const downloadMedia = async () => {
-	const item = viewer.value;
-	const url = item?.url;
-	if (!url) return;
+const fileExtension = (type, item) => {
+	const known = {
+		"image/jpeg": "jpg",
+		"image/png": "png",
+		"image/webp": "webp",
+		"image/gif": "gif",
+		"video/mp4": "mp4",
+		"video/webm": "webm",
+		"video/quicktime": "mov",
+		"video/ogg": "ogg",
+	};
+	return known[type] || (isVideoItem(item) ? "mp4" : "jpg");
+};
+
+const saveBlob = (blob, item) => {
 	const base = String(item.caption || (isVideoItem(item) ? "video" : "photo"))
 		.replace(/[^\w\- ]+/g, "")
 		.trim()
 		.slice(0, 80) || "media";
-	const extension = url.split("?")[0].match(/\.([a-z0-9]{2,5})$/i)?.[1]?.toLowerCase() || (isVideoItem(item) ? "mp4" : "jpg");
-	const name = `${base}.${extension}`;
-	if (embedUrl(url)) {
-		window.open(url, "_blank", "noopener");
-		return;
-	}
+	const link = document.createElement("a");
+	const objectUrl = URL.createObjectURL(blob);
+	link.href = objectUrl;
+	link.download = `${base}.${fileExtension(blob.type, item)}`;
+	link.click();
+	window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1500);
+};
+
+const downloadMedia = async () => {
+	const item = viewer.value;
+	if (!item || downloading.value) return;
+	downloading.value = true;
+	downloadError.value = "";
 	try {
-		const response = await fetch(url);
-		if (!response.ok) throw new Error("download failed");
-		const blob = await response.blob();
-		const objectUrl = URL.createObjectURL(blob);
-		const link = document.createElement("a");
-		link.href = objectUrl;
-		link.download = name;
-		link.click();
-		window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1500);
-	} catch {
-		const link = document.createElement("a");
-		link.href = url;
-		link.target = "_blank";
-		link.rel = "noopener";
-		link.download = name;
-		link.click();
+		const blob = await api.get(`gallery/${item.id}/file`, { responseType: "blob" });
+		if (!(blob instanceof Blob) || blob.type.includes("json")) throw blob;
+		saveBlob(blob, item);
+	} catch (error) {
+		let body = error;
+		if (error instanceof Blob) {
+			try {
+				body = JSON.parse(await error.text());
+			} catch {
+				body = null;
+			}
+		}
+		downloadError.value = apiErrorMessage(body, "That file could not be downloaded.");
+	} finally {
+		downloading.value = false;
 	}
 };
 
@@ -555,6 +576,7 @@ watch(
 	() => viewer.value?.id,
 	() => {
 		zoom.value = 1;
+		downloadError.value = "";
 		playing.value = false;
 		played.value = 0;
 		duration.value = 0;

@@ -33,9 +33,12 @@
 				:class="{ 'is-disabled': !admin.is_active }"
 			>
 				<div class="user-identity">
-					<span class="user-avatar" aria-hidden="true">{{ initial(admin.username) }}</span>
+					<EntityImage :src="admin.avatar_url || ''" :name="adminName(admin)" kind="admin" class="user-avatar" alt="" />
 					<div class="user-name">
-						<strong>{{ admin.username }}</strong>
+						<strong>{{ adminName(admin) }}</strong>
+						<span v-if="adminName(admin) !== admin.username" class="user-handle">{{ admin.username }}</span>
+						<span v-if="admin.email" class="user-handle">{{ admin.email }}</span>
+						<span v-if="contactLine(admin)" class="user-handle">{{ contactLine(admin) }}</span>
 						<span class="user-tags">
 							<el-tag v-if="admin.id === authStore.adminId" size="small" effect="plain">You</el-tag>
 							<el-tag v-if="!admin.is_active" size="small" type="info">Disabled</el-tag>
@@ -68,7 +71,7 @@
 
 				<div class="user-actions">
 					<el-button v-if="canEdit(admin)" size="small" @click="openEdit(admin)">
-						<el-icon class="me-1"><Key /></el-icon>{{ admin.id === authStore.adminId ? "My sign-in" : "Edit" }}
+						<el-icon class="me-1"><Key /></el-icon>{{ admin.id === authStore.adminId ? "My profile" : "Edit" }}
 					</el-button>
 					<el-button
 						v-if="canManage"
@@ -100,31 +103,85 @@
 		<el-dialog
 			v-model="dialogOpen"
 			:title="dialogTitle"
-			:width="editingAdmin ? 'min(480px, 94vw)' : 'min(820px, 96vw)'"
+			width="min(760px, 96vw)"
 			:fullscreen="isPhone"
 			class="user-dialog"
+			:close-on-click-modal="!uploadBlocked"
+			:close-on-press-escape="!uploadBlocked"
+			:show-close="!uploadBlocked"
+			:before-close="closeDialog"
 		>
-			<el-form ref="formRef" :model="form" :rules="rules" label-position="top" @submit.prevent>
-				<div class="account-fields">
-					<el-form-item label="Username" prop="username">
-						<el-input v-model="form.username" autocomplete="off" />
-					</el-form-item>
-					<el-form-item :label="editingAdmin ? 'New password (leave blank to keep it)' : 'Password'" prop="password">
-						<el-input v-model="form.password" type="password" show-password autocomplete="new-password" />
-					</el-form-item>
-					<el-form-item label="Confirm password" prop="confirm">
-						<el-input v-model="form.confirm" type="password" show-password autocomplete="new-password" />
-					</el-form-item>
-				</div>
+			<el-form ref="formRef" :model="form" :rules="rules" label-position="top" class="admin-form-grid" @submit.prevent>
+				<el-form-item label="Profile picture" class="span-2">
+					<ImageUploadField
+						v-model:pending-file="pendingPhoto"
+						v-model:pending-link="pendingLink"
+						v-model:busy="pictureBusy"
+						:src="editingAvatar"
+						:name="adminName(form) || 'Admin'"
+						kind="admin"
+						label="Profile picture"
+						:deferred="!editingAdmin"
+						:external-busy="uploading"
+						:external-progress="uploadProgress"
+						:external-error="pictureError"
+						:upload="(file, onProgress) => adminApi.admins.uploadAvatar(editingAdmin.id, file, onProgress)"
+						:upload-link="(url) => adminApi.admins.setAvatarUrl(editingAdmin.id, url)"
+						:remove="() => adminApi.admins.removeAvatar(editingAdmin.id)"
+						@dismiss-error="pictureError = ''"
+						@changed="pictureChanged"
+					/>
+				</el-form-item>
+				<el-form-item label="First name" prop="first_name">
+					<el-input v-model="form.first_name" />
+				</el-form-item>
+				<el-form-item label="Last name" prop="last_name">
+					<el-input v-model="form.last_name" />
+				</el-form-item>
+				<el-form-item label="Date of birth" prop="date_of_birth">
+					<el-date-picker
+						v-model="form.date_of_birth"
+						type="date"
+						value-format="YYYY-MM-DD"
+						:disabled-date="(date) => date > new Date()"
+						placeholder="Optional"
+					/>
+				</el-form-item>
+				<el-form-item label="Gender" prop="gender">
+					<el-select v-model="form.gender" clearable placeholder="Optional">
+						<el-option v-for="option in genderOptions" :key="option.value" :label="option.label" :value="option.value" />
+					</el-select>
+				</el-form-item>
+				<el-form-item label="Country code" prop="phone_country_id">
+					<el-select v-model="form.phone_country_id" filterable clearable placeholder="Code" @change="formRef?.validateField('phone_number')">
+						<el-option v-for="country in phoneChoices" :key="country.id" :label="country.label" :value="country.id" />
+					</el-select>
+				</el-form-item>
+				<el-form-item label="Contact number" prop="phone_number">
+					<el-input v-model="form.phone_number" inputmode="numeric" placeholder="Digits only" />
+				</el-form-item>
+				<el-form-item label="Email" prop="email" class="span-2">
+					<el-input v-model="form.email" type="email" autocomplete="off" />
+				</el-form-item>
+				<el-form-item label="Username" prop="username">
+					<el-input v-model="form.username" autocomplete="off" />
+				</el-form-item>
+				<el-form-item :label="editingAdmin ? 'New password (leave blank to keep it)' : 'Password'" prop="password">
+					<el-input v-model="form.password" type="password" show-password autocomplete="new-password" />
+				</el-form-item>
+				<el-form-item label="Confirm password" prop="confirm" class="span-2">
+					<el-input v-model="form.confirm" type="password" show-password autocomplete="new-password" />
+				</el-form-item>
 				<el-alert
 					v-if="editingAdmin && form.password"
+					class="span-2"
 					type="info"
 					:closable="false"
 					show-icon
 					title="Changing the password signs this admin out of every existing session."
 				/>
 
-				<template v-if="!editingAdmin">
+				<div v-if="!editingAdmin" class="span-2">
 					<div class="picker-head">
 						<h3>Permissions</h3>
 						<p v-if="canManage">Pick what this admin can do. You can change this later on the Permissions page.</p>
@@ -137,7 +194,7 @@
 						:editable="authStore.permissions"
 						compact
 					/>
-				</template>
+				</div>
 			</el-form>
 			<template #footer>
 				<div class="dialog-footer">
@@ -145,7 +202,7 @@
 						{{ form.permissions.length }} permission{{ form.permissions.length === 1 ? "" : "s" }} selected
 					</span>
 					<el-button @click="dialogOpen = false">Cancel</el-button>
-					<el-button type="primary" :loading="saving" @click="save">{{ editingAdmin ? "Save" : "Create admin" }}</el-button>
+					<el-button type="primary" :loading="saving" :disabled="saving || pictureBusy" @click="save">{{ editingAdmin ? "Save" : "Create admin" }}</el-button>
 				</div>
 			</template>
 		</el-dialog>
@@ -153,13 +210,16 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import { Delete, Key, Lock, Plus, Search } from "@element-plus/icons-vue";
+import EntityImage from "@/components/EntityImage.vue";
+import ImageUploadField from "@/components/admin/ImageUploadField.vue";
 import PermissionTree from "@/components/admin/PermissionTree.vue";
-import { adminApi } from "@/services/adminService";
-import { confirmDelete, matchesSearch, runAction, unwrap } from "@/utils/adminHelpers";
+import { adminApi, apiErrorMessage } from "@/services/adminService";
+import { blankToNull, confirmDelete, matchesSearch, runAction, unwrap } from "@/utils/adminHelpers";
+import { adminName } from "@/utils/media";
 import { accessLabel as describeAccess, buildIndex, emptyTree } from "@/utils/permissionTree";
 import { useIsPhone } from "@/utils/viewport";
 import { useAuthStore } from "@/store/authStore";
@@ -182,9 +242,36 @@ const index = computed(() => buildIndex(tree.value));
 const loading = ref(false);
 const search = ref("");
 
-const filteredAdmins = computed(() => admins.value.filter((admin) => matchesSearch(search.value, admin.username)));
+const countries = ref([]);
+const genderOptions = [
+	{ value: "female", label: "Female" },
+	{ value: "male", label: "Male" },
+	{ value: "other", label: "Other" },
+];
 
-const initial = (name) => (name || "?").trim().charAt(0).toUpperCase();
+const phoneOptions = computed(() =>
+	countries.value
+		.filter((country) => country.phone_code)
+		.map((country) => ({
+			id: country.id,
+			code: country.phone_code,
+			label: `${country.name} (${country.phone_code})`,
+		})),
+);
+
+const phoneChoices = computed(() => {
+	if (form.phone_country_id !== 0 || !form.phone_code) return phoneOptions.value;
+	if (phoneOptions.value.some((country) => country.code === form.phone_code)) return phoneOptions.value;
+	return [{ id: 0, code: form.phone_code, label: form.phone_code }, ...phoneOptions.value];
+});
+
+const filteredAdmins = computed(() =>
+	admins.value.filter((admin) =>
+		matchesSearch(search.value, admin.username, admin.first_name, admin.last_name, adminName(admin), admin.email, admin.phone_number),
+	),
+);
+
+const contactLine = (admin) => [admin.phone_code, admin.phone_number].filter(Boolean).join(" ");
 
 const accessLabel = (admin) => describeAccess(index.value, tree.value.roles, admin.permissions);
 
@@ -211,6 +298,12 @@ const load = async () => {
 		tree.value = unwrap(result[0]) || emptyTree();
 		admins.value = canView.value ? unwrap(result[1]) || [] : [];
 	}
+	adminApi.countries
+		.list()
+		.then((result) => {
+			countries.value = unwrap(result) || [];
+		})
+		.catch(() => {});
 	loading.value = false;
 };
 
@@ -218,11 +311,39 @@ const dialogOpen = ref(false);
 const saving = ref(false);
 const editingAdmin = ref(null);
 const formRef = ref(null);
-const form = reactive({ username: "", password: "", confirm: "", permissions: [] });
+const emptyAccount = () => ({
+	username: "",
+	password: "",
+	confirm: "",
+	permissions: [],
+	first_name: "",
+	last_name: "",
+	date_of_birth: null,
+	gender: null,
+	phone_code: "",
+	phone_country_id: null,
+	phone_number: "",
+	email: "",
+});
+const form = reactive(emptyAccount());
+const editingAvatar = ref("");
+const pendingPhoto = ref(null);
+const pendingLink = ref("");
+const pictureBusy = ref(false);
+const uploading = ref(false);
+const uploadProgress = ref(null);
+const pictureError = ref("");
+const uploadBlocked = computed(() => pictureBusy.value || uploading.value || Boolean(pictureError.value));
 
 const dialogTitle = computed(() => {
 	if (!editingAdmin.value) return "New admin";
-	return editingAdmin.value.id === authStore.adminId ? "My sign-in details" : `Edit ${editingAdmin.value.username}`;
+	return editingAdmin.value.id === authStore.adminId ? "My profile" : `Edit ${adminName(editingAdmin.value)}`;
+});
+
+watch(phoneOptions, () => {
+	if (!dialogOpen.value || !form.phone_code || (form.phone_country_id && form.phone_country_id !== 0)) return;
+	const match = phoneOptions.value.find((country) => country.code === form.phone_code);
+	if (match) form.phone_country_id = match.id;
 });
 
 const rules = {
@@ -248,49 +369,149 @@ const rules = {
 			trigger: "blur",
 		},
 	],
+	first_name: [{ max: 100, message: "Use 100 characters or fewer", trigger: "blur" }],
+	last_name: [{ max: 100, message: "Use 100 characters or fewer", trigger: "blur" }],
+	email: [
+		{
+			validator: (_rule, value, callback) => {
+				const text = (value || "").trim();
+				if (!text) return callback();
+				if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text)) return callback(new Error("Enter a valid email address"));
+				return callback();
+			},
+			trigger: "blur",
+		},
+	],
+	phone_number: [
+		{
+			validator: (_rule, value, callback) => {
+				const number = (value || "").trim();
+				const hasCode = Boolean(form.phone_country_id);
+				if (!number && !hasCode) return callback();
+				if (!number || !hasCode) return callback(new Error("Enter both a country code and a contact number"));
+				if (!/^\d{6,15}$/.test(number)) return callback(new Error("Enter 6–15 digits, without spaces"));
+				return callback();
+			},
+			trigger: "blur",
+		},
+	],
+};
+
+const closeDialog = (done) => {
+	if (!uploadBlocked.value) done();
+};
+
+const resetPicture = () => {
+	editingAvatar.value = "";
+	pendingPhoto.value = null;
+	pendingLink.value = "";
+	pictureError.value = "";
+};
+
+const phoneCountryIdFor = (code) => {
+	if (!code) return null;
+	return phoneOptions.value.find((country) => country.code === code)?.id ?? 0;
 };
 
 const openCreate = () => {
 	editingAdmin.value = null;
-	Object.assign(form, { username: "", password: "", confirm: "", permissions: [] });
+	resetPicture();
+	Object.assign(form, emptyAccount());
 	dialogOpen.value = true;
 	formRef.value?.clearValidate();
 };
 
 const openEdit = (admin) => {
 	editingAdmin.value = admin;
-	Object.assign(form, { username: admin.username, password: "", confirm: "", permissions: [] });
+	resetPicture();
+	editingAvatar.value = admin.avatar_url || "";
+	Object.assign(form, {
+		...emptyAccount(),
+		username: admin.username,
+		first_name: admin.first_name || "",
+		last_name: admin.last_name || "",
+		date_of_birth: admin.date_of_birth,
+		gender: admin.gender,
+		phone_code: admin.phone_code || "",
+		phone_country_id: phoneCountryIdFor(admin.phone_code),
+		phone_number: admin.phone_number || "",
+		email: admin.email || "",
+	});
 	dialogOpen.value = true;
 	formRef.value?.clearValidate();
 };
+
+const pictureChanged = (admin) => {
+	editingAvatar.value = admin?.avatar_url || "";
+	const row = admins.value.find((item) => item.id === editingAdmin.value?.id);
+	if (row) row.avatar_url = editingAvatar.value || null;
+};
+
+const selectedPhoneCode = () => {
+	if (!form.phone_country_id && form.phone_country_id !== 0) return null;
+	return phoneChoices.value.find((country) => country.id === form.phone_country_id)?.code || null;
+};
+
+const profilePayload = () =>
+	blankToNull({
+		first_name: form.first_name.trim(),
+		last_name: form.last_name.trim(),
+		date_of_birth: form.date_of_birth,
+		gender: form.gender,
+		phone_code: selectedPhoneCode(),
+		phone_number: form.phone_number.trim(),
+		email: form.email.trim(),
+	});
 
 const save = async () => {
 	const valid = await formRef.value.validate().catch(() => false);
 	if (!valid) return;
 	saving.value = true;
+	pictureError.value = "";
 	const editing = editingAdmin.value;
+	const profile = profilePayload();
 	let action;
 	if (editing) {
-		const payload = {};
+		const payload = { ...profile };
 		if (form.username.trim() !== editing.username) payload.username = form.username.trim();
 		if (form.password) payload.password = form.password;
-		if (!Object.keys(payload).length) {
-			saving.value = false;
-			dialogOpen.value = false;
-			return;
-		}
 		action = () => adminApi.admins.update(editing.id, payload);
 	} else {
 		action = () =>
 			adminApi.admins.create({
+				...profile,
 				username: form.username.trim(),
 				password: form.password,
 				permissions: canManage.value ? form.permissions : [],
 			});
 	}
-	const { ok } = await runAction(action, editing ? "Admin updated" : "Admin created");
+	const { ok, result } = await runAction(action, editing ? "Admin updated" : "Admin created");
+	let pictureOk = true;
+	if (ok && !editing && (pendingPhoto.value || pendingLink.value)) {
+		const created = unwrap(result);
+		uploading.value = true;
+		try {
+			if (pendingPhoto.value) {
+				uploadProgress.value = null;
+				await adminApi.admins.uploadAvatar(created.id, pendingPhoto.value, (value) => {
+					uploadProgress.value = value;
+				});
+			} else {
+				uploadProgress.value = null;
+				await adminApi.admins.setAvatarUrl(created.id, pendingLink.value);
+			}
+			pendingPhoto.value = null;
+			pendingLink.value = "";
+		} catch (error) {
+			pictureOk = false;
+			pictureError.value = `The admin was saved, but the picture was not. ${apiErrorMessage(error)}`;
+		} finally {
+			uploading.value = false;
+			uploadProgress.value = null;
+		}
+	}
 	saving.value = false;
-	if (!ok) return;
+	if (!ok || !pictureOk) return;
 	dialogOpen.value = false;
 	const changedSelf =
 		editing && editing.id === authStore.adminId && (form.password || form.username.trim() !== editing.username);
@@ -357,7 +578,7 @@ onMounted(load);
 	background: var(--cpl-surface-muted);
 
 	.user-avatar {
-		background: var(--cpl-ink-400);
+		opacity: 0.55;
 	}
 }
 
@@ -369,18 +590,18 @@ onMounted(load);
 }
 
 .user-avatar {
-	display: inline-flex;
+	display: inline-block;
 	flex-shrink: 0;
-	align-items: center;
-	justify-content: center;
 	width: 40px;
 	height: 40px;
 	border-radius: 50%;
-	background: var(--cpl-navy-700);
-	color: var(--cpl-gold-400);
-	font-family: var(--cpl-font-display);
-	font-size: 18px;
-	font-weight: 800;
+	overflow: hidden;
+}
+
+.user-handle {
+	color: var(--cpl-ink-600);
+	font-size: 12px;
+	word-break: break-word;
 }
 
 .user-name {

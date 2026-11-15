@@ -14,24 +14,17 @@
 
 <script setup>
 import { computed, ref, watch } from "vue";
-import { useMediaStore } from "@/store/mediaStore";
 import { initialsImage } from "@/utils/media";
 import { pictureParts } from "@/utils/pictureFrame";
 
 const props = defineProps({
 	src: { type: String, default: "" },
 	name: { type: String, default: "" },
-	kind: { type: String, default: "player", validator: (value) => ["player", "team"].includes(value) },
+	kind: { type: String, default: "player", validator: (value) => ["player", "team", "admin"].includes(value) },
 	alt: { type: String, default: "" },
 });
 
-const mediaStore = useMediaStore();
-mediaStore.ensureDefaults();
-
-const candidates = computed(() => {
-	const fallback = props.kind === "team" ? mediaStore.team : mediaStore.player;
-	return [props.src, fallback].filter(Boolean);
-});
+const candidates = computed(() => (props.src ? [props.src] : []));
 
 const failed = ref(new Set());
 watch(

@@ -70,6 +70,9 @@ export const adminApi = {
 		update: (id, payload) => api.patch(`admins/${id}`, payload),
 		setPermissions: (id, permissions) => api.put(`admins/${id}/permissions`, { permissions }),
 		remove: (id) => api.delete(`admins/${id}`),
+		uploadAvatar: (id, file, onProgress) => uploadImage(`admins/${id}/avatar`, file, onProgress),
+		setAvatarUrl: (id, link) => saveImageUrl(`admins/${id}/avatar`, link),
+		removeAvatar: (id) => api.delete(`admins/${id}/avatar`),
 	},
 	permissions: {
 		catalog: () => api.get("permissions"),

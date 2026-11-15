@@ -9,6 +9,9 @@ const PALETTE = ["#1f6feb", "#8250df", "#bf3989", "#cf222e", "#bc4c00", "#1a7f37
 
 export const playerName = (player) => [player?.first_name, player?.last_name].filter(Boolean).join(" ").trim();
 
+export const adminName = (admin) =>
+	[admin?.first_name, admin?.last_name].filter(Boolean).join(" ").trim() || admin?.username || "";
+
 export const initialsOf = (name) => {
 	const words = String(name || "")
 		.trim()
@@ -30,10 +33,11 @@ const escapeXml = (value) =>
 
 export const initialsImage = (name, kind = "player") => {
 	const text = escapeXml(initialsOf(name));
+	const fill = colorFor(name);
 	const shape =
 		kind === "team"
-			? `<rect width="128" height="128" rx="24" fill="${colorFor(name)}"/>`
-			: `<rect width="128" height="128" fill="${colorFor(name)}"/>`;
+			? `<rect width="128" height="128" rx="24" fill="${fill}"/>`
+			: `<circle cx="64" cy="64" r="64" fill="${fill}"/>`;
 	const svg =
 		`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">${shape}` +
 		`<text x="64" y="64" dy=".35em" text-anchor="middle" font-family="Segoe UI,Arial,sans-serif" ` +

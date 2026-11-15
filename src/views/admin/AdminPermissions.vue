@@ -31,7 +31,7 @@
 						<el-option
 							v-for="admin in admins"
 							:key="admin.id"
-							:label="`${admin.username} · ${accessText(admin.permissions)}`"
+							:label="`${adminName(admin)} · ${accessText(admin.permissions)}`"
 							:value="admin.id"
 						/>
 					</el-select>
@@ -45,14 +45,14 @@
 							:aria-pressed="admin.id === selectedId"
 							@click="selectAdmin(admin.id)"
 						>
-							<span class="person-avatar" aria-hidden="true">{{ initial(admin.username) }}</span>
+							<EntityImage :src="admin.avatar_url || ''" :name="adminName(admin)" kind="admin" class="person-avatar" alt="" />
 							<span class="person-body">
 								<span class="person-name">
-									{{ admin.username }}
+									{{ adminName(admin) }}
 									<el-tag v-if="admin.id === authStore.adminId" size="small" effect="plain">You</el-tag>
 									<el-tag v-if="!admin.is_active" size="small" type="info">Disabled</el-tag>
 								</span>
-								<span class="person-access">{{ accessText(admin.permissions) }}</span>
+								<span class="person-access">{{ adminName(admin) === admin.username ? accessText(admin.permissions) : `${admin.username} · ${accessText(admin.permissions)}` }}</span>
 								<span class="person-meter" aria-hidden="true">
 									<span :style="{ width: percent(admin.permissions) }"></span>
 								</span>
@@ -65,10 +65,11 @@
 
 			<section v-if="selected" class="admin-card editor" aria-live="polite">
 				<header class="editor-head">
-					<span class="editor-avatar" aria-hidden="true">{{ initial(selected.username) }}</span>
+					<EntityImage :src="selected.avatar_url || ''" :name="adminName(selected)" kind="admin" class="editor-avatar" alt="" />
 					<div class="editor-title">
-						<h2>{{ selected.username }}</h2>
+						<h2>{{ adminName(selected) }}</h2>
 						<p>
+							<template v-if="adminName(selected) !== selected.username">{{ selected.username }} · </template>
 							<strong>{{ accessText(draft) }}</strong>
 							· {{ draft.length }} of {{ index.order.length }} permissions
 							<template v-if="!selected.is_active"> · This account is disabled and cannot sign in.</template>
@@ -143,7 +144,9 @@ import { computed, onMounted, ref, watch } from "vue";
 import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
 import { ElMessageBox } from "element-plus";
 import { Search } from "@element-plus/icons-vue";
+import EntityImage from "@/components/EntityImage.vue";
 import PermissionTree from "@/components/admin/PermissionTree.vue";
+import { adminName } from "@/utils/media";
 import { adminApi, apiErrorMessage } from "@/services/adminService";
 import { matchesSearch, runAction, unwrap } from "@/utils/adminHelpers";
 import { accessLabel, buildIndex, emptyTree, inOrder, sameSet } from "@/utils/permissionTree";
@@ -166,7 +169,9 @@ const showDetails = ref(false);
 
 const index = computed(() => buildIndex(tree.value));
 const selected = computed(() => admins.value.find((admin) => admin.id === selectedId.value) || null);
-const filteredAdmins = computed(() => admins.value.filter((admin) => matchesSearch(search.value, admin.username)));
+const filteredAdmins = computed(() =>
+	admins.value.filter((admin) => matchesSearch(search.value, admin.username, admin.first_name, admin.last_name, adminName(admin), admin.email)),
+);
 const dirty = computed(() => Boolean(selected.value) && !sameSet(draft.value, selected.value.permissions));
 
 const added = computed(() => {
@@ -198,7 +203,6 @@ const locked = computed(() => {
 	return { [Permission.PERMISSIONS_MANAGE]: "You cannot remove your own permission to manage permissions." };
 });
 
-const initial = (name) => (name || "?").trim().charAt(0).toUpperCase();
 const accessText = (codes) => accessLabel(index.value, tree.value.roles, codes);
 const percent = (codes) => (index.value.order.length ? `${Math.round((codes.length / index.value.order.length) * 100)}%` : "0%");
 
@@ -368,28 +372,21 @@ onMounted(load);
 	}
 
 	&.is-off .person-avatar {
-		background: var(--cpl-ink-400);
-		color: #fff;
+		opacity: 0.55;
 	}
 }
 
 .person-avatar,
 .editor-avatar {
-	display: inline-flex;
+	display: inline-block;
 	flex-shrink: 0;
-	align-items: center;
-	justify-content: center;
+	overflow: hidden;
 	border-radius: 50%;
-	background: var(--cpl-navy-700);
-	color: var(--cpl-gold-400);
-	font-family: var(--cpl-font-display);
-	font-weight: 800;
 }
 
 .person-avatar {
 	width: 36px;
 	height: 36px;
-	font-size: 16px;
 }
 
 .person-body {
@@ -462,7 +459,6 @@ onMounted(load);
 .editor-avatar {
 	width: 48px;
 	height: 48px;
-	font-size: 22px;
 }
 
 .editor-title {

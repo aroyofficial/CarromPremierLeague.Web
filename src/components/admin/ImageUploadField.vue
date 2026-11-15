@@ -292,7 +292,8 @@ const clear = async () => {
 	background: #fff;
 }
 
-.image-field-preview.is-player {
+.image-field-preview.is-player,
+.image-field-preview.is-admin {
 	border-radius: 50%;
 }
 
