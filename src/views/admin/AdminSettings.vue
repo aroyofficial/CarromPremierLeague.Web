@@ -32,7 +32,7 @@
 				<article class="preview-card">
 					<span>Striker</span>
 					<strong>{{ form.assistant_enabled ? "On" : "Off" }}</strong>
-					<small>{{ form.assistant_enabled ? "Visible on the site and in admin" : "Hidden, and it will not answer" }}</small>
+					<small>{{ form.assistant_enabled ? "Shown while an AI provider can answer" : "Hidden, and it will not answer" }}</small>
 				</article>
 			</section>
 

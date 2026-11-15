@@ -212,6 +212,7 @@ import StrikerMark from "./StrikerMark.vue";
 import { assistantService } from "@/services/assistantService";
 import { renderMarkdown } from "@/utils/markdown";
 import { useAuthStore } from "@/store/authStore";
+import { useSettingsStore } from "@/store/settingsStore";
 
 const props = defineProps({
 	mode: {
@@ -223,6 +224,7 @@ const props = defineProps({
 const emit = defineEmits(["changed"]);
 
 const authStore = useAuthStore();
+const settingsStore = useSettingsStore();
 const maxLength = 1000;
 const historyTurns = 12;
 const phoneQuery = "(max-width: 575.98px)";
@@ -476,6 +478,7 @@ const errorText = (error) => {
 };
 
 const handleReply = (data) => {
+	if (data?.available === false) settingsStore.noteAssistantUnavailable();
 	push({
 		role: "assistant",
 		text: data?.reply || "I don't have an answer for that.",

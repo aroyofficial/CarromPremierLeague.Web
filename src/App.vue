@@ -16,6 +16,7 @@ import Footer from "./components/Footer.vue";
 import StrikerChat from "./components/striker/StrikerChat.vue";
 import { useAuthStore } from "@/store/authStore";
 import { useSettingsStore } from "@/store/settingsStore";
+import { assistantIsVisible } from "@/utils/assistantVisibility";
 import { Routes } from "@/utils/constants";
 
 const route = useRoute();
@@ -25,7 +26,15 @@ const settingsStore = useSettingsStore();
 
 const isAdminRoute = computed(() => route.path.startsWith(Routes.ADMIN));
 const showPublicAssistant = computed(
-	() => !isAdminRoute.value && route.path !== Routes.LOGIN && settingsStore.loaded && settingsStore.assistant_enabled,
+	() =>
+		!isAdminRoute.value &&
+		route.path !== Routes.LOGIN &&
+		settingsStore.loaded &&
+		assistantIsVisible({
+			enabled: settingsStore.assistant_enabled,
+			checked: settingsStore.assistantChecked,
+			available: settingsStore.assistantAvailable,
+		}),
 );
 
 const onSessionExpired = () => {

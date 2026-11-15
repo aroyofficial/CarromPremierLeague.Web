@@ -41,7 +41,7 @@
 			</router-view>
 		</section>
 		<StrikerChat
-			v-if="authStore.isAuthenticated && !authStore.mustChangePassword && settingsStore.loaded && settingsStore.assistant_enabled"
+			v-if="showAssistant"
 			mode="admin"
 			@changed="onAssistantChange"
 		/>
@@ -69,6 +69,7 @@ import {
 } from "@element-plus/icons-vue";
 import ActivateAccount from "@/components/admin/ActivateAccount.vue";
 import StrikerChat from "@/components/striker/StrikerChat.vue";
+import { assistantIsVisible } from "@/utils/assistantVisibility";
 import { AdminSections, Routes } from "@/utils/constants";
 import { useAuthStore } from "@/store/authStore";
 import { useSettingsStore } from "@/store/settingsStore";
@@ -88,6 +89,18 @@ const onAssistantChange = () => {
 
 const visibleSections = computed(() =>
 	AdminSections.filter((section) => !section.permissions.length || authStore.canAny(section.permissions)),
+);
+
+const showAssistant = computed(
+	() =>
+		authStore.isAuthenticated &&
+		!authStore.mustChangePassword &&
+		settingsStore.loaded &&
+		assistantIsVisible({
+			enabled: settingsStore.assistant_enabled,
+			checked: settingsStore.assistantChecked,
+			available: settingsStore.assistantAvailable,
+		}),
 );
 
 onMounted(() => {
