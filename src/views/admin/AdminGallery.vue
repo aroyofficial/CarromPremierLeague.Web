@@ -22,9 +22,8 @@
 				<strong>Drop photos or videos</strong>
 				<p>JPEG, PNG, WebP up to 5 MB. MP4, WebM or MOV up to 50 MB. Three at a time.</p>
 			</div>
-			<el-button type="primary" :disabled="!seasonId" @click="fileInput?.click()">Choose files</el-button>
+			<el-button type="primary" @click="fileInput?.click()">Choose files</el-button>
 		</section>
-		<p v-if="canCreate && !seasonId" class="hint">Choose a season before uploading.</p>
 
 		<ul v-if="jobs.length" class="upload-queue">
 			<li v-for="job in jobs" :key="job.id">
@@ -88,47 +87,50 @@
 		<div v-else-if="!photos.length" class="gallery-status">No photos match this filter.</div>
 		<template v-else>
 		<p v-if="ordering" class="hint">Drag a card onto another to change the order.</p>
-		<div class="admin-grid">
-			<article
-				v-for="photo in photos"
-				:key="photo.id"
-				class="gallery-card"
-				:class="{ 'is-selected': selected.includes(photo.id), 'is-drop': dropId === photo.id, 'is-ordering': ordering, 'is-dragging': dragId === photo.id }"
-				:draggable="ordering"
-				@dragstart="onDragStart(photo.id, $event)"
-				@dragend="dragId = null; dropId = null"
-				@dragover.prevent="onDragOver(photo.id)"
-				@drop.prevent="moveBefore(photo.id)"
-			>
-				<div
-					class="gallery-thumb"
-					:style="thumbStyle(photo)"
-					role="button"
-					:tabindex="ordering ? -1 : 0"
-					@click="openEditor(photo)"
-					@keydown.enter.prevent="openEditor(photo)"
+		<div ref="frameEl" class="admin-grid">
+			<div v-for="(row, rowIndex) in mediaRows" :key="rowIndex" class="admin-row">
+				<article
+					v-for="cell in row"
+					:key="cell.photo.id"
+					class="gallery-card"
+					:class="{ 'is-selected': selected.includes(cell.photo.id), 'is-drop': dropId === cell.photo.id, 'is-ordering': ordering, 'is-dragging': dragId === cell.photo.id }"
+					:style="{ width: `${cell.width}px` }"
+					:draggable="ordering"
+					@dragstart="onDragStart(cell.photo.id, $event)"
+					@dragend="dragId = null; dropId = null"
+					@dragover.prevent="onDragOver(cell.photo.id)"
+					@drop.prevent="moveBefore(cell.photo.id)"
 				>
-					<FramedPicture
-						v-if="!isVideoItem(photo) && !broken.has(photo.id)"
-						:src="photo.url"
-						:alt="photo.alt_text || photo.caption || ''"
-						@error="markBroken(photo.id)"
-					/>
-					<img v-else-if="tilePoster(photo) && !broken.has(photo.id)" :src="tilePoster(photo)" :alt="photo.alt_text || photo.caption || ''" draggable="false" @error="markBroken(photo.id)" />
-					<span v-else class="thumb-fallback">{{ isVideoItem(photo) ? "Video" : "Unavailable" }}</span>
-					<span v-if="isVideoItem(photo)" class="play-badge" aria-hidden="true"></span>
-					<span class="status-pill" :class="{ 'is-live': photo.is_published }">{{ photo.is_published ? "Published" : "Draft" }}</span>
-				</div>
-				<div class="card-meta">
-					<label v-if="selecting">
-						<input type="checkbox" :checked="selected.includes(photo.id)" @change="toggleSelected(photo.id)" />
-						Select
-					</label>
-					<strong class="card-caption" :title="photo.caption || ''">{{ photo.caption || (isVideoItem(photo) ? "Untitled video" : "Untitled") }}</strong>
-					<span class="hint">{{ isVideoItem(photo) ? "Video" : "Photo" }}<template v-if="photo.is_cover"> · Cover</template></span>
-					<span v-if="photo.taken_on" class="hint">{{ spokenDate(photo.taken_on) }}</span>
-				</div>
-			</article>
+					<div
+						class="gallery-thumb"
+						:style="{ height: `${cell.height}px` }"
+						role="button"
+						:tabindex="ordering ? -1 : 0"
+						@click="openEditor(cell.photo)"
+						@keydown.enter.prevent="openEditor(cell.photo)"
+					>
+						<FramedPicture
+							v-if="!isVideoItem(cell.photo) && !broken.has(cell.photo.id)"
+							:src="cell.photo.url"
+							:alt="cell.photo.alt_text || cell.photo.caption || ''"
+							@error="markBroken(cell.photo.id)"
+						/>
+						<img v-else-if="tilePoster(cell.photo) && !broken.has(cell.photo.id)" :src="tilePoster(cell.photo)" :alt="cell.photo.alt_text || cell.photo.caption || ''" draggable="false" @error="markBroken(cell.photo.id)" />
+						<span v-else class="thumb-fallback">{{ isVideoItem(cell.photo) ? "Video" : "Unavailable" }}</span>
+						<span v-if="isVideoItem(cell.photo)" class="play-badge" aria-hidden="true"></span>
+						<span class="status-pill" :class="{ 'is-live': cell.photo.is_published }">{{ cell.photo.is_published ? "Published" : "Draft" }}</span>
+					</div>
+					<div class="card-meta">
+						<label v-if="selecting">
+							<input type="checkbox" :checked="selected.includes(cell.photo.id)" @change="toggleSelected(cell.photo.id)" />
+							Select
+						</label>
+						<strong class="card-caption" :title="cell.photo.caption || ''">{{ cell.photo.caption || (isVideoItem(cell.photo) ? "Untitled video" : "Untitled") }}</strong>
+						<span class="hint">{{ isVideoItem(cell.photo) ? "Video" : "Photo" }}<template v-if="cell.photo.is_cover"> · Cover</template></span>
+						<span v-if="cell.photo.taken_on" class="hint">{{ spokenDate(cell.photo.taken_on) }}</span>
+					</div>
+				</article>
+			</div>
 		</div>
 		</template>
 		<GallerySkeleton v-if="loadingMore" compact />
@@ -225,6 +227,9 @@ const dragId = ref(null);
 const dropId = ref(null);
 const cropRequest = ref(null);
 const fileInput = ref(null);
+const frameEl = ref(null);
+const frameWidth = ref(0);
+const ROW_GAP = 14;
 const linkText = ref("");
 const linkDrafts = ref([]);
 const editorOpen = ref(false);
@@ -245,12 +250,74 @@ const canReorder = computed(
 watch(canReorder, (allowed) => {
 	if (!allowed) ordering.value = false;
 });
-const thumbStyle = (photo) => {
-	const width = Number(photo?.width) || 16;
-	const height = Number(photo?.height) || 9;
-	const ratio = Math.min(Math.max(width / Math.max(height, 1), 0.75), 1.85);
-	return { aspectRatio: String(ratio) };
+const aspectOf = (photo) => {
+	const width = Number(photo?.width) || 4;
+	const height = Number(photo?.height) || 3;
+	return Math.min(Math.max(width / Math.max(height, 1), 0.45), 2.6);
 };
+
+const packRows = (list, containerWidth) => {
+	const width = Math.max(containerWidth || 0, 320);
+	const target = width < 720 ? 160 : 200;
+	const rows = [];
+	let row = [];
+	let ratioSum = 0;
+	const flush = (last) => {
+		if (!row.length) return;
+		const gaps = ROW_GAP * Math.max(row.length - 1, 0);
+		const fitted = (width - gaps) / ratioSum;
+		const height = Math.round(Math.min(fitted, last ? target : 340));
+		const cells = row.map((photo) => ({
+			photo,
+			width: Math.max(72, Math.round(aspectOf(photo) * height)),
+			height,
+		}));
+		if (!last) {
+			const used = cells.reduce((sum, cell) => sum + cell.width, 0);
+			let spare = width - gaps - used;
+			let index = 0;
+			while (spare !== 0 && index < cells.length * 8) {
+				const cell = cells[index % cells.length];
+				if (spare > 0) {
+					cell.width += 1;
+					spare -= 1;
+				} else if (cell.width > 72) {
+					cell.width -= 1;
+					spare += 1;
+				} else {
+					break;
+				}
+				index += 1;
+			}
+		}
+		rows.push(cells);
+		row = [];
+		ratioSum = 0;
+	};
+	for (const photo of list) {
+		const ratio = aspectOf(photo);
+		const nextHeight = (width - ROW_GAP * row.length) / (ratioSum + ratio);
+		if (row.length && nextHeight < target * 0.82) flush(false);
+		row.push(photo);
+		ratioSum += ratio;
+	}
+	flush(true);
+	return rows;
+};
+
+const mediaRows = computed(() =>
+	packRows(photos.value, frameWidth.value || Math.max(320, Math.min(window.innerWidth - 300, 1100))),
+);
+
+watch(frameEl, (element, _previous, onCleanup) => {
+	if (!element) return;
+	const observer = new ResizeObserver((entries) => {
+		const next = Math.round(entries[0]?.contentRect?.width || 0);
+		if (next > 0 && next !== frameWidth.value) frameWidth.value = next;
+	});
+	observer.observe(element);
+	onCleanup(() => observer.disconnect());
+});
 const toggleSelecting = () => {
 	ordering.value = false;
 	selecting.value = !selecting.value;
@@ -347,7 +414,7 @@ const uploadJob = async (job) => {
 	job.error = "";
 	try {
 		const body = new FormData();
-		body.append("season_ids", String(seasonId.value));
+		if (seasonId.value) body.append("season_ids", String(seasonId.value));
 		body.append("width", String(job.width));
 		body.append("height", String(job.height));
 		if (job.file) body.append("file", job.file);
@@ -398,10 +465,6 @@ const onCropCancel = () => settleCrop(null);
 
 const queueFiles = async (files) => {
 	dragOver.value = false;
-	if (!seasonId.value) {
-		pageError.value = "Choose a season before uploading.";
-		return;
-	}
 	for (const file of files) {
 		const problem = mediaFileProblem(file);
 		if (problem) {
@@ -783,13 +846,20 @@ onMounted(async () => {
 }
 
 .admin-grid {
-	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+	display: flex;
+	flex-direction: column;
 	gap: 14px;
-	align-items: start;
+}
+
+.admin-row {
+	display: flex;
+	gap: 14px;
+	align-items: flex-start;
 }
 
 .gallery-card {
+	flex: 0 0 auto;
+	min-width: 0;
 	background: #fff;
 	border-radius: 16px;
 	overflow: hidden;
@@ -823,20 +893,21 @@ onMounted(async () => {
 .gallery-thumb {
 	display: block;
 	width: 100%;
-	min-height: 200px;
 	padding: 0;
 	border: 0;
 	background: #e7edf6;
 	border-radius: 0;
 	position: relative;
+	overflow: hidden;
 	cursor: pointer;
 }
 
 .gallery-thumb img,
+.gallery-thumb :deep(.framed:not(.has-frame) img),
 .thumb-fallback {
 	width: 100%;
 	height: 100%;
-	object-fit: contain;
+	object-fit: cover;
 	display: grid;
 	place-items: center;
 }
