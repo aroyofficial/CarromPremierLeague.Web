@@ -34,9 +34,10 @@
 				<el-icon><Menu /></el-icon>Sections
 			</button>
 			<router-view v-slot="{ Component }">
-				<component :is="Component" />
+				<component :is="Component" :key="refreshKey" />
 			</router-view>
 		</section>
+		<StrikerChat v-if="authStore.isAuthenticated" mode="admin" @changed="onAssistantChange" />
 	</div>
 </template>
 
@@ -59,6 +60,7 @@ import {
 	User,
 	UserFilled,
 } from "@element-plus/icons-vue";
+import StrikerChat from "@/components/striker/StrikerChat.vue";
 import { AdminSections, Routes } from "@/utils/constants";
 import { useAuthStore } from "@/store/authStore";
 
@@ -67,6 +69,12 @@ const icons = { Calendar, Connection, DataBoard, Flag, Location, Lock, Picture, 
 const router = useRouter();
 const authStore = useAuthStore();
 const sidebarOpen = ref(false);
+const refreshKey = ref(0);
+
+const onAssistantChange = () => {
+	refreshKey.value += 1;
+	authStore.loadProfile({ force: true }).catch(() => undefined);
+};
 
 const visibleSections = computed(() =>
 	AdminSections.filter((section) => !section.permissions.length || authStore.canAny(section.permissions)),

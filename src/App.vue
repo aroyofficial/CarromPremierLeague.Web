@@ -4,6 +4,7 @@
 		<router-view />
 	</main>
 	<Footer v-if="!isAdminRoute" />
+	<StrikerChat v-if="showPublicAssistant" mode="public" />
 </template>
 
 <script setup>
@@ -12,6 +13,7 @@ import { useRoute, useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import Navbar from "./components/Navbar.vue";
 import Footer from "./components/Footer.vue";
+import StrikerChat from "./components/striker/StrikerChat.vue";
 import { useAuthStore } from "@/store/authStore";
 import { Routes } from "@/utils/constants";
 
@@ -20,6 +22,7 @@ const router = useRouter();
 const authStore = useAuthStore();
 
 const isAdminRoute = computed(() => route.path.startsWith(Routes.ADMIN));
+const showPublicAssistant = computed(() => !isAdminRoute.value && route.path !== Routes.LOGIN);
 
 const onSessionExpired = () => {
 	authStore.logout();
