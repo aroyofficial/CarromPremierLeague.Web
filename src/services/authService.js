@@ -43,12 +43,24 @@ export const authService = {
 		return await api.post("auth/forgot-password", { username });
 	},
 
-	async resetPassword(username, code, password) {
-		return await api.post("auth/reset-password", { username, code, password });
+	async verifyResetCode(username, code) {
+		return await api.post("auth/reset-code/verify", { username, code });
+	},
+
+	async resetPassword(username, ticket, password) {
+		return await api.post("auth/reset-password", { username, ticket, password });
 	},
 
 	async passwordCode() {
 		return await api.post("auth/password-code");
+	},
+
+	async verifyPasswordCode(code) {
+		return await api.post("auth/password-code/verify", { code });
+	},
+
+	async changePassword(ticket, password) {
+		return await api.post("auth/change-password", { ticket, password });
 	},
 
 	async mfaStatus() {

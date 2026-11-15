@@ -2,11 +2,25 @@
 	<div v-if="authStore.mustChangePassword" class="admin-activate">
 		<ActivateAccount @done="router.push(Routes.LOGIN)" />
 	</div>
-	<div v-else class="admin-shell">
-		<aside class="admin-sidebar" :class="{ 'is-open': sidebarOpen }">
+	<div v-else class="admin-shell" :class="{ 'is-expanded': expanded, 'is-phone': phone }">
+		<aside id="admin-sidebar" class="admin-sidebar" aria-label="Admin console">
 			<div class="sidebar-head">
-				<span class="page-eyebrow">Admin Console</span>
-				<strong :title="authStore.username">{{ authStore.displayName }}</strong>
+				<span class="sidebar-avatar" aria-hidden="true">{{ userInitial }}</span>
+				<span class="sidebar-who">
+					<span class="page-eyebrow">Admin Console</span>
+					<strong :title="authStore.username">{{ authStore.displayName }}</strong>
+				</span>
+				<button
+					type="button"
+					class="sidebar-collapse"
+					aria-controls="admin-sidebar"
+					:aria-expanded="expanded"
+					:aria-label="expanded ? 'Collapse menu' : 'Expand menu'"
+					:title="expanded ? 'Collapse menu' : 'Expand menu'"
+					@click="setExpanded(!expanded)"
+				>
+					<el-icon><DArrowLeft v-if="expanded" /><DArrowRight v-else /></el-icon>
+				</button>
 			</div>
 			<nav class="sidebar-nav" aria-label="Admin sections">
 				<router-link
@@ -15,27 +29,20 @@
 					:to="{ name: section.name }"
 					class="sidebar-link"
 					exact-active-class="is-active"
-					@click="sidebarOpen = false"
+					:title="expanded ? undefined : section.label"
+					@click="closeOnPhone"
 				>
 					<el-icon><component :is="icons[section.icon]" /></el-icon>
-					<span>{{ section.label }}</span>
+					<span class="sidebar-label">{{ section.label }}</span>
 				</router-link>
 			</nav>
 			<div class="sidebar-foot">
-				<el-button class="w-100" @click="router.push(Routes.HOME)">
-					<el-icon class="me-1"><HomeFilled /></el-icon>View public site
-				</el-button>
-				<el-button class="w-100 ms-0 mt-2" type="danger" plain @click="logout">
-					<el-icon class="me-1"><SwitchButton /></el-icon>Logout
-				</el-button>
+				<ViewCoin face="admin" :compact="!expanded" @logout="logout" />
 			</div>
 		</aside>
-		<div v-if="sidebarOpen" class="sidebar-backdrop" @click="sidebarOpen = false"></div>
+		<div v-if="phone && expanded" class="sidebar-backdrop" @click="setExpanded(false)"></div>
 
 		<section class="admin-main">
-			<button type="button" class="sidebar-toggle" @click="sidebarOpen = true">
-				<el-icon><Menu /></el-icon>Sections
-			</button>
 			<router-view v-slot="{ Component }">
 				<component :is="Component" :key="refreshKey" />
 			</router-view>
@@ -49,29 +56,31 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import {
 	Avatar,
 	Calendar,
 	Connection,
+	DArrowLeft,
+	DArrowRight,
 	DataBoard,
 	Flag,
-	HomeFilled,
 	Location,
 	Lock,
-	Menu,
 	Picture,
 	Setting,
-	SwitchButton,
 	Trophy,
 	User,
 	UserFilled,
 } from "@element-plus/icons-vue";
 import ActivateAccount from "@/components/admin/ActivateAccount.vue";
+import ViewCoin from "@/components/admin/ViewCoin.vue";
 import StrikerChat from "@/components/striker/StrikerChat.vue";
+import { initial } from "@/utils/adminNames";
 import { adminAssistantIsVisible } from "@/utils/assistantVisibility";
 import { AdminSections, Routes } from "@/utils/constants";
+import { SIDEBAR_KEY, initialSidebarExpanded, isPhoneWidth, sidebarPreference } from "@/utils/sidebarState";
 import { useAuthStore } from "@/store/authStore";
 import { useSettingsStore } from "@/store/settingsStore";
 
@@ -80,8 +89,44 @@ const icons = { Avatar, Calendar, Connection, DataBoard, Flag, Location, Lock, P
 const router = useRouter();
 const authStore = useAuthStore();
 const settingsStore = useSettingsStore();
-const sidebarOpen = ref(false);
 const refreshKey = ref(0);
+const userInitial = computed(() => initial(authStore));
+
+const readStored = () => {
+	try {
+		return localStorage.getItem(SIDEBAR_KEY);
+	} catch {
+		return null;
+	}
+};
+
+const phone = ref(isPhoneWidth(window.innerWidth));
+const expanded = ref(initialSidebarExpanded(window.innerWidth, readStored()));
+
+const setExpanded = (value) => {
+	expanded.value = value;
+	if (phone.value) return;
+	try {
+		localStorage.setItem(SIDEBAR_KEY, sidebarPreference(value));
+	} catch {
+		// Private browsing can refuse storage; the choice then lasts for this page only.
+	}
+};
+
+const closeOnPhone = () => {
+	if (phone.value) expanded.value = false;
+};
+
+const onResize = () => {
+	const nowPhone = isPhoneWidth(window.innerWidth);
+	if (nowPhone === phone.value) return;
+	phone.value = nowPhone;
+	expanded.value = initialSidebarExpanded(window.innerWidth, readStored());
+};
+
+const onKeydown = (event) => {
+	if (event.key === "Escape" && phone.value && expanded.value) expanded.value = false;
+};
 
 const onAssistantChange = () => {
 	refreshKey.value += 1;
@@ -108,6 +153,13 @@ const showAssistant = computed(
 onMounted(() => {
 	authStore.loadProfile().catch(() => undefined);
 	if (!settingsStore.loaded) settingsStore.fetchSettings().catch(() => undefined);
+	window.addEventListener("resize", onResize, { passive: true });
+	window.addEventListener("keydown", onKeydown);
+});
+
+onUnmounted(() => {
+	window.removeEventListener("resize", onResize);
+	window.removeEventListener("keydown", onKeydown);
 });
 
 const logout = () => {
@@ -146,35 +198,128 @@ body:has(.admin-shell) .el-message-box {
 }
 
 .admin-shell {
+	--rail-width: 76px;
+	--panel-width: 256px;
 	display: grid;
-	grid-template-columns: 240px minmax(0, 1fr);
+	grid-template-columns: var(--rail-width) minmax(0, 1fr);
 	min-height: calc(100vh - var(--app-header-height));
 	background: var(--cpl-surface-muted);
+	transition: grid-template-columns 0.25s ease;
+
+	&.is-expanded {
+		grid-template-columns: var(--panel-width) minmax(0, 1fr);
+	}
 }
 
 .admin-sidebar {
 	position: sticky;
 	top: var(--app-header-height);
+	z-index: 20;
 	height: calc(100vh - var(--app-header-height));
+	height: calc(100dvh - var(--app-header-height));
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
-	padding: 20px 14px;
-	background: var(--cpl-navy-900);
+	padding: 16px 14px;
+	background:
+		radial-gradient(120% 40% at 0% 0%, rgba(255, 201, 74, 0.12), transparent 60%),
+		var(--cpl-navy-900);
 	color: #fff;
 	overflow: hidden;
 }
 
 .sidebar-head {
 	flex: 0 0 auto;
-	display: flex;
-	flex-direction: column;
-	gap: 2px;
-	padding: 0 8px 12px;
+	display: grid;
+	grid-template-columns: 40px minmax(0, 1fr) auto;
+	align-items: center;
+	gap: 10px;
+	padding: 0 2px 14px;
 	border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 
 	.page-eyebrow {
 		color: var(--cpl-gold-400);
+	}
+}
+
+.sidebar-avatar {
+	width: 40px;
+	height: 40px;
+	border-radius: 50%;
+	display: grid;
+	place-items: center;
+	background: linear-gradient(160deg, #ffe7a8, #e2a01a);
+	color: var(--cpl-navy-900);
+	font-weight: 800;
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+
+.sidebar-who {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+
+	strong {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+}
+
+.sidebar-collapse {
+	width: 32px;
+	height: 32px;
+	display: grid;
+	place-items: center;
+	border: 1px solid rgba(255, 255, 255, 0.16);
+	border-radius: 10px;
+	background: rgba(255, 255, 255, 0.06);
+	color: #fff;
+	cursor: pointer;
+
+	&:hover {
+		background: rgba(255, 255, 255, 0.14);
+		color: var(--cpl-gold-400);
+	}
+
+	&:focus-visible {
+		outline: 2px solid var(--cpl-gold-400);
+		outline-offset: 2px;
+	}
+}
+
+.admin-shell:not(.is-expanded) {
+	.admin-sidebar {
+		align-items: center;
+		padding-inline: 10px;
+	}
+
+	.sidebar-head {
+		grid-template-columns: 40px;
+		justify-items: center;
+	}
+
+	.sidebar-who,
+	.sidebar-label {
+		display: none;
+	}
+
+	.sidebar-nav {
+		width: 100%;
+		align-items: center;
+	}
+
+	.sidebar-link {
+		justify-content: center;
+		width: 48px;
+		padding: 12px 0;
+	}
+
+	.sidebar-foot {
+		display: flex;
+		justify-content: center;
+		width: 100%;
 	}
 }
 
@@ -193,13 +338,26 @@ body:has(.admin-shell) .el-message-box {
 .sidebar-link {
 	display: flex;
 	align-items: center;
-	gap: 10px;
+	gap: 12px;
+	min-height: 44px;
 	padding: 10px 12px;
-	border-radius: 10px;
+	border-radius: 12px;
 	color: rgba(255, 255, 255, 0.8);
 	text-decoration: none;
 	font-size: 14px;
 	font-weight: 500;
+	white-space: nowrap;
+	transition: background 0.15s ease, color 0.15s ease;
+
+	.el-icon {
+		flex: 0 0 auto;
+		font-size: 18px;
+	}
+
+	&:focus-visible {
+		outline: 2px solid var(--cpl-gold-400);
+		outline-offset: 1px;
+	}
 
 	&:hover {
 		background: rgba(255, 255, 255, 0.08);
@@ -219,12 +377,8 @@ body:has(.admin-shell) .el-message-box {
 	border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.sidebar-toggle,
-.sidebar-backdrop {
-	display: none;
-}
-
 .admin-main {
+	grid-column: 2;
 	min-width: 0;
 	padding: 24px clamp(16px, 3vw, 36px) 48px;
 }
@@ -310,47 +464,33 @@ body:has(.admin-shell) .el-message-box {
 	}
 }
 
-@media (max-width: 991.98px) {
-	.admin-shell {
-		grid-template-columns: minmax(0, 1fr);
-	}
+.admin-shell.is-phone {
+	--rail-width: 64px;
+	grid-template-columns: var(--rail-width) minmax(0, 1fr);
 
 	.admin-sidebar {
 		position: fixed;
 		left: 0;
 		z-index: 1050;
-		width: min(260px, 85vw);
-		transform: translateX(-100%);
-		visibility: hidden;
-		transition: transform 0.25s ease, visibility 0s linear 0.25s;
-
-		&.is-open {
-			transform: none;
-			visibility: visible;
-			transition: transform 0.25s ease;
-		}
+		width: var(--rail-width);
+		transition: width 0.25s ease, box-shadow 0.25s ease;
 	}
 
-	.sidebar-backdrop {
-		display: block;
-		position: fixed;
-		inset: var(--app-header-height) 0 0 0;
-		background: rgba(0, 0, 0, 0.45);
-		z-index: 1040;
+	&.is-expanded .admin-sidebar {
+		width: min(var(--panel-width), 85vw);
+		box-shadow: 12px 0 32px rgba(0, 0, 0, 0.35);
 	}
 
-	.sidebar-toggle {
-		display: inline-flex;
-		align-items: center;
-		gap: 6px;
-		margin-bottom: 14px;
-		padding: 8px 14px;
-		border: 1px solid var(--cpl-line);
-		border-radius: 999px;
-		background: #fff;
-		font-weight: 600;
-		cursor: pointer;
+	&:not(.is-expanded) .admin-sidebar {
+		padding-inline: 8px;
 	}
+}
+
+.sidebar-backdrop {
+	position: fixed;
+	inset: var(--app-header-height) 0 0 0;
+	background: rgba(0, 0, 0, 0.45);
+	z-index: 1040;
 }
 
 @media (max-width: 575.98px) {
@@ -415,9 +555,12 @@ body:has(.admin-shell) .el-message-box {
 	.admin-card .el-pager {
 		display: none;
 	}
+}
 
-	.sidebar-toggle {
-		min-height: 40px;
+@media (prefers-reduced-motion: reduce) {
+	.admin-shell,
+	.admin-shell .admin-sidebar {
+		transition: none;
 	}
 }
 </style>

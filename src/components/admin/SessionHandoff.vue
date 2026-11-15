@@ -39,6 +39,11 @@
 
 			<el-alert v-if="errorMessage" :title="errorMessage" type="error" show-icon class="mb-3" role="alert" @close="errorMessage = ''" />
 
+			<div class="allow-timer" role="timer" :aria-label="`${timeLeft} left to allow this sign-in`">
+				<span class="timer-track"><span class="timer-fill" :style="{ width: timerShare }"></span></span>
+				<span>{{ timeLeft }} left to allow this sign-in</span>
+			</div>
+
 			<div class="choices">
 				<button ref="keepRef" type="button" class="choice is-keep" :disabled="busy !== ''" @click="deny">
 					<span class="choice-title">
@@ -74,6 +79,7 @@ import { authService } from "@/services/authService";
 import { useAuthStore } from "@/store/authStore";
 import { Routes } from "@/utils/constants";
 import { deviceLabel } from "@/utils/deviceSession";
+import { requestDeadline, secondsLeft } from "@/utils/loginRequest";
 import { formatDuration } from "@/utils/passwordRules";
 
 const authStore = useAuthStore();
@@ -85,6 +91,8 @@ const dialogRef = ref(null);
 const keepRef = ref(null);
 const seenAt = ref(0);
 const now = ref(Date.now());
+const deadline = ref(0);
+const windowSeconds = ref(600);
 const thisDevice = deviceLabel();
 let timer = 0;
 let clock = 0;
@@ -94,12 +102,32 @@ const askedAgo = computed(() => {
 	const seconds = seenAt.value ? (now.value - seenAt.value) / 1000 : 0;
 	return seconds < 5 ? "just now" : `${formatDuration(seconds)} ago`;
 });
+const left = computed(() => secondsLeft(deadline.value, now.value));
+const timeLeft = computed(() => formatDuration(left.value));
+const timerShare = computed(() => {
+	const total = windowSeconds.value || 1;
+	return `${Math.min(100, Math.max(0, (left.value / total) * 100))}%`;
+});
+
+watch(left, (value) => {
+	if (request.value && value <= 0 && !busy.value) request.value = null;
+});
 
 const look = async () => {
 	if (!authStore.isAuthenticated || busy.value) return;
 	try {
 		const response = await authService.pendingLogin();
-		request.value = response?.data || null;
+		const data = response?.data || null;
+		if (!data) {
+			request.value = null;
+			return;
+		}
+		const same = request.value?.request_id === data.request_id;
+		request.value = data;
+		if (!same) {
+			deadline.value = requestDeadline(Date.now(), data.expires_in);
+			windowSeconds.value = Math.max(1, secondsLeft(deadline.value, Date.now()));
+		}
 	} catch {
 		request.value = null;
 	}
@@ -202,7 +230,7 @@ onUnmounted(() => {
 }
 
 .handoff-card {
-	width: min(460px, 100%);
+	width: min(680px, 100%);
 	max-height: calc(100vh - 40px);
 	overflow-y: auto;
 	padding: clamp(22px, 5vw, 32px);
@@ -243,6 +271,7 @@ h2 {
 	list-style: none;
 	margin: 0 0 18px;
 	padding: 0;
+	display: grid;
 	border: 1px solid var(--cpl-line);
 	border-radius: var(--cpl-radius-md);
 	overflow: hidden;
@@ -294,6 +323,32 @@ h2 {
 .device-meta {
 	font-size: 12px;
 	color: var(--cpl-ink-600);
+}
+
+.allow-timer {
+	display: grid;
+	gap: 6px;
+	margin-bottom: 14px;
+	color: var(--cpl-ink-600);
+	font-size: 13px;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+}
+
+.timer-track {
+	display: block;
+	height: 6px;
+	border-radius: 999px;
+	background: #efe8d6;
+	overflow: hidden;
+}
+
+.timer-fill {
+	display: block;
+	height: 100%;
+	border-radius: inherit;
+	background: linear-gradient(90deg, #e2a01a, #ffc94a);
+	transition: width 1s linear;
 }
 
 .choices {
@@ -382,10 +437,27 @@ h2 {
 	from { opacity: 0; transform: translateY(10px) scale(0.98); }
 }
 
+@media (min-width: 640px) {
+	.devices {
+		grid-template-columns: 1fr 1fr;
+	}
+
+	.devices li + li {
+		border-top: 0;
+		border-left: 1px solid var(--cpl-line);
+	}
+
+	.choices {
+		grid-template-columns: 1fr 1fr;
+	}
+}
+
 @media (prefers-reduced-motion: reduce) {
 	.session-handoff,
-	.handoff-card {
+	.handoff-card,
+	.timer-fill {
 		animation: none;
+		transition: none;
 	}
 }
 </style>

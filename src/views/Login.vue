@@ -1,6 +1,6 @@
 <template>
 	<div class="auth-page">
-		<div class="auth-frame">
+		<div class="auth-frame" :class="{ 'is-waiting': view === 'wait' }">
 			<aside class="auth-aside" aria-hidden="true">
 				<div class="aside-board">
 					<span class="ring ring-1"></span>
@@ -32,16 +32,15 @@
 						<el-icon><ArrowLeft /></el-icon>Back to sign in
 					</button>
 
-					<header class="auth-head">
+					<header class="auth-head" :class="{ 'is-compact': view === 'wait' }">
 						<div class="step-badge" :class="`is-${header.tone}`" aria-hidden="true">
 							<el-icon><component :is="header.icon" /></el-icon>
 						</div>
 						<span class="page-eyebrow">{{ header.eyebrow }}</span>
 						<h1 id="auth-title" ref="titleRef" class="auth-title" tabindex="-1">{{ header.title }}</h1>
 						<p v-if="header.text" class="auth-text">{{ header.text }}</p>
-						<div v-if="header.step" class="step-track" role="img" :aria-label="`Step ${header.step} of 2`">
-							<span :class="{ 'is-on': header.step >= 1 }"></span>
-							<span :class="{ 'is-on': header.step >= 2 }"></span>
+						<div v-if="header.step" class="step-track" role="img" :aria-label="`Step ${header.step} of ${RESET_STEPS}`">
+							<span v-for="index in RESET_STEPS" :key="index" :class="{ 'is-on': header.step >= index }"></span>
 						</div>
 					</header>
 
@@ -89,10 +88,13 @@
 								</div>
 							</div>
 
-							<p class="wait-status" role="status" aria-live="polite">{{ waitStatus }}</p>
-							<p class="wait-note">Nothing changes on the other device until it approves.</p>
-
-							<el-button size="large" class="w-100 ms-0" @click="cancelWait">Cancel request</el-button>
+							<div class="wait-foot">
+								<div>
+									<p class="wait-status" role="status" aria-live="polite">{{ waitStatus }}</p>
+									<p class="wait-note">Nothing changes on the other device until it approves.</p>
+								</div>
+								<el-button size="large" class="wait-cancel ms-0" @click="cancelWait">Cancel request</el-button>
+							</div>
 						</template>
 
 						<template v-else>
@@ -147,40 +149,56 @@
 						</div>
 					</el-form>
 
+					<div v-else-if="view === 'reset'" class="panel-body">
+						<el-alert v-if="recoverNotice" :title="recoverNotice" type="info" show-icon class="mb-3" @close="recoverNotice = ''" />
+						<el-alert v-if="recoverError" :title="recoverError" type="error" show-icon class="mb-3" role="alert" @close="recoverError = ''" />
+						<p class="code-label">6-digit code</p>
+						<CodeBoxes v-model="forgot.code" :disabled="resetting" @complete="checkResetCode" />
+						<p class="code-hint" aria-live="polite">{{ resetting ? "Checking the code…" : "The code expires in 10 minutes." }}</p>
+						<el-button
+							type="primary"
+							size="large"
+							class="submit-btn"
+							:loading="resetting"
+							:disabled="resetting || forgot.code.length !== 6"
+							@click="checkResetCode"
+						>
+							{{ resetting ? "Checking…" : "Verify code" }}
+						</el-button>
+						<div class="link-row split">
+							<button type="button" class="text-link" :disabled="resendWait > 0 || resetting" @click="resendCode">
+								{{ resendWait > 0 ? `Resend code in ${resendWait}s` : "Resend code" }}
+							</button>
+							<button type="button" class="text-link" :disabled="resetting" @click="openForgot(forgot.username)">Use a different username</button>
+						</div>
+					</div>
+
 					<el-form
-						v-else-if="view === 'reset'"
+						v-else-if="view === 'newpass'"
 						ref="resetRef"
 						:model="forgot"
 						:rules="resetRules"
 						label-position="top"
 						size="large"
 						class="panel-body"
+						autocomplete="on"
 						@submit.prevent="applyReset"
 					>
-						<el-alert v-if="recoverNotice" :title="recoverNotice" type="info" show-icon class="mb-3" @close="recoverNotice = ''" />
 						<el-alert v-if="recoverError" :title="recoverError" type="error" show-icon class="mb-3" role="alert" @close="recoverError = ''" />
-						<el-form-item label="6-digit code" prop="code">
-							<el-input
-								:model-value="forgot.code"
-								class="code-input"
-								inputmode="numeric"
-								autocomplete="one-time-code"
-								maxlength="6"
-								placeholder="••••••"
-								:disabled="resetting"
-								@update:model-value="forgot.code = String($event).replace(/\D/g, '').slice(0, 6)"
-							/>
-						</el-form-item>
-						<NewPasswordFields v-model:password="forgot.password" v-model:confirm="forgot.confirm" />
-						<el-button type="primary" native-type="submit" class="submit-btn" :loading="resetting">
+						<p class="ticket-note">
+							<el-icon aria-hidden="true"><CircleCheckFilled /></el-icon>
+							Code accepted. Choose a new password within {{ formatDuration(ticketLeft) }}.
+						</p>
+						<NewPasswordFields
+							v-model:password="forgot.password"
+							v-model:confirm="forgot.confirm"
+							v-model:save="forgot.save"
+							:username="forgot.username"
+							:disabled="resetting"
+						/>
+						<el-button type="primary" native-type="submit" class="submit-btn" :loading="resetting" :disabled="resetting || !resetReady">
 							{{ resetting ? "Updating…" : "Update password" }}
 						</el-button>
-						<div class="link-row split">
-							<button type="button" class="text-link" :disabled="resendWait > 0 || resetting" @click="resendCode">
-								{{ resendWait > 0 ? `Resend code in ${resendWait}s` : "Resend code" }}
-							</button>
-							<button type="button" class="text-link" @click="openForgot(forgot.username)">Use a different username</button>
-						</div>
 					</el-form>
 
 					<LoginChallenge
@@ -258,6 +276,7 @@ import {
 	ArrowLeft,
 	Calendar,
 	Check,
+	CircleCheckFilled,
 	Iphone,
 	Key,
 	Lock,
@@ -269,17 +288,21 @@ import {
 	WarningFilled,
 } from "@element-plus/icons-vue";
 import ActivateAccount from "@/components/admin/ActivateAccount.vue";
+import CodeBoxes from "@/components/admin/CodeBoxes.vue";
 import LoginChallenge from "@/components/admin/LoginChallenge.vue";
 import NewPasswordFields from "@/components/admin/NewPasswordFields.vue";
 import { authService } from "@/services/authService";
 import { useAuthStore } from "@/store/authStore";
+import { unwrap } from "@/utils/adminHelpers";
 import { Routes } from "@/utils/constants";
 import { deviceLabel } from "@/utils/deviceSession";
-import { formatDuration, MIN_PASSWORD_LENGTH } from "@/utils/passwordRules";
+import { formatDuration, MIN_PASSWORD_LENGTH, passwordReady } from "@/utils/passwordRules";
+import { storeCredential } from "@/utils/passwordTools";
 import { appRedirect } from "@/utils/queryState";
 
 const WAIT_LIMIT_SECONDS = 600;
 const RESEND_COOLDOWN_SECONDS = 30;
+const RESET_STEPS = 3;
 
 const route = useRoute();
 const router = useRouter();
@@ -308,7 +331,7 @@ let waitTimer = 0;
 let clock = 0;
 const form = reactive({ username: "", password: "" });
 const mfa = reactive({ token: "", methods: [] });
-const forgot = reactive({ username: "", code: "", password: "", confirm: "" });
+const forgot = reactive({ username: "", code: "", password: "", confirm: "", save: true, ticket: "", deadline: 0 });
 
 const rules = {
 	username: [{ required: true, message: "Enter your username", trigger: "blur" }],
@@ -318,7 +341,6 @@ const forgotRules = {
 	username: [{ required: true, message: "Enter your username", trigger: "blur" }],
 };
 const resetRules = {
-	code: [{ pattern: /^\d{6}$/, required: true, message: "Enter the 6-digit code from the email", trigger: "blur" }],
 	password: [
 		{
 			validator: (_rule, value, callback) =>
@@ -342,11 +364,13 @@ const view = computed(() => {
 	if (settled && authStore.mustChangePassword) return "activate";
 	if (step.value === "wait") return "wait";
 	if (settled) return "signed-in";
-	if (step.value === "forgot" || step.value === "reset" || step.value === "mfa") return step.value;
+	if (["forgot", "reset", "newpass", "mfa"].includes(step.value)) return step.value;
 	return "login";
 });
 
-const canGoBack = computed(() => ["forgot", "reset", "mfa"].includes(view.value) || (view.value === "wait" && waitState.value !== "waiting"));
+const canGoBack = computed(
+	() => ["forgot", "reset", "newpass", "mfa"].includes(view.value) || (view.value === "wait" && waitState.value !== "waiting"),
+);
 
 const header = computed(() => {
 	switch (view.value) {
@@ -354,7 +378,7 @@ const header = computed(() => {
 			return {
 				icon: Key,
 				tone: "gold",
-				eyebrow: "Reset password · Step 1 of 2",
+				eyebrow: `Reset password · Step 1 of ${RESET_STEPS}`,
 				title: "Forgot your password?",
 				text: "Enter your username. A 6-digit code goes to the email address on that account.",
 				step: 1,
@@ -363,10 +387,19 @@ const header = computed(() => {
 			return {
 				icon: Message,
 				tone: "gold",
-				eyebrow: "Reset password · Step 2 of 2",
+				eyebrow: `Reset password · Step 2 of ${RESET_STEPS}`,
 				title: "Check your email",
-				text: `Enter the code sent for ${forgot.username} and choose a new password.`,
+				text: `Enter the code sent for ${forgot.username}. The new password comes next.`,
 				step: 2,
+			};
+		case "newpass":
+			return {
+				icon: Lock,
+				tone: "gold",
+				eyebrow: `Reset password · Step 3 of ${RESET_STEPS}`,
+				title: "Choose a new password",
+				text: `For ${forgot.username}. Every device signed in to this account is signed out.`,
+				step: 3,
 			};
 		case "mfa":
 			return {
@@ -423,13 +456,15 @@ const initials = computed(() =>
 const waitElapsed = computed(() => (waitStarted.value ? (now.value - waitStarted.value) / 1000 : 0));
 const waitRemaining = computed(() => Math.max(0, Math.ceil(WAIT_LIMIT_SECONDS - waitElapsed.value)));
 const resendWait = computed(() => Math.max(0, Math.ceil((resendAt.value - now.value) / 1000)));
+const ticketLeft = computed(() => Math.max(0, Math.ceil((forgot.deadline - now.value) / 1000)));
+const resetReady = computed(() => passwordReady(forgot.password, forgot.confirm));
 
 const focusView = async () => {
 	await nextTick();
 	const panel = panelRef.value;
 	if (!panel) return;
 	const fields = [...panel.querySelectorAll("input:not([disabled])")];
-	if (["login", "forgot", "reset", "mfa"].includes(view.value) && fields.length) {
+	if (["login", "forgot", "reset", "newpass", "mfa"].includes(view.value) && fields.length) {
 		(fields.find((input) => !input.value) || fields[0]).focus();
 		return;
 	}
@@ -447,7 +482,7 @@ watch(
 	},
 );
 
-for (const field of ["code", "password", "confirm"]) {
+for (const field of ["password", "confirm"]) {
 	watch(
 		() => forgot[field],
 		() => resetRef.value?.clearValidate(field),
@@ -459,17 +494,14 @@ const readCapsLock = (event) => {
 };
 
 const openForgot = (username = "") => {
-	forgot.username = username;
-	forgot.code = "";
-	forgot.password = "";
-	forgot.confirm = "";
+	Object.assign(forgot, { username, code: "", password: "", confirm: "", save: true, ticket: "", deadline: 0 });
 	recoverError.value = "";
 	recoverNotice.value = "";
 	step.value = "forgot";
 };
 
 const backToSignIn = () => {
-	if (["forgot", "reset"].includes(step.value) && forgot.username && !form.username) form.username = forgot.username;
+	if (["forgot", "reset", "newpass"].includes(step.value) && forgot.username && !form.username) form.username = forgot.username;
 	recoverError.value = "";
 	step.value = "login";
 	waitState.value = "waiting";
@@ -517,24 +549,60 @@ const resendCode = async () => {
 	}
 };
 
-const applyReset = async () => {
+const checkResetCode = async () => {
+	if (resetting.value || forgot.code.length !== 6) return;
 	recoverError.value = "";
-	const valid = await resetRef.value.validate().catch(() => false);
-	if (!valid) return;
 	resetting.value = true;
 	try {
-		await authService.resetPassword(forgot.username, forgot.code, forgot.password);
-		form.username = forgot.username;
-		form.password = "";
-		step.value = "login";
-		await nextTick();
-		notice.value = "Password updated. Sign in with the new password.";
+		const data = unwrap(await authService.verifyResetCode(forgot.username, forgot.code));
+		forgot.ticket = data.ticket;
+		forgot.deadline = Date.now() + (Number(data.expires_in) || 600) * 1000;
+		recoverNotice.value = "";
+		step.value = "newpass";
 	} catch (error) {
-		recoverError.value = error?.message || "That code could not reset the password. Check it or request a new one.";
+		forgot.code = "";
+		recoverError.value = error?.message || "That code is not valid. Check the latest email or send a new code.";
 	} finally {
 		resetting.value = false;
 	}
 };
+
+const ticketExpired = () => {
+	forgot.ticket = "";
+	forgot.code = "";
+	step.value = "reset";
+	recoverError.value = "That took too long, so the reset expired. Send a new code to start again.";
+};
+
+const applyReset = async () => {
+	recoverError.value = "";
+	const valid = await resetRef.value.validate().catch(() => false);
+	if (!valid || !resetReady.value) return;
+	resetting.value = true;
+	try {
+		await authService.resetPassword(forgot.username, forgot.ticket, forgot.password);
+		if (forgot.save) await storeCredential(forgot.username, forgot.password);
+		form.username = forgot.username;
+		form.password = "";
+		Object.assign(forgot, { code: "", password: "", confirm: "", ticket: "", deadline: 0 });
+		step.value = "login";
+		await nextTick();
+		notice.value = "Password updated. A confirmation email is on its way. Sign in with the new password.";
+	} catch (error) {
+		const message = error?.message || "The password could not be reset. Try again.";
+		if (/expired/i.test(message)) {
+			ticketExpired();
+			return;
+		}
+		recoverError.value = message;
+	} finally {
+		resetting.value = false;
+	}
+};
+
+watch(ticketLeft, (left) => {
+	if (step.value === "newpass" && forgot.deadline && left === 0) ticketExpired();
+});
 
 const safeRedirect = () =>
 	appRedirect(route.query.redirect, (path) => {
@@ -669,8 +737,8 @@ const logout = () => {
 .auth-page {
 	min-height: calc(100vh - var(--app-header-height) - 80px);
 	display: grid;
-	place-items: center;
-	padding: clamp(20px, 5vw, 56px) var(--page-gutter);
+	place-items: safe center;
+	padding: clamp(12px, 3vh, 40px) var(--page-gutter);
 	background:
 		radial-gradient(circle at 12% 18%, rgba(245, 184, 46, 0.16), transparent 42%),
 		radial-gradient(circle at 88% 82%, rgba(24, 41, 77, 0.12), transparent 45%);
@@ -678,9 +746,9 @@ const logout = () => {
 
 .auth-frame {
 	width: 100%;
-	max-width: 960px;
+	max-width: 1040px;
 	display: grid;
-	grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+	grid-template-columns: minmax(280px, 0.82fr) minmax(0, 1.18fr);
 	border-radius: 24px;
 	overflow: hidden;
 	background: #fff;
@@ -694,7 +762,7 @@ const logout = () => {
 	display: flex;
 	flex-direction: column;
 	justify-content: flex-end;
-	min-height: 560px;
+	min-height: 100%;
 	padding: 40px;
 	color: #fff;
 	overflow: hidden;
@@ -795,6 +863,8 @@ const logout = () => {
 	justify-content: center;
 	padding: clamp(28px, 5vw, 48px);
 	min-width: 0;
+	container-type: inline-size;
+	container-name: auth-panel;
 }
 
 .back-link {
@@ -820,6 +890,17 @@ const logout = () => {
 
 .auth-head {
 	margin-bottom: 24px;
+
+	&.is-compact {
+		margin-bottom: 14px;
+
+		.step-badge {
+			width: 44px;
+			height: 44px;
+			margin-bottom: 10px;
+			font-size: 20px;
+		}
+	}
 }
 
 .step-badge {
@@ -868,10 +949,11 @@ const logout = () => {
 
 .step-track {
 	display: grid;
-	grid-template-columns: 1fr 1fr;
+	grid-auto-flow: column;
+	grid-auto-columns: 1fr;
 	gap: 6px;
 	margin-top: 18px;
-	max-width: 160px;
+	max-width: 200px;
 
 	span {
 		height: 5px;
@@ -907,6 +989,33 @@ const logout = () => {
 	gap: 12px;
 	min-height: 24px;
 	margin-bottom: 14px;
+}
+
+.code-label {
+	margin: 0 0 10px;
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--cpl-ink-900);
+}
+
+.code-hint {
+	margin: 10px 0 16px;
+	font-size: 13px;
+	color: var(--cpl-ink-600);
+}
+
+.ticket-note {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 0 0 16px;
+	padding: 10px 12px;
+	border-radius: var(--cpl-radius-md);
+	background: #f4fbf6;
+	color: #17643a;
+	font-size: 14px;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
 }
 
 .caps-hint {
@@ -1134,10 +1243,74 @@ const logout = () => {
 	background: linear-gradient(135deg, var(--cpl-gold-400), var(--cpl-gold-500));
 }
 
+@media (min-width: 1200px) {
+	.auth-frame {
+		max-width: 1160px;
+	}
+
+	.auth-frame.is-waiting {
+		max-width: 1220px;
+	}
+}
+
+.wait-cancel {
+	width: 100%;
+}
+
+.wait-foot .wait-status {
+	margin: 0 0 4px;
+}
+
+.wait-foot .wait-note {
+	margin: 0;
+}
+
+@container auth-panel (min-width: 520px) {
+	.wait-steps {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 12px;
+
+		li {
+			flex-direction: column;
+			gap: 10px;
+			padding: 14px;
+			border: 1px solid var(--cpl-line);
+			border-radius: 14px;
+			background: #fff;
+
+			&:not(:last-child)::after {
+				display: none;
+			}
+		}
+
+		.is-active {
+			border-color: var(--cpl-gold-500);
+			background: var(--cpl-gold-100, #fff8e8);
+		}
+
+		.is-done {
+			background: #f4fbf6;
+		}
+	}
+
+	.wait-foot {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 16px;
+		margin-top: 16px;
+	}
+
+	.wait-cancel {
+		width: auto;
+		flex: none;
+	}
+}
+
 @media (max-width: 860px) {
 	.auth-frame {
 		grid-template-columns: 1fr;
-		max-width: 480px;
+		max-width: 640px;
 	}
 
 	.auth-aside {

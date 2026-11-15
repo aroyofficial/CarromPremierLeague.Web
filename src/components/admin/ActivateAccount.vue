@@ -38,7 +38,13 @@
 			</button>
 			<span v-if="codeSent">A code is on its way to your email address.</span>
 		</p>
-		<NewPasswordFields v-model:password="form.password" v-model:confirm="form.confirm" />
+		<NewPasswordFields
+			v-model:password="form.password"
+			v-model:confirm="form.confirm"
+			v-model:save="form.save"
+			:username="authStore.username"
+			:disabled="saving"
+		/>
 		<el-button type="primary" native-type="submit" class="w-100 submit-btn" :loading="saving">
 			{{ saving ? "Activating…" : "Activate account" }}
 		</el-button>
@@ -55,6 +61,7 @@ import { adminApi } from "@/services/adminService";
 import { authService } from "@/services/authService";
 import { useAuthStore } from "@/store/authStore";
 import { MIN_PASSWORD_LENGTH } from "@/utils/passwordRules";
+import { storeCredential } from "@/utils/passwordTools";
 
 const props = defineProps({
 	quiet: { type: Boolean, default: false },
@@ -65,7 +72,7 @@ const formRef = ref(null);
 const titleRef = ref(null);
 const saving = ref(false);
 const errorMessage = ref("");
-const form = reactive({ code: "", password: "", confirm: "" });
+const form = reactive({ code: "", password: "", confirm: "", save: true });
 const sending = ref(false);
 const codeSent = ref(false);
 
@@ -115,6 +122,7 @@ const save = async () => {
 	saving.value = true;
 	try {
 		await adminApi.admins.update(authStore.adminId, { password: form.password, password_code: form.code });
+		if (form.save) await storeCredential(authStore.username, form.password, authStore.displayName);
 		authStore.logout();
 		if (!props.quiet) ElMessage.success("Password saved. The account is active. Sign in with the new password.");
 		emit("done");

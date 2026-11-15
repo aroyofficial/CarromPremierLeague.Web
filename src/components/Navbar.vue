@@ -23,21 +23,8 @@
 			</ul>
 
 			<div class="nav-actions desktop-only">
-				<div v-if="authStore.isAuthenticated" class="account-cluster">
-					<router-link :to="Routes.ADMIN" class="btn-gold">
-						<span class="btn-glyph" aria-hidden="true"><el-icon><Setting /></el-icon></span>
-						Admin
-					</router-link>
-					<span class="admin-chip" :title="chipTitle">
-						<span class="admin-avatar" aria-hidden="true">{{ userInitial }}</span>
-						<span class="admin-name">{{ authStore.displayName }}</span>
-					</span>
-					<button type="button" class="btn-logout" @click="logout">
-						<span class="btn-glyph" aria-hidden="true"><el-icon><SwitchButton /></el-icon></span>
-						Logout
-					</button>
-				</div>
-				<router-link v-else :to="Routes.LOGIN" class="btn-gold">
+				<ViewCoin v-if="authStore.isAuthenticated && !isAdminRoute" face="public" class="nav-coin" @logout="logout" />
+				<router-link v-else-if="!authStore.isAuthenticated" :to="Routes.LOGIN" class="btn-gold">
 					<span class="btn-glyph" aria-hidden="true"><el-icon><Lock /></el-icon></span>
 					Admin Login
 				</router-link>
@@ -72,21 +59,15 @@
 					</li>
 				</ul>
 				<div class="mobile-actions">
-					<div v-if="authStore.isAuthenticated" class="account-cluster">
-						<router-link :to="Routes.ADMIN" class="btn-gold" @click="closeMenu">
-							<span class="btn-glyph" aria-hidden="true"><el-icon><Setting /></el-icon></span>
-							Admin Console
-						</router-link>
-						<span class="admin-chip" :title="chipTitle">
-							<span class="admin-avatar" aria-hidden="true">{{ userInitial }}</span>
-							<span class="admin-name">{{ authStore.displayName }}</span>
-						</span>
-						<button type="button" class="btn-logout" @click="logout">
-							<span class="btn-glyph" aria-hidden="true"><el-icon><SwitchButton /></el-icon></span>
-							Logout
-						</button>
-					</div>
-					<router-link v-else :to="Routes.LOGIN" class="btn-gold" @click="closeMenu">
+					<ViewCoin
+						v-if="authStore.isAuthenticated && !isAdminRoute"
+						face="public"
+						class="mobile-coin"
+						logout-text
+						@switched="closeMenu"
+						@logout="logout"
+					/>
+					<router-link v-else-if="!authStore.isAuthenticated" :to="Routes.LOGIN" class="btn-gold" @click="closeMenu">
 						<span class="btn-glyph" aria-hidden="true"><el-icon><Lock /></el-icon></span>
 						Admin Login
 					</router-link>
@@ -102,10 +83,10 @@
 <script setup>
 import { computed, ref, watch, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { Lock, Setting, SwitchButton } from "@element-plus/icons-vue";
+import { Lock } from "@element-plus/icons-vue";
+import ViewCoin from "@/components/admin/ViewCoin.vue";
 import { NavItems, Routes } from "@/utils/constants";
 import { resolveAsset } from "@/utils/common";
-import { initial } from "@/utils/adminNames";
 import { useAuthStore } from "@/store/authStore";
 
 const route = useRoute();
@@ -115,12 +96,7 @@ const isStatsSection = (item) =>
 	item.path === Routes.STATS &&
 	(route.path === Routes.STATS || route.path.startsWith(`${Routes.STATS}/`));
 const authStore = useAuthStore();
-const userInitial = computed(() => initial(authStore));
-const chipTitle = computed(() =>
-	authStore.displayName && authStore.displayName !== authStore.username
-		? `${authStore.displayName} (${authStore.username})`
-		: authStore.username,
-);
+const isAdminRoute = computed(() => route.path === Routes.ADMIN || route.path.startsWith(`${Routes.ADMIN}/`));
 const isMenuOpen = ref(false);
 const isScrolled = ref(false);
 const logoSrc = resolveAsset("public/assets/images/favicon.png");
@@ -267,19 +243,6 @@ onUnmounted(() => {
 	gap: 10px;
 }
 
-.account-cluster {
-	display: flex;
-	align-items: center;
-	gap: 6px;
-	padding: 4px;
-	border-radius: 999px;
-	background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.03));
-	border: 1px solid rgba(255, 255, 255, 0.1);
-	box-shadow:
-		inset 0 1px 0 rgba(255, 255, 255, 0.08),
-		0 8px 20px rgba(0, 0, 0, 0.18);
-}
-
 .btn-glyph {
 	width: 22px;
 	height: 22px;
@@ -294,8 +257,7 @@ onUnmounted(() => {
 	}
 }
 
-.btn-gold,
-.btn-logout {
+.btn-gold {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -339,57 +301,18 @@ onUnmounted(() => {
 	}
 }
 
-.btn-logout {
-	color: rgba(255, 255, 255, 0.9);
-	background: rgba(255, 255, 255, 0.04);
-	border: 1px solid rgba(255, 255, 255, 0.14);
+.nav-actions .nav-coin {
+	--coin-size: 28px;
+	width: auto;
 
-	.btn-glyph {
-		background: rgba(255, 255, 255, 0.08);
+	:deep(.coin-switch),
+	:deep(.coin-logout) {
+		min-height: 36px;
 	}
 
-	&:hover {
-		color: var(--cpl-gold-400);
-		border-color: rgba(255, 209, 102, 0.55);
-		background: rgba(255, 209, 102, 0.08);
+	:deep(.coin-text small) {
+		display: none;
 	}
-}
-
-.admin-chip {
-	display: inline-flex;
-	align-items: center;
-	gap: 8px;
-	height: 34px;
-	padding: 0 12px 0 6px;
-	border-radius: 999px;
-	color: rgba(255, 255, 255, 0.92);
-	background: rgba(8, 14, 28, 0.35);
-	border: 1px solid rgba(255, 255, 255, 0.08);
-	font-size: 13px;
-	font-weight: 600;
-	min-width: 0;
-}
-
-.admin-avatar {
-	width: 22px;
-	height: 22px;
-	border-radius: 50%;
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	flex: 0 0 22px;
-	background: linear-gradient(160deg, #ffe7a8, #e2a01a);
-	color: var(--cpl-navy-900);
-	font-size: 11px;
-	font-weight: 800;
-	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
-}
-
-.admin-name {
-	max-width: 108px;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
 }
 
 .menu-toggle {
@@ -476,22 +399,9 @@ onUnmounted(() => {
 	flex-direction: column;
 	gap: 12px;
 
-	.account-cluster,
 	.btn-gold,
-	.btn-logout,
-	.admin-chip {
+	.view-coin {
 		width: 100%;
-	}
-
-	.account-cluster {
-		flex-direction: column;
-		align-items: stretch;
-		border-radius: 20px;
-		padding: 8px;
-	}
-
-	.admin-name {
-		max-width: none;
 	}
 }
 
@@ -513,14 +423,6 @@ onUnmounted(() => {
 
 	.nav-link {
 		padding: 8px 11px;
-	}
-
-	.nav-actions .admin-chip {
-		padding-right: 6px;
-	}
-
-	.nav-actions .admin-name {
-		display: none;
 	}
 }
 
