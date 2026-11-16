@@ -287,7 +287,7 @@ onUnmounted(() => window.clearInterval(clock));
 	align-items: center;
 	gap: 6px;
 	margin: 0 0 18px;
-	color: #17643a;
+	color: var(--cpl-success-text);
 	font-size: 13px;
 	font-weight: 600;
 }
@@ -339,7 +339,7 @@ onUnmounted(() => window.clearInterval(clock));
 	border: 0;
 	background: none;
 	padding: 0;
-	color: var(--cpl-navy-700);
+	color: var(--cpl-heading-soft);
 	font-weight: 600;
 	cursor: pointer;
 }

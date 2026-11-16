@@ -27,7 +27,7 @@ import { Routes } from "@/utils/constants";
 	font-size: clamp(80px, 20vw, 140px);
 	font-weight: 800;
 	line-height: 1;
-	color: var(--cpl-navy-900);
+	color: var(--cpl-heading);
 }
 
 .status-title {

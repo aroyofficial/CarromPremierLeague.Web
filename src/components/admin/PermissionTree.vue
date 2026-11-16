@@ -448,7 +448,7 @@ const visibleSections = computed(() =>
 }
 
 .role-check {
-	color: var(--cpl-wood-500);
+	color: var(--cpl-wood-text);
 }
 
 .role-meta {
@@ -520,7 +520,7 @@ const visibleSections = computed(() =>
 		font-family: var(--cpl-font-display);
 		font-size: 17px;
 		font-weight: 800;
-		color: var(--cpl-navy-900);
+		color: var(--cpl-heading);
 	}
 
 	p {
@@ -756,7 +756,7 @@ const visibleSections = computed(() =>
 }
 
 .perm-lock {
-	color: var(--cpl-wood-500);
+	color: var(--cpl-wood-text);
 	cursor: help;
 }
 
@@ -780,13 +780,13 @@ const visibleSections = computed(() =>
 	line-height: 18px;
 
 	&.is-added {
-		background: #dcfce7;
-		color: #166534;
+		background: var(--cpl-success-soft);
+		color: var(--cpl-success-text);
 	}
 
 	&.is-removed {
-		background: #fee2e2;
-		color: #991b1b;
+		background: var(--cpl-danger-soft);
+		color: var(--cpl-danger-text);
 	}
 }
 

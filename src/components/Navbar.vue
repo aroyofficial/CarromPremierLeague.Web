@@ -22,6 +22,8 @@
 				</li>
 			</ul>
 
+			<ThemeToggle />
+
 			<div class="nav-actions desktop-only">
 				<ViewCoin v-if="authStore.isAuthenticated && !isAdminRoute" face="public" class="nav-coin" @logout="logout" />
 				<router-link v-else-if="!authStore.isAuthenticated" :to="Routes.LOGIN" class="btn-gold">
@@ -85,6 +87,7 @@ import { computed, ref, watch, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { Lock } from "@element-plus/icons-vue";
 import ViewCoin from "@/components/admin/ViewCoin.vue";
+import ThemeToggle from "@/components/ThemeToggle.vue";
 import { NavItems, Routes } from "@/utils/constants";
 import { resolveAsset } from "@/utils/common";
 import { useAuthStore } from "@/store/authStore";

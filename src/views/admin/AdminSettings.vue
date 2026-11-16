@@ -314,7 +314,7 @@ onMounted(load);
 	padding: 14px 16px;
 	border: 1px solid var(--cpl-line);
 	border-radius: var(--cpl-radius-md);
-	background: linear-gradient(180deg, #fff 0%, var(--cpl-gold-100) 140%);
+	background: linear-gradient(180deg, var(--cpl-surface) 0%, var(--cpl-gold-100) 140%);
 	box-shadow: var(--cpl-shadow-card);
 
 	span {
@@ -330,7 +330,7 @@ onMounted(load);
 		font-size: clamp(26px, 4vw, 32px);
 		font-weight: 800;
 		line-height: 1.1;
-		color: var(--cpl-navy-900);
+		color: var(--cpl-heading);
 	}
 
 	small {
@@ -433,7 +433,7 @@ onMounted(load);
 	padding: 12px 16px;
 	border: 1px solid var(--cpl-line);
 	border-radius: var(--cpl-radius-md);
-	background: rgba(255, 255, 255, 0.96);
+	background: color-mix(in srgb, var(--cpl-surface) 96%, transparent);
 	box-shadow: var(--cpl-shadow-card);
 
 	p {
@@ -443,7 +443,7 @@ onMounted(load);
 	}
 
 	.is-dirty {
-		color: var(--cpl-navy-900);
+		color: var(--cpl-heading);
 		font-weight: 700;
 	}
 }

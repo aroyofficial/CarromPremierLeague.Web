@@ -289,7 +289,7 @@ const clear = async () => {
 	flex: 0 0 72px;
 	object-fit: cover;
 	border: 1px solid var(--cpl-line);
-	background: #fff;
+	background: var(--cpl-surface);
 }
 
 .image-field-preview.is-player,

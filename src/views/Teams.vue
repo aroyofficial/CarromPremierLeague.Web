@@ -200,13 +200,11 @@ onMounted(async () => {
 
 #teams-body {
 	min-height: 220px;
-	border: 1px solid #dbe7f6;
+	border: 1px solid var(--pl-body-line);
 	padding: clamp(10px, 2vw, 16px);
 	border-radius: var(--cpl-radius-lg);
-	background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
-	box-shadow:
-		0 10px 24px rgba(29, 78, 216, 0.08),
-		0 2px 8px rgba(0, 0, 0, 0.04);
+	background: var(--pl-body-bg);
+	box-shadow: var(--pl-body-shadow);
 }
 
 .teams-grid {
@@ -216,10 +214,10 @@ onMounted(async () => {
 }
 
 .team-card {
-	border: 1px solid #e2e8f0;
+	border: 1px solid var(--pl-line);
 	border-radius: 12px;
 	padding: 12px;
-	background: #ffffff;
+	background: var(--pl-card);
 	min-width: 0;
 	transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
@@ -241,12 +239,12 @@ onMounted(async () => {
 	height: 44px;
 	border-radius: 50%;
 	object-fit: cover;
-	border: 2px solid #f8fafc;
+	border: 2px solid var(--pl-sunken);
 }
 
 .team-name {
 	font-size: 16px;
-	color: #0f172a;
+	color: var(--pl-ink);
 }
 
 .team-name-row {
@@ -272,7 +270,7 @@ onMounted(async () => {
 
 .team-slogan {
 	font-size: 12px;
-	color: #64748b;
+	color: var(--pl-muted);
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -282,14 +280,14 @@ onMounted(async () => {
 	font-size: 11px;
 	padding: 5px 8px;
 	border-radius: 999px;
-	background: #e0f2fe;
-	color: #0c4a6e;
-	border: 1px solid #bae6fd;
+	background: var(--pl-count-bg);
+	color: var(--pl-count-text);
+	border: 1px solid var(--pl-count-line);
 }
 
 .team-divider {
 	margin: 10px 0;
-	border-top: 1px dashed #e2e8f0;
+	border-top: 1px dashed var(--pl-line);
 }
 
 .player-list {
@@ -302,8 +300,8 @@ onMounted(async () => {
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	border: 1px solid #edf2f7;
-	background: #f8fafc;
+	border: 1px solid var(--pl-line-soft);
+	background: var(--pl-sunken);
 	border-radius: 10px;
 	padding: 6px;
 }
@@ -317,7 +315,7 @@ onMounted(async () => {
 
 .player-name {
 	font-size: 12px;
-	color: #1e293b;
+	color: var(--pl-ink-2);
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -325,7 +323,7 @@ onMounted(async () => {
 
 .empty-roster,
 .empty-state {
-	color: #64748b;
+	color: var(--pl-muted);
 	font-size: 13px;
 	text-align: center;
 	padding: 12px 0;

@@ -151,7 +151,7 @@ onUnmounted(() => {
 	min-height: 240px;
 	padding: clamp(8px, 2vw, 16px);
 	border-radius: var(--cpl-radius-lg);
-	background: #fff;
+	background: var(--cpl-surface);
 	border: 1px solid var(--cpl-line);
 	box-shadow: var(--cpl-shadow-card);
 }
@@ -160,7 +160,7 @@ onUnmounted(() => {
 	overflow-x: auto;
 	-webkit-overflow-scrolling: touch;
 	background:
-		linear-gradient(to left, #fff 30%, rgba(255, 255, 255, 0)) right / 40px 100% no-repeat local,
+		linear-gradient(to left, var(--cpl-surface) 30%, transparent) right / 40px 100% no-repeat local,
 		radial-gradient(farthest-side at 100% 50%, rgba(15, 23, 42, 0.16), transparent) right / 14px 100% no-repeat scroll;
 }
 
@@ -190,7 +190,7 @@ onUnmounted(() => {
 	td {
 		padding: 14px 10px;
 		text-align: center;
-		border-bottom: 1px solid #f1f5f9;
+		border-bottom: 1px solid var(--cpl-surface-hover);
 		font-variant-numeric: tabular-nums;
 		color: var(--cpl-ink-900);
 	}
@@ -201,7 +201,7 @@ onUnmounted(() => {
 		transition: background 0.2s ease;
 
 		&:hover {
-			background: #f8fafc;
+			background: var(--cpl-surface-hover);
 		}
 
 		&:last-child td {
@@ -282,7 +282,7 @@ onUnmounted(() => {
 		.col-player {
 			position: sticky;
 			z-index: 1;
-			background: #fff;
+			background: var(--cpl-surface);
 		}
 
 		.col-rank {
@@ -301,7 +301,7 @@ onUnmounted(() => {
 
 		tbody tr:hover .col-rank,
 		tbody tr:hover .col-player {
-			background: #f8fafc;
+			background: var(--cpl-surface-hover);
 		}
 	}
 }

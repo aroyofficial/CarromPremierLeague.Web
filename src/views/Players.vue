@@ -395,13 +395,11 @@ onUnmounted(() => {
 
 #players-body {
 	min-height: 220px;
-	border: 1px solid #dbe7f6;
+	border: 1px solid var(--pl-body-line);
 	padding: clamp(10px, 2vw, 16px);
 	border-radius: var(--cpl-radius-lg);
-	background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
-	box-shadow:
-		0 10px 24px rgba(37, 99, 235, 0.08),
-		0 2px 8px rgba(0, 0, 0, 0.04);
+	background: var(--pl-body-bg);
+	box-shadow: var(--pl-body-shadow);
 }
 
 .players-grid {
@@ -411,10 +409,10 @@ onUnmounted(() => {
 }
 
 .player-card {
-	border: 1px solid #e2e8f0;
+	border: 1px solid var(--pl-line);
 	border-radius: 12px;
 	padding: 12px;
-	background: #ffffff;
+	background: var(--pl-card);
 	display: flex;
 	flex-direction: column;
 	gap: 10px;
@@ -435,7 +433,7 @@ onUnmounted(() => {
 .avatar-wrap {
 	padding: 3px;
 	border-radius: 50%;
-	background: linear-gradient(135deg, #dbeafe 0%, #eff6ff 100%);
+	background: var(--pl-ring);
 }
 
 .player-avatar {
@@ -443,17 +441,17 @@ onUnmounted(() => {
 	height: 54px;
 	border-radius: 50%;
 	object-fit: cover;
-	border: 2px solid #ffffff;
+	border: 2px solid var(--pl-card);
 }
 
 .player-name {
 	font-size: 16px;
-	color: #0f172a;
+	color: var(--pl-ink);
 }
 
 .player-country {
 	font-size: 12px;
-	color: #64748b;
+	color: var(--pl-muted);
 	display: flex;
 	align-items: center;
 	gap: 6px;
@@ -464,7 +462,7 @@ onUnmounted(() => {
 	height: 14px;
 	object-fit: cover;
 	border-radius: 2px;
-	border: 1px solid #e2e8f0;
+	border: 1px solid var(--pl-line);
 }
 
 .country-flag-wrap {
@@ -476,7 +474,7 @@ onUnmounted(() => {
 
 .country-flag-fallback {
 	font-size: 10px;
-	color: #94a3b8;
+	color: var(--pl-faint);
 	letter-spacing: -0.5px;
 }
 
@@ -491,16 +489,16 @@ onUnmounted(() => {
 	font-size: 11px;
 	padding: 5px 8px;
 	border-radius: 999px;
-	background: #dbeafe;
-	border: 1px solid #bfdbfe;
-	color: #1d4ed8;
+	background: var(--pl-team-bg);
+	border: 1px solid var(--pl-team-line);
+	color: var(--pl-team-text);
 }
 
 .age-pill {
 	font-size: 11px;
-	color: #334155;
-	background: #f8fafc;
-	border: 1px solid #e2e8f0;
+	color: var(--pl-ink-3);
+	background: var(--pl-sunken);
+	border: 1px solid var(--pl-line);
 	border-radius: 999px;
 	padding: 5px 8px;
 }
@@ -512,20 +510,20 @@ onUnmounted(() => {
 }
 
 .meta-item {
-	border: 1px solid #edf2f7;
-	background: #f8fafc;
+	border: 1px solid var(--pl-line-soft);
+	background: var(--pl-sunken);
 	border-radius: 10px;
 	padding: 7px;
 }
 
 .meta-label {
 	font-size: 11px;
-	color: #64748b;
+	color: var(--pl-muted);
 }
 
 .meta-value {
 	font-size: 13px;
-	color: #1e293b;
+	color: var(--pl-ink-2);
 }
 
 .career-metrics {
@@ -548,8 +546,8 @@ onUnmounted(() => {
 }
 
 .metric-card {
-	border: 1px solid #e5e7eb;
-	background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+	border: 1px solid var(--pl-line);
+	background: var(--pl-card-2);
 	border-radius: 10px;
 	padding: 6px;
 	text-align: center;
@@ -557,17 +555,17 @@ onUnmounted(() => {
 
 .metric-title {
 	font-size: 11px;
-	color: #64748b;
+	color: var(--pl-muted);
 }
 
 .metric-number {
 	font-size: 14px;
 	font-weight: 600;
-	color: #0f172a;
+	color: var(--pl-ink);
 }
 
 .empty-state {
-	color: #64748b;
+	color: var(--pl-muted);
 	font-size: 13px;
 	text-align: center;
 	padding: 12px 0;

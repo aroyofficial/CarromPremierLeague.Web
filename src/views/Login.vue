@@ -772,7 +772,7 @@ const logout = () => {
 	grid-template-columns: minmax(280px, 0.82fr) minmax(0, 1.18fr);
 	border-radius: 24px;
 	overflow: hidden;
-	background: #fff;
+	background: var(--cpl-surface);
 	border: 1px solid var(--cpl-line);
 	box-shadow: 0 28px 70px rgba(15, 23, 42, 0.14);
 	animation: rise 0.45s ease both;
@@ -1003,6 +1003,21 @@ const logout = () => {
 	--el-button-active-border-color: var(--cpl-navy-800);
 }
 
+html.dark .submit-btn.el-button--primary:not(.is-plain):not(.is-link):not(.is-text) {
+	--el-button-text-color: var(--cpl-navy-900);
+	--el-button-hover-text-color: var(--cpl-navy-900);
+	--el-button-active-text-color: var(--cpl-navy-900);
+	--el-button-bg-color: var(--cpl-gold-500);
+	--el-button-border-color: var(--cpl-gold-500);
+	--el-button-hover-bg-color: var(--cpl-gold-400);
+	--el-button-hover-border-color: var(--cpl-gold-400);
+	--el-button-active-bg-color: #d99f1f;
+	--el-button-active-border-color: #d99f1f;
+	--el-button-disabled-text-color: rgba(11, 20, 38, 0.6);
+	--el-button-disabled-bg-color: rgba(245, 184, 46, 0.55);
+	--el-button-disabled-border-color: transparent;
+}
+
 .field-foot {
 	display: flex;
 	align-items: center;
@@ -1030,7 +1045,7 @@ const logout = () => {
 	align-items: center;
 	gap: 6px;
 	margin: 0 0 18px;
-	color: #17643a;
+	color: var(--cpl-success-text);
 	font-size: 13px;
 	font-weight: 600;
 }
@@ -1048,14 +1063,14 @@ const logout = () => {
 	gap: 6px;
 	font-size: 13px;
 	font-weight: 600;
-	color: #b45309;
+	color: var(--cpl-warn-text);
 }
 
 .text-link {
 	padding: 2px 0;
 	border: 0;
 	background: none;
-	color: var(--cpl-navy-700);
+	color: var(--cpl-heading-soft);
 	font: inherit;
 	font-size: 14px;
 	font-weight: 700;
@@ -1307,7 +1322,7 @@ const logout = () => {
 			padding: 14px;
 			border: 1px solid var(--cpl-line);
 			border-radius: 14px;
-			background: #fff;
+			background: var(--cpl-surface);
 
 			&:not(:last-child)::after {
 				display: none;
@@ -1320,7 +1335,7 @@ const logout = () => {
 		}
 
 		.is-done {
-			background: #f4fbf6;
+			background: var(--cpl-success-soft);
 		}
 	}
 

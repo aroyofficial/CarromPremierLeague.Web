@@ -235,7 +235,8 @@ onUnmounted(() => {
 	overflow-y: auto;
 	padding: clamp(22px, 5vw, 32px);
 	border-radius: 20px;
-	background: #fff;
+	background: var(--cpl-surface-raised);
+	color: var(--cpl-ink-900);
 	box-shadow: 0 28px 70px rgba(11, 20, 38, 0.35);
 	animation: pop 0.25s ease both;
 }
@@ -307,7 +308,7 @@ h2 {
 		background: var(--cpl-gold-100);
 
 		> .el-icon {
-			color: #b7791f;
+			color: var(--cpl-gold-text);
 		}
 	}
 }
@@ -339,7 +340,7 @@ h2 {
 	display: block;
 	height: 6px;
 	border-radius: 999px;
-	background: #efe8d6;
+	background: var(--cpl-track);
 	overflow: hidden;
 }
 
@@ -363,7 +364,8 @@ h2 {
 	padding: 14px 16px;
 	border-radius: var(--cpl-radius-md);
 	border: 1.5px solid var(--cpl-line);
-	background: #fff;
+	background: var(--cpl-surface);
+	color: var(--cpl-ink-900);
 	text-align: left;
 	cursor: pointer;
 	transition: border-color 0.15s ease, background 0.15s ease;
@@ -418,8 +420,16 @@ h2 {
 
 	&:hover:not(:disabled) {
 		border-color: var(--cpl-red-500);
-		background: #fff5f5;
+		background: var(--cpl-danger-soft);
 	}
+}
+
+html.dark .is-keep {
+	border-color: var(--cpl-gold-500);
+}
+
+html.dark .is-leave .choice-title {
+	color: var(--cpl-danger-text);
 }
 
 .hint {

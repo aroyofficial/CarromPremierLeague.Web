@@ -4,6 +4,24 @@
 		<meta charset="UTF-8" />
 		<title>CPL - Carrom Premier League</title>
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<meta name="color-scheme" content="light dark" />
+		<meta name="theme-color" content="#f6f8fc" />
+		<script>
+			(function () {
+				var saved = null;
+				try {
+					saved = localStorage.getItem("cpl_theme");
+				} catch (e) {}
+				var dark = saved === "dark" || (saved !== "light" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+				var root = document.documentElement;
+				var value = dark ? "dark" : "light";
+				if (dark) root.classList.add("dark");
+				root.setAttribute("data-bs-theme", value);
+				root.style.colorScheme = value;
+				root.style.backgroundColor = dark ? "#0b1220" : "#f6f8fc";
+				document.querySelector('meta[name="theme-color"]').setAttribute("content", dark ? "#0b1220" : "#f6f8fc");
+			})();
+		</script>
 		<link rel="preconnect" href="https://fonts.googleapis.com" />
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 		<link

@@ -44,7 +44,7 @@ onMounted(() => {
 }
 
 .skeleton-block {
-	background: linear-gradient(90deg, #e7edf6 25%, #f8fafc 50%, #e7edf6 75%);
+	background: linear-gradient(90deg, var(--cpl-skeleton) 25%, var(--cpl-skeleton-shine) 50%, var(--cpl-skeleton) 75%);
 	background-size: 200% 100%;
 	animation: gallery-shimmer 1.2s ease-in-out infinite;
 }

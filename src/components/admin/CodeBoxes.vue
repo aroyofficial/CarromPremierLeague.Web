@@ -120,7 +120,7 @@ onMounted(() => focusAt(0));
 	height: 52px;
 	border: 1.5px solid var(--cpl-line, #d9d3c5);
 	border-radius: 12px;
-	background: #fff;
+	background: var(--cpl-surface);
 	text-align: center;
 	font-size: 22px;
 	font-weight: 700;
@@ -134,7 +134,7 @@ onMounted(() => focusAt(0));
 }
 
 .box:disabled {
-	background: #f4f1ea;
+	background: var(--cpl-surface-sunken);
 	color: var(--cpl-ink-600, #667);
 }
 

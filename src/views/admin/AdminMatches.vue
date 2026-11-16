@@ -528,10 +528,27 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.timing-alert.el-alert--info.is-light {
+	border: 1px solid var(--cpl-line);
+	background: var(--cpl-surface-sunken);
+	color: var(--cpl-heading-soft);
+}
+
 .timing-alert :deep(.el-alert__title) {
 	font-family: var(--cpl-font-display);
 	font-size: 15px;
 	font-weight: 800;
+	color: var(--cpl-heading);
+}
+
+@media (max-width: 575.98px) {
+	.timing-alert {
+		padding: 12px;
+	}
+
+	.timing-alert :deep(.el-alert__icon) {
+		display: none;
+	}
 }
 
 .timing-lead {
@@ -557,7 +574,7 @@ onMounted(async () => {
 	min-width: 0;
 	padding: 10px 12px;
 	border-radius: var(--cpl-radius-md);
-	background: #fff;
+	background: var(--cpl-surface);
 	border: 1px solid var(--cpl-line);
 	font-size: 14px;
 	line-height: 1.4;
@@ -569,7 +586,7 @@ onMounted(async () => {
 	padding: 2px 8px;
 	border-radius: 999px;
 	background: var(--cpl-gold-100);
-	color: var(--cpl-navy-900);
+	color: var(--cpl-heading);
 	font-size: 12px;
 	font-weight: 700;
 	letter-spacing: 0.02em;

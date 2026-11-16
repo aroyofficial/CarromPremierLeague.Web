@@ -194,7 +194,7 @@ const copy = async () => {
 	padding: 0;
 	border: 0;
 	background: none;
-	color: var(--cpl-navy-700);
+	color: var(--cpl-heading-soft);
 	font-size: 13px;
 	font-weight: 600;
 	cursor: pointer;
@@ -241,7 +241,7 @@ const copy = async () => {
 }
 
 .field-icon:hover:not(:disabled) {
-	color: var(--cpl-navy-700);
+	color: var(--cpl-heading-soft);
 	background: var(--cpl-surface-muted);
 }
 
@@ -287,7 +287,10 @@ const copy = async () => {
 .meter[data-score="4"] .meter-fill,
 .meter[data-score="5"] .meter-fill { background: #1f9d55; }
 .meter[data-score="4"] .meter-label,
-.meter[data-score="5"] .meter-label { color: #17643a; }
+.meter[data-score="5"] .meter-label { color: var(--cpl-success-text); }
+html.dark .meter[data-score="1"] .meter-label { color: var(--cpl-danger-text); }
+html.dark .meter[data-score="2"] .meter-label { color: #fdba74; }
+html.dark .meter[data-score="3"] .meter-label { color: var(--cpl-gold-text); }
 
 .confirm-item {
 	margin-bottom: 14px;

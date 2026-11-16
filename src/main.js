@@ -6,10 +6,14 @@ import dayjs from "@/plugins/dayjs";
 
 import ElementPlus from "element-plus";
 import "element-plus/dist/index.css";
+import "element-plus/theme-chalk/dark/css-vars.css";
 
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap/dist/js/bootstrap.bundle.min.js";
 import "@/assets/styles/global.css";
+import { initTheme } from "@/utils/theme";
+
+initTheme();
 
 const app = createApp(App);
 

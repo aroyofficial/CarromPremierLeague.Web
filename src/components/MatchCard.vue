@@ -1749,28 +1749,28 @@ watch(teamDetails, () => {
 #stopwatch-head-btn {
 	height: 12px;
 	width: 40px;
-	background: #000000;
+	background: var(--cpl-stopwatch);
 	border-radius: 5px;
 }
 
 .stopwatch-head-btn-knurling {
 	width: 7px;
 	height: 12px;
-	border-right: 1px solid #ffffff;
+	border-right: 1px solid var(--cpl-surface);
 }
 
 #stopwatch-head-pin {
 	height: 16px;
 	width: 20px;
-	background: #000000;
-	border-top: 1px solid #ffffff;
+	background: var(--cpl-stopwatch);
+	border-top: 1px solid var(--cpl-surface);
 }
 
 #stopwatch {
 	height: 250px;
 	width: 250px;
 	border-radius: 50%;
-	border: 10px solid #000000;
+	border: 10px solid var(--cpl-stopwatch);
 }
 
 .countdown-frozen {
@@ -1807,7 +1807,7 @@ watch(teamDetails, () => {
 .score-player + .score-player {
 	margin-top: 12px;
 	padding-top: 12px;
-	border-top: 1px solid rgba(0, 0, 0, 0.08);
+	border-top: 1px solid var(--cpl-line);
 }
 
 .score-player-name {
@@ -1826,14 +1826,14 @@ watch(teamDetails, () => {
 }
 
 .score-limit {
-	color: #6c757d;
+	color: var(--cpl-ink-600);
 	font-size: 11px;
 	white-space: nowrap;
 }
 
 .score-empty {
 	margin: 0;
-	color: #6c757d;
+	color: var(--cpl-ink-600);
 }
 
 .team-scorecard:hover {
@@ -1985,7 +1985,7 @@ watch(teamDetails, () => {
 			grid-row: 1;
 			padding: 10px;
 			border-radius: 10px;
-			background: rgba(15, 23, 42, 0.04);
+			background: var(--cpl-surface-sunken);
 			font-size: 13px;
 		}
 

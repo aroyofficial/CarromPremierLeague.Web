@@ -417,7 +417,7 @@ onUnmounted(() => {
 		transition: background 0.2s ease, color 0.2s ease;
 
 		&:hover {
-			background: #fff;
+			background: var(--cpl-surface);
 			color: var(--cpl-ink-900);
 		}
 
@@ -425,6 +425,17 @@ onUnmounted(() => {
 			background: var(--cpl-navy-900);
 			color: var(--cpl-gold-400);
 		}
+	}
+}
+
+html.dark .rules-index a.is-active {
+	background: var(--cpl-gold-100);
+	border-color: var(--cpl-gold-border);
+	color: var(--cpl-gold-400);
+}
+
+.rules-index {
+	a {
 	}
 }
 
@@ -449,7 +460,7 @@ onUnmounted(() => {
 	scroll-margin-top: 0;
 	padding: clamp(18px, 3vw, 30px);
 	border-radius: var(--cpl-radius-lg);
-	background: #fff;
+	background: var(--cpl-surface);
 	border: 1px solid var(--cpl-line);
 	box-shadow: var(--cpl-shadow-card);
 	line-height: 1.7;
@@ -483,7 +494,7 @@ onUnmounted(() => {
 
 	&.highlight {
 		border-color: rgba(245, 184, 46, 0.45);
-		background: linear-gradient(135deg, var(--cpl-gold-100) 0%, #fff 55%);
+		background: linear-gradient(135deg, var(--cpl-gold-100) 0%, var(--cpl-surface) 55%);
 	}
 }
 
@@ -513,6 +524,21 @@ onUnmounted(() => {
 	&.loss {
 		background: #fef2f2;
 		color: #991b1b;
+	}
+}
+
+html.dark .points-tile {
+	&.win {
+		background: rgba(34, 197, 94, 0.14);
+		color: #86efac;
+	}
+	&.draw {
+		background: rgba(245, 158, 11, 0.14);
+		color: #fcd34d;
+	}
+	&.loss {
+		background: rgba(239, 68, 68, 0.14);
+		color: #fca5a5;
 	}
 }
 
@@ -566,7 +592,7 @@ onUnmounted(() => {
 
 		a {
 			flex: 0 0 auto;
-			background: #fff;
+			background: var(--cpl-surface);
 			border: 1px solid var(--cpl-line);
 			border-radius: 999px;
 			padding: 8px 14px;

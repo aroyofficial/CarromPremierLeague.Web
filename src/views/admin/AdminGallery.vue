@@ -698,9 +698,7 @@ onMounted(async () => {
 	padding: 18px;
 	border: 1px dashed var(--cpl-line);
 	border-radius: 18px;
-	background:
-		linear-gradient(180deg, rgba(255, 255, 255, 0.4), #fff 40%),
-		#fff;
+	background: var(--cpl-surface);
 	box-shadow: 0 10px 30px rgba(11, 20, 38, 0.04);
 }
 
@@ -747,7 +745,7 @@ onMounted(async () => {
 	display: flex;
 	gap: 10px;
 	align-items: center;
-	background: #fff;
+	background: var(--cpl-surface);
 	border-radius: 12px;
 	padding: 8px 12px;
 }
@@ -761,11 +759,11 @@ onMounted(async () => {
 }
 
 .job-error {
-	color: var(--cpl-red-500);
+	color: var(--cpl-danger-text);
 }
 
 .job-ok {
-	color: #1a7f37;
+	color: var(--cpl-success-text);
 }
 
 .link-preview img {
@@ -776,7 +774,7 @@ onMounted(async () => {
 }
 
 .link-preview .is-bad {
-	color: var(--cpl-red-500);
+	color: var(--cpl-danger-text);
 }
 
 .admin-grid {
@@ -794,7 +792,7 @@ onMounted(async () => {
 	position: relative;
 	flex: 0 0 auto;
 	overflow: hidden;
-	background: #e7edf6;
+	background: var(--cpl-track);
 	cursor: pointer;
 	outline: 3px solid transparent;
 	outline-offset: -3px;
@@ -888,6 +886,13 @@ onMounted(async () => {
 .thumb-fallback {
 	position: absolute;
 	inset: 0;
+	padding: 6px;
+	overflow: hidden;
+	color: var(--cpl-ink-600);
+	font-size: 12px;
+	line-height: 1.3;
+	text-align: center;
+	overflow-wrap: anywhere;
 }
 
 .link-box :deep(.el-textarea) {

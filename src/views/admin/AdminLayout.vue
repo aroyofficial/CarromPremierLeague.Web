@@ -182,7 +182,7 @@ const logout = () => {
 .admin-activate form {
 	width: min(460px, 100%);
 	padding: clamp(24px, 5vw, 40px);
-	background: #fff;
+	background: var(--cpl-surface);
 	border: 1px solid var(--cpl-line);
 	border-radius: var(--cpl-radius-lg);
 	box-shadow: var(--cpl-shadow-card);
@@ -198,6 +198,58 @@ body:has(.admin-shell) .el-message-box {
 	--el-color-primary-light-8: #d1d4db;
 	--el-color-primary-light-9: #e8eaed;
 	--el-color-primary-dark-2: #0b1426;
+}
+
+html.dark .admin-shell,
+html.dark body:has(.admin-shell) .el-overlay,
+html.dark body:has(.admin-shell) .el-message-box,
+html.dark body:has(.admin-shell) .el-popper,
+html.dark .admin-activate {
+	--el-color-primary: #f5b82e;
+	--el-color-primary-light-3: #b1892e;
+	--el-color-primary-light-5: #846a2e;
+	--el-color-primary-light-7: #574b2e;
+	--el-color-primary-light-8: #403b2e;
+	--el-color-primary-light-9: #2a2c2e;
+	--el-color-primary-dark-2: #f7c658;
+}
+
+html.dark .admin-shell .el-button--primary:not(.is-plain):not(.is-link):not(.is-text),
+html.dark body:has(.admin-shell) .el-overlay .el-button--primary:not(.is-plain):not(.is-link):not(.is-text),
+html.dark body:has(.admin-shell) .el-message-box .el-button--primary:not(.is-plain):not(.is-link):not(.is-text),
+html.dark .admin-activate .el-button--primary:not(.is-plain):not(.is-link):not(.is-text) {
+	--el-button-text-color: var(--cpl-navy-900);
+	--el-button-hover-text-color: var(--cpl-navy-900);
+	--el-button-active-text-color: var(--cpl-navy-900);
+	--el-button-hover-bg-color: #f7c658;
+	--el-button-hover-border-color: #f7c658;
+	--el-button-active-bg-color: #d99f1f;
+	--el-button-active-border-color: #d99f1f;
+}
+
+html.dark .admin-shell,
+html.dark body:has(.admin-shell) .el-overlay,
+html.dark body:has(.admin-shell) .el-popper {
+	--el-radio-button-checked-text-color: var(--cpl-navy-900);
+
+	.el-pagination.is-background .el-pager li.is-active,
+	.el-switch.is-checked .el-switch__inner,
+	.el-switch.is-checked .el-switch__inner span,
+	.el-checkbox-button.is-checked .el-checkbox-button__inner,
+	.el-tag--dark.el-tag--primary,
+	.el-date-table td.current:not(.disabled) .el-date-table-cell__text {
+		color: var(--cpl-navy-900);
+	}
+
+	.el-checkbox__input.is-checked .el-checkbox__inner::after,
+	.el-checkbox__input.is-indeterminate .el-checkbox__inner::before {
+		border-color: var(--cpl-navy-900);
+		background-color: var(--cpl-navy-900);
+	}
+
+	.el-checkbox__input.is-checked .el-checkbox__inner::after {
+		background-color: transparent;
+	}
 }
 
 .admin-shell {
@@ -229,6 +281,10 @@ body:has(.admin-shell) .el-message-box {
 		var(--cpl-navy-900);
 	color: #fff;
 	overflow: visible;
+}
+
+html.dark .admin-sidebar {
+	box-shadow: inset -1px 0 0 var(--cpl-line);
 }
 
 .sidebar-head {
@@ -289,15 +345,15 @@ body:has(.admin-shell) .el-message-box {
 	padding: 6px;
 	border: 1px solid var(--cpl-line);
 	border-radius: 50%;
-	background: #fff;
-	color: var(--cpl-navy-900);
+	background: var(--cpl-surface-raised);
+	color: var(--cpl-heading);
 	box-shadow: 0 4px 12px rgba(11, 20, 38, 0.28);
 	transform: translate(50%, -50%);
 	cursor: pointer;
 
 	&:hover {
 		background: var(--cpl-gold-100);
-		color: var(--cpl-navy-900);
+		color: var(--cpl-heading);
 	}
 
 	&:focus-visible {
@@ -526,6 +582,15 @@ body:has(.admin-shell) .el-message-box {
 
 	&:not(.is-expanded) .admin-sidebar {
 		padding-inline: 8px;
+	}
+
+	&:not(.is-expanded) .sidebar-avatar {
+		width: 34px;
+		height: 34px;
+	}
+
+	.admin-main {
+		padding-left: 28px;
 	}
 }
 

@@ -17,7 +17,7 @@ import { Routes } from "@/utils/constants";
 	margin-bottom: 18px;
 	padding: 4px;
 	border-radius: 999px;
-	background: #fff;
+	background: var(--cpl-surface);
 	border: 1px solid var(--cpl-line);
 	box-shadow: var(--cpl-shadow-card);
 

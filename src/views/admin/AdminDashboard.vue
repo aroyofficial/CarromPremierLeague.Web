@@ -123,7 +123,7 @@ onMounted(async () => {
 	gap: 6px;
 	padding: 18px;
 	border-radius: var(--cpl-radius-md);
-	background: #fff;
+	background: var(--cpl-surface);
 	border: 1px solid var(--cpl-line);
 	box-shadow: var(--cpl-shadow-card);
 	text-decoration: none;
@@ -174,6 +174,6 @@ onMounted(async () => {
 	display: inline-block;
 	margin-top: 12px;
 	font-weight: 700;
-	color: var(--cpl-navy-700);
+	color: var(--cpl-heading-soft);
 }
 </style>

@@ -213,6 +213,21 @@ h2 {
 	--el-button-hover-border-color: var(--cpl-navy-700);
 }
 
+html.dark .submit-btn.el-button--primary:not(.is-plain):not(.is-link):not(.is-text) {
+	--el-button-text-color: var(--cpl-navy-900);
+	--el-button-hover-text-color: var(--cpl-navy-900);
+	--el-button-active-text-color: var(--cpl-navy-900);
+	--el-button-bg-color: var(--cpl-gold-500);
+	--el-button-border-color: var(--cpl-gold-500);
+	--el-button-hover-bg-color: var(--cpl-gold-400);
+	--el-button-hover-border-color: var(--cpl-gold-400);
+	--el-button-active-bg-color: #d99f1f;
+	--el-button-active-border-color: #d99f1f;
+	--el-button-disabled-text-color: rgba(11, 20, 38, 0.6);
+	--el-button-disabled-bg-color: rgba(245, 184, 46, 0.55);
+	--el-button-disabled-border-color: transparent;
+}
+
 .code-note {
 	display: flex;
 	flex-wrap: wrap;
@@ -235,7 +250,7 @@ h2 {
 	border: 0;
 	border-radius: 4px;
 	background: none;
-	color: var(--cpl-navy-700);
+	color: var(--cpl-heading-soft);
 	font-size: 14px;
 	font-weight: 600;
 	cursor: pointer;

@@ -184,6 +184,62 @@ onUnmounted(() => {
 	box-shadow: 0 0 0 1px var(--el-border-color) inset;
 }
 
+#stats-wrapper {
+	--st-title: #14532d;
+	--st-muted: #64748b;
+	--st-faint: #6b7280;
+	--st-ink: #0f172a;
+	--st-body-line: #d8f1e3;
+	--st-body-bg: linear-gradient(180deg, #ffffff 0%, #f9fefb 100%);
+	--st-body-shadow: 0 12px 28px rgba(22, 163, 74, 0.1), 0 2px 8px rgba(0, 0, 0, 0.04);
+	--st-pill-line: #d1d5db;
+	--st-pill-text: #4b5563;
+	--st-pill-bg: #f9fafb;
+	--st-done-line: #86efac;
+	--st-done-text: #166534;
+	--st-done-bg: #dcfce7;
+	--st-card-line: #e5efe9;
+	--st-card-bg: #ffffff;
+	--st-gold-line: #fbbf24;
+	--st-gold-bg: radial-gradient(circle at 15% 10%, #fff3c4 0%, #fff8dd 42%, #ffffff 100%);
+	--st-rank-bg: #ecfdf3;
+	--st-rank-line: #c7ead7;
+	--st-ring: linear-gradient(135deg, #d1f7e3 0%, #f2fcf7 100%);
+	--st-coins-bg: #d1fae5;
+	--st-coins-text: #065f46;
+	--st-coins-line: #bdeccf;
+	--st-metric-bg: #f8fafc;
+	--st-metric-line: #e2e8f0;
+}
+
+html.dark #stats-wrapper {
+	--st-title: #86efac;
+	--st-muted: var(--cpl-ink-600);
+	--st-faint: var(--cpl-ink-600);
+	--st-ink: var(--cpl-ink-900);
+	--st-body-line: #1f3b30;
+	--st-body-bg: linear-gradient(180deg, #131c2e 0%, #112421 100%);
+	--st-body-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
+	--st-pill-line: var(--cpl-line);
+	--st-pill-text: var(--cpl-ink-600);
+	--st-pill-bg: var(--cpl-surface-sunken);
+	--st-done-line: rgba(134, 239, 172, 0.45);
+	--st-done-text: #86efac;
+	--st-done-bg: rgba(34, 197, 94, 0.14);
+	--st-card-line: #233a35;
+	--st-card-bg: #152031;
+	--st-gold-line: rgba(251, 191, 36, 0.7);
+	--st-gold-bg: radial-gradient(circle at 15% 10%, rgba(251, 191, 36, 0.24) 0%, rgba(251, 191, 36, 0.08) 42%, #152031 100%);
+	--st-rank-bg: rgba(34, 197, 94, 0.14);
+	--st-rank-line: rgba(134, 239, 172, 0.35);
+	--st-ring: linear-gradient(135deg, rgba(34, 197, 94, 0.35) 0%, rgba(34, 197, 94, 0.1) 100%);
+	--st-coins-bg: rgba(16, 185, 129, 0.16);
+	--st-coins-text: #6ee7b7;
+	--st-coins-line: rgba(110, 231, 183, 0.35);
+	--st-metric-bg: var(--cpl-surface-sunken);
+	--st-metric-line: var(--cpl-line);
+}
+
 .stats-shell {
 	width: min(980px, 100%);
 }
@@ -208,7 +264,7 @@ onUnmounted(() => {
 
 .stats-header {
 	font-size: 24px;
-	color: #14532d;
+	color: var(--st-title);
 	line-height: 1.2;
 }
 
@@ -220,24 +276,22 @@ onUnmounted(() => {
 
 .info-icon {
 	font-size: 15px;
-	color: #64748b;
+	color: var(--st-muted);
 	cursor: pointer;
 }
 
 .stats-subtitle {
 	font-size: 13px;
-	color: #6b7280;
+	color: var(--st-faint);
 }
 
 #stats-body {
 	min-height: 220px;
-	border: 1px solid #d8f1e3;
+	border: 1px solid var(--st-body-line);
 	padding: 20px;
 	border-radius: 14px;
-	background: linear-gradient(180deg, #ffffff 0%, #f9fefb 100%);
-	box-shadow:
-		0 12px 28px rgba(22, 163, 74, 0.1),
-		0 2px 8px rgba(0, 0, 0, 0.04);
+	background: var(--st-body-bg);
+	box-shadow: var(--st-body-shadow);
 }
 
 .status-row {
@@ -252,15 +306,15 @@ onUnmounted(() => {
 	font-size: 12px;
 	padding: 6px 10px;
 	border-radius: 999px;
-	border: 1px solid #d1d5db;
-	color: #4b5563;
-	background: #f9fafb;
+	border: 1px solid var(--st-pill-line);
+	color: var(--st-pill-text);
+	background: var(--st-pill-bg);
 }
 
 .completion-pill.done {
-	border-color: #86efac;
-	color: #166534;
-	background: #dcfce7;
+	border-color: var(--st-done-line);
+	color: var(--st-done-text);
+	background: var(--st-done-bg);
 }
 
 .top-players-grid {
@@ -270,8 +324,8 @@ onUnmounted(() => {
 }
 
 .player-card {
-	border: 1px solid #e5efe9;
-	background: #ffffff;
+	border: 1px solid var(--st-card-line);
+	background: var(--st-card-bg);
 	border-radius: 14px;
 	padding: 16px 14px;
 	display: flex;
@@ -287,13 +341,8 @@ onUnmounted(() => {
 }
 
 .golden-glow-card {
-	border-color: #fbbf24;
-	background: radial-gradient(
-		circle at 15% 10%,
-		#fff3c4 0%,
-		#fff8dd 42%,
-		#ffffff 100%
-	);
+	border-color: var(--st-gold-line);
+	background: var(--st-gold-bg);
 	box-shadow:
 		0 0 0 1px rgba(245, 158, 11, 0.25),
 		0 14px 28px rgba(245, 158, 11, 0.24),
@@ -304,22 +353,22 @@ onUnmounted(() => {
 	font-size: 13px;
 	padding: 3px 10px;
 	border-radius: 999px;
-	background: #ecfdf3;
-	color: #166534;
-	border: 1px solid #c7ead7;
+	background: var(--st-rank-bg);
+	color: var(--st-done-text);
+	border: 1px solid var(--st-rank-line);
 }
 
 .avatar-wrap {
 	padding: 4px;
 	border-radius: 50%;
-	background: linear-gradient(135deg, #d1f7e3 0%, #f2fcf7 100%);
+	background: var(--st-ring);
 }
 
 .player-avatar {
 	width: 80px;
 	height: 80px;
 	border-radius: 50%;
-	border: 2px solid #ffffff;
+	border: 2px solid var(--st-card-bg);
 	object-fit: cover;
 }
 
@@ -327,12 +376,12 @@ onUnmounted(() => {
 	font-size: 17px;
 	text-align: center;
 	overflow-wrap: break-word;
-	color: #0f172a;
+	color: var(--st-ink);
 }
 
 .player-team {
 	font-size: 13px;
-	color: #64748b;
+	color: var(--st-muted);
 	text-align: center;
 }
 
@@ -340,9 +389,9 @@ onUnmounted(() => {
 	font-size: 13px;
 	border-radius: 999px;
 	padding: 5px 12px;
-	background: #d1fae5;
-	color: #065f46;
-	border: 1px solid #bdeccf;
+	background: var(--st-coins-bg);
+	color: var(--st-coins-text);
+	border: 1px solid var(--st-coins-line);
 }
 
 .metric-row {
@@ -353,8 +402,8 @@ onUnmounted(() => {
 }
 
 .metric-box {
-	background: #f8fafc;
-	border: 1px solid #e2e8f0;
+	background: var(--st-metric-bg);
+	border: 1px solid var(--st-metric-line);
 	border-radius: 10px;
 	padding: 8px;
 	text-align: center;
@@ -362,13 +411,13 @@ onUnmounted(() => {
 
 .metric-label {
 	font-size: 11px;
-	color: #64748b;
+	color: var(--st-muted);
 }
 
 .metric-value {
 	font-size: 15px;
 	font-weight: 600;
-	color: #0f172a;
+	color: var(--st-ink);
 }
 
 .empty-state {
@@ -376,7 +425,7 @@ onUnmounted(() => {
 	display: flex;
 	justify-content: center;
 	align-items: center;
-	color: #6b7280;
+	color: var(--st-faint);
 }
 
 @media (max-width: 900px) {

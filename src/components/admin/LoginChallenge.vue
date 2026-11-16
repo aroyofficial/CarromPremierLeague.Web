@@ -166,7 +166,7 @@ onUnmounted(() => window.clearInterval(clock));
 	border: 0;
 	background: none;
 	padding: 0;
-	color: var(--cpl-navy-700);
+	color: var(--cpl-heading-soft);
 	font-weight: 600;
 	cursor: pointer;
 }

@@ -213,7 +213,7 @@ onUnmounted(() => {
 	min-height: 240px;
 	padding: clamp(8px, 2vw, 16px);
 	border-radius: var(--cpl-radius-lg);
-	background: #fff;
+	background: var(--cpl-surface);
 	border: 1px solid var(--cpl-line);
 	box-shadow: var(--cpl-shadow-card);
 }
@@ -248,7 +248,7 @@ onUnmounted(() => {
 	td {
 		padding: 14px 10px;
 		text-align: center;
-		border-bottom: 1px solid #f1f5f9;
+		border-bottom: 1px solid var(--cpl-surface-hover);
 		font-variant-numeric: tabular-nums;
 	}
 
@@ -258,7 +258,7 @@ onUnmounted(() => {
 		transition: background 0.2s ease;
 
 		&:hover {
-			background: #f8fafc;
+			background: var(--cpl-surface-hover);
 		}
 
 		&:last-child td {
@@ -283,11 +283,11 @@ onUnmounted(() => {
 	}
 
 	.positive {
-		color: #15803d;
+		color: var(--cpl-success-text);
 	}
 
 	.negative {
-		color: #b91c1c;
+		color: var(--cpl-danger-text);
 	}
 }
 
@@ -314,6 +314,18 @@ onUnmounted(() => {
 
 .winner-row td {
 	background: linear-gradient(90deg, #fff8d6 0%, #fff2ad 100%);
+}
+
+html.dark .winner-row td {
+	background: linear-gradient(90deg, rgba(212, 160, 23, 0.22) 0%, rgba(212, 160, 23, 0.1) 100%);
+}
+
+html.dark .finalist-row td {
+	background: linear-gradient(90deg, rgba(47, 127, 191, 0.24) 0%, rgba(47, 127, 191, 0.1) 100%);
+}
+
+html.dark .eliminator-row td {
+	background: linear-gradient(90deg, rgba(217, 119, 6, 0.22) 0%, rgba(217, 119, 6, 0.08) 100%);
 }
 
 .winner-row td:first-child {

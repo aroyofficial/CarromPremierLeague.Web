@@ -615,7 +615,7 @@ onBeforeUnmount(() => {
 	align-items: center;
 	gap: 8px;
 	border: 1px solid var(--cpl-line);
-	background: #fff;
+	background: var(--cpl-surface);
 	color: var(--cpl-ink-900);
 	border-radius: 999px;
 	padding: 8px 14px;
@@ -634,7 +634,7 @@ onBeforeUnmount(() => {
 	box-sizing: border-box;
 	border: 1.5px solid var(--cpl-gold-400);
 	border-radius: 999px;
-	color: var(--cpl-gold-400);
+	color: var(--cpl-gold-text);
 	font-size: 12px;
 	font-weight: 700;
 	line-height: 1;
@@ -650,6 +650,17 @@ onBeforeUnmount(() => {
 .season-chip.is-selected .season-count {
 	border-color: var(--cpl-gold-400);
 	color: var(--cpl-gold-400);
+}
+
+html.dark .season-chip.is-selected {
+	background: var(--cpl-gold-400);
+	color: var(--cpl-navy-900);
+	border-color: var(--cpl-gold-400);
+}
+
+html.dark .season-chip.is-selected .season-count {
+	border-color: var(--cpl-navy-900);
+	color: var(--cpl-navy-900);
 }
 
 .cover-hero {
@@ -720,7 +731,7 @@ onBeforeUnmount(() => {
 	padding: 0;
 	border: 0;
 	overflow: hidden;
-	background: #e7edf6;
+	background: var(--cpl-track);
 	cursor: pointer;
 }
 
@@ -791,9 +802,14 @@ onBeforeUnmount(() => {
 	place-items: center;
 	min-height: 140px;
 	height: 100%;
-	padding: 16px;
+	padding: 8px;
+	overflow: hidden;
 	color: var(--cpl-ink-600);
-	background: #eef2f7;
+	background: var(--cpl-surface-sunken);
+	font-size: 13px;
+	line-height: 1.3;
+	text-align: center;
+	overflow-wrap: anywhere;
 }
 
 .cover-hero .photo-missing {

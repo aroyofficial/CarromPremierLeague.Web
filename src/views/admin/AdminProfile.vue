@@ -547,8 +547,8 @@ onMounted(load);
 		width: 32px;
 		height: 32px;
 		border-radius: 10px;
-		background: #fff4d6;
-		color: #9a6a00;
+		background: var(--cpl-gold-100);
+		color: var(--cpl-gold-text);
 	}
 }
 
@@ -577,8 +577,8 @@ onMounted(load);
 	margin-bottom: 18px;
 	padding: 12px 14px;
 	border-radius: 12px;
-	background: #f6f8fc;
-	border: 1px dashed #c8d1e3;
+	background: var(--cpl-surface-muted);
+	border: 1px dashed var(--el-border-color, #c8d1e3);
 
 	p {
 		margin: 0 0 8px;
@@ -606,7 +606,7 @@ onMounted(load);
 	padding: 14px 16px;
 	border: 1px solid var(--cpl-line);
 	border-radius: 12px;
-	background: linear-gradient(180deg, #fff, #fafbfe);
+	background: linear-gradient(180deg, var(--cpl-surface), var(--cpl-surface-sunken));
 
 	.el-button {
 		margin-left: auto;
@@ -642,7 +642,7 @@ onMounted(load);
 }
 
 .password-warn {
-	color: #9a6a00 !important;
+	color: var(--cpl-gold-text) !important;
 }
 
 .field-note {
@@ -661,7 +661,7 @@ onMounted(load);
 	gap: 12px;
 	padding: 12px 16px;
 	border-radius: 14px;
-	background: rgba(255, 255, 255, 0.92);
+	background: color-mix(in srgb, var(--cpl-surface) 92%, transparent);
 	backdrop-filter: blur(8px);
 	border: 1px solid var(--cpl-line);
 	box-shadow: 0 10px 28px rgba(11, 20, 38, 0.12);

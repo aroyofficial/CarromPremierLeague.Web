@@ -328,17 +328,17 @@ const onCountdownFinished = () => {
 	gap: 6px;
 	padding: 22px;
 	border-radius: var(--cpl-radius-lg);
-	background: #fff;
+	background: var(--cpl-surface);
 	border: 1px solid var(--cpl-line);
 	box-shadow: var(--cpl-shadow-card);
 	text-decoration: none;
-	color: inherit;
+	color: var(--cpl-ink-900);
 	transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
 
 	&:hover {
 		transform: translateY(-4px);
 		border-color: var(--cpl-gold-400);
-		box-shadow: 0 18px 36px rgba(15, 23, 42, 0.12);
+		box-shadow: var(--cpl-shadow-card), 0 18px 36px rgba(15, 23, 42, 0.12);
 	}
 }
 
