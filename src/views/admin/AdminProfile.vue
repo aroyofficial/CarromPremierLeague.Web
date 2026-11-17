@@ -166,17 +166,10 @@
 					<section class="profile-card" aria-labelledby="signin-title">
 						<h2 id="signin-title" class="card-title"><el-icon><Key /></el-icon>Sign-in details</h2>
 						<div class="field-grid">
-							<el-form-item label="Username" prop="username" data-prop="username" class="span-2">
-								<el-input v-model="form.username" autocomplete="username" />
+							<el-form-item label="Username" class="span-2">
+								<p class="username-value">{{ account.username }}</p>
+								<p class="field-hint">Created from the name and email. It cannot be changed.</p>
 							</el-form-item>
-							<el-alert
-								v-if="usernameChanged"
-								class="span-2 mb-3"
-								type="info"
-								:closable="false"
-								show-icon
-								title="Changing your username signs you out. Sign in again with the new username."
-							/>
 							<div class="span-2 password-row">
 								<span class="password-icon" aria-hidden="true"><el-icon><Lock /></el-icon></span>
 								<div class="password-copy">
@@ -249,7 +242,6 @@ const genderOptions = [
 ];
 
 const emptyForm = () => ({
-	username: "",
 	email_code: "",
 	first_name: "",
 	last_name: "",
@@ -281,7 +273,6 @@ const phoneChoices = computed(() => {
 const emailChanged = computed(
 	() => Boolean(account.value) && form.email.trim().toLowerCase() !== (account.value.email || "").toLowerCase(),
 );
-const usernameChanged = computed(() => Boolean(account.value) && form.username.trim() !== account.value.username);
 
 const heroName = computed(() => {
 	if (!account.value) return authStore.displayName || "My profile";
@@ -307,10 +298,6 @@ watch(changeOpen, async (open) => {
 });
 
 const rules = {
-	username: [
-		{ required: true, message: "Username is required", trigger: "blur" },
-		{ pattern: /^[A-Za-z0-9_.-]{3,100}$/, message: "3–100 letters, numbers, dot, dash or underscore", trigger: "blur" },
-	],
 	first_name: [{ max: 100, message: "Use 100 characters or fewer", trigger: "blur" }],
 	last_name: [{ max: 100, message: "Use 100 characters or fewer", trigger: "blur" }],
 	email: [
@@ -349,7 +336,6 @@ const applyAccount = (admin) => {
 	avatar.value = admin.avatar_url || "";
 	Object.assign(form, {
 		...emptyForm(),
-		username: admin.username,
 		first_name: admin.first_name || "",
 		last_name: admin.last_name || "",
 		date_of_birth: admin.date_of_birth,
@@ -516,18 +502,10 @@ const save = async () => {
 		phone_number: form.phone_number.trim(),
 		email: form.email.trim(),
 	});
-	if (usernameChanged.value) payload.username = form.username.trim();
 	if (emailChanged.value) payload.email_code = form.email_code;
-	const signInChanged = usernameChanged.value;
-	const { ok, result } = await runAction(() => adminApi.admins.update(account.value.id, payload), signInChanged ? "" : "Profile saved");
+	const { ok, result } = await runAction(() => adminApi.admins.update(account.value.id, payload), "Profile saved");
 	saving.value = false;
 	if (!ok) return;
-	if (signInChanged) {
-		notify.info("Your sign-in details changed. Please sign in again.", { critical: true });
-		await authStore.logout();
-		router.push(Routes.LOGIN);
-		return;
-	}
 	const fresh = unwrap(result);
 	if (fresh?.id) applyAccount(fresh);
 	await authStore.loadProfile({ force: true }).catch(() => undefined);
@@ -707,6 +685,17 @@ onMounted(load);
 	.el-date-editor.el-input {
 		width: 100%;
 	}
+}
+
+.username-value {
+	margin: 0;
+	font-weight: 650;
+}
+
+.field-hint {
+	margin: 4px 0 0;
+	color: var(--cpl-ink-600);
+	font-size: 12px;
 }
 
 .code-box {

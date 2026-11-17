@@ -29,7 +29,7 @@
 			:closable="false"
 			show-icon
 			role="alert"
-			title="Fix these before creating the admin"
+			title="Fix these before continuing"
 		>
 			<ul class="error-list">
 				<li v-for="problem in errors" :key="problem.prop">
@@ -40,17 +40,20 @@
 			</ul>
 		</el-alert>
 
-		<el-tabs v-model="activeTab" class="create-tabs" stretch>
-			<el-tab-pane name="account" label="Account details">
-				<el-form novalidate ref="formRef" :model="form" :rules="rules" label-position="top" class="admin-form-grid" @submit.prevent="save">
+		<el-steps :active="step" finish-status="success" align-center class="create-steps" aria-label="Create admin progress">
+			<el-step title="Basic information" />
+			<el-step title="Permissions" />
+			<el-step title="Finish" />
+		</el-steps>
+
+		<section v-show="step === 0" class="step-body" aria-labelledby="create-step-0">
+			<h3 id="create-step-0">Basic information</h3>
+			<el-form novalidate ref="formRef" :model="form" :rules="rules" label-position="top" class="admin-form-grid" @submit.prevent="continueFromBasics">
 					<el-form-item label="First name" prop="first_name" data-prop="first_name">
 						<el-input v-model="form.first_name" autocomplete="off" />
 					</el-form-item>
 					<el-form-item label="Last name" prop="last_name" data-prop="last_name">
 						<el-input v-model="form.last_name" autocomplete="off" />
-					</el-form-item>
-					<el-form-item label="Username" prop="username" data-prop="username">
-						<el-input v-model="form.username" autocomplete="off" />
 					</el-form-item>
 					<el-form-item label="Email (required)" prop="email" data-prop="email">
 						<el-input v-model="form.email" type="email" autocomplete="off" inputmode="email" />
@@ -78,6 +81,13 @@
 					<el-form-item label="Contact number (optional)" prop="phone_number" data-prop="phone_number">
 						<el-input v-model="form.phone_number" inputmode="numeric" autocomplete="off" placeholder="Digits only" />
 					</el-form-item>
+					<div class="span-2 username-preview">
+						<span class="preview-label">Username</span>
+						<strong>{{ suggestedUsername || "Enter a name or email" }}</strong>
+						<p class="field-hint">
+							Created from the first name, last name, and email. If that username is already taken, the email or a number is added. It cannot be changed later.
+						</p>
+					</div>
 					<el-alert
 						class="span-2"
 						type="info"
@@ -86,9 +96,14 @@
 						title="A temporary password is emailed. The account stays off until that admin verifies the email and sets their own password."
 					/>
 				</el-form>
-			</el-tab-pane>
+				<div class="step-actions">
+					<el-button :disabled="submitting" @click="requestClose">Cancel</el-button>
+					<el-button type="primary" @click="continueFromBasics">Continue</el-button>
+				</div>
+			</section>
 
-			<el-tab-pane name="permissions" label="Permissions">
+			<section v-show="step === 1" class="step-body" aria-labelledby="create-step-1">
+				<h3 id="create-step-1">Permissions</h3>
 				<div class="permissions-pane">
 					<p v-if="!canManage" class="pane-note">
 						You cannot grant permissions. The new admin starts with none. Someone who can manage permissions can grant them later.
@@ -109,12 +124,17 @@
 						{{ form.permissions.length }} permission{{ form.permissions.length === 1 ? "" : "s" }} selected
 					</p>
 				</div>
-			</el-tab-pane>
+				<div class="step-actions">
+					<el-button @click="step = 0">Back</el-button>
+					<el-button type="primary" @click="step = 2">Continue</el-button>
+				</div>
+			</section>
 
-			<el-tab-pane name="review" label="Review">
+			<section v-show="step === 2" class="step-body" aria-labelledby="create-step-2">
+				<h3 id="create-step-2">Finish</h3>
 				<dl class="review-list">
 					<div><dt>Name</dt><dd>{{ displayName || "Not entered" }}</dd></div>
-					<div><dt>Username</dt><dd>{{ form.username || "Not entered" }}</dd></div>
+					<div><dt>Username</dt><dd>{{ suggestedUsername || "Created from the name and email" }}</dd></div>
 					<div><dt>Email</dt><dd>{{ normalizedEmail || "Not entered" }}</dd></div>
 					<div><dt>Contact number</dt><dd>{{ contactText || "Not added" }}</dd></div>
 					<div><dt>Date of birth</dt><dd>{{ form.date_of_birth || "Not added" }}</dd></div>
@@ -129,17 +149,13 @@
 						<li v-for="name in group.names" :key="name">{{ name }}</li>
 					</ul>
 				</div>
-			</el-tab-pane>
-		</el-tabs>
-
-		<template #footer>
-			<div class="dialog-footer">
-				<el-button :disabled="submitting" @click="requestClose">Cancel</el-button>
-				<el-button type="primary" :loading="submitting" :disabled="submitting" @click="save">
-					{{ submitting ? "Creating…" : "Create admin" }}
-				</el-button>
-			</div>
-		</template>
+				<div class="step-actions">
+					<el-button :disabled="submitting" @click="step = 1">Back</el-button>
+					<el-button type="primary" :loading="submitting" :disabled="submitting" @click="save">
+						{{ submitting ? "Creating…" : "Create admin" }}
+					</el-button>
+				</div>
+			</section>
 	</el-dialog>
 </template>
 
@@ -152,6 +168,7 @@ import { adminApi, apiErrorMessage } from "@/services/adminService";
 import { useAuthStore } from "@/store/authStore";
 import { blankToNull, unwrap } from "@/utils/adminHelpers";
 import { optionalContactError } from "@/utils/contactNumber";
+import { suggestUsername } from "@/utils/adminUsername";
 import { focusField, useFormSubmit, validateForm } from "@/utils/formValidation";
 import { buildIndex, delegableTree } from "@/utils/permissionTree";
 import { Permission } from "@/utils/constants";
@@ -167,7 +184,7 @@ const emit = defineEmits(["update:modelValue", "created"]);
 const authStore = useAuthStore();
 const isPhone = useIsPhone();
 const formRef = ref(null);
-const activeTab = ref("account");
+const step = ref(0);
 const serverError = ref("");
 const errors = ref([]);
 const { submitting, submit } = useFormSubmit(formRef);
@@ -185,7 +202,6 @@ const genderOptions = [
 ];
 
 const emptyAccount = () => ({
-	username: "",
 	first_name: "",
 	last_name: "",
 	date_of_birth: null,
@@ -206,6 +222,7 @@ const phoneOptions = computed(() =>
 const selectedCode = () => phoneOptions.value.find((country) => country.id === form.phone_country_id)?.code || "";
 
 const normalizedEmail = computed(() => form.email.trim().toLowerCase());
+const suggestedUsername = computed(() => suggestUsername(form.first_name, form.last_name, normalizedEmail.value));
 const displayName = computed(() => [form.first_name, form.last_name].map((part) => part.trim()).filter(Boolean).join(" "));
 const contactText = computed(() => {
 	const code = selectedCode();
@@ -230,10 +247,6 @@ const reviewGroups = computed(() => {
 });
 
 const rules = {
-	username: [
-		{ required: true, message: "Username is required", trigger: "blur" },
-		{ pattern: /^[A-Za-z0-9_.-]{3,100}$/, message: "3–100 letters, numbers, dot, dash or underscore", trigger: "blur" },
-	],
 	first_name: [{ max: 100, message: "Use 100 characters or fewer", trigger: "blur" }],
 	last_name: [{ max: 100, message: "Use 100 characters or fewer", trigger: "blur" }],
 	email: [
@@ -270,7 +283,7 @@ const resetAll = () => {
 	initialSnapshot.value = JSON.stringify(form);
 	serverError.value = "";
 	errors.value = [];
-	activeTab.value = "account";
+	step.value = 0;
 };
 
 // Each time the dialog opens, start clean.
@@ -282,7 +295,7 @@ watch(
 );
 
 const onOpened = () => {
-	nextTick(() => focusField(formRef, "username"));
+	nextTick(() => focusField(formRef, "first_name"));
 };
 
 // Every way of closing (X, Esc, Cancel, the mask) goes through here, so unsaved work is never lost silently.
@@ -304,23 +317,29 @@ const requestClose = async (done) => {
 };
 
 const jumpTo = async (prop) => {
-	const tab = ["username", "first_name", "last_name", "email", "phone_number", "phone_country_id", "date_of_birth", "gender"].includes(prop)
-		? "account"
-		: activeTab.value;
-	activeTab.value = tab;
+	step.value = 0;
 	await nextTick();
 	focusField(formRef, prop);
 };
 
+const continueFromBasics = async () => {
+	serverError.value = "";
+	form.email = form.email.trim().toLowerCase();
+	const check = await validateForm(formRef);
+	errors.value = check.errors;
+	if (!check.valid) return;
+	step.value = 1;
+};
+
 const save = () =>
 	submit(async () => {
+		if (step.value !== 2) return;
 		serverError.value = "";
 		form.email = form.email.trim().toLowerCase();
 		const check = await validateForm(formRef);
 		errors.value = check.errors;
 		if (!check.valid) {
-			// Focus was set on the first bad field. Bring the account tab forward if it is hidden.
-			activeTab.value = "account";
+			step.value = 0;
 			return;
 		}
 
@@ -335,14 +354,14 @@ const save = () =>
 			phone_code: code || null,
 			phone_number: form.phone_number.trim(),
 			email: form.email,
-			username: form.username.trim(),
 		});
 		payload.permissions = granted;
 
 		try {
 			const created = unwrap(await adminApi.admins.create(payload));
 			emit("created", created);
-			notify.success("Admin created. The temporary password was emailed. The account activates after they verify their email and set a password.");
+			const username = created?.username ? ` Username is ${created.username}.` : "";
+			notify.success(`Admin created.${username} The temporary password was emailed. The account activates after they verify their email and set a password.`);
 			emit("update:modelValue", false);
 		} catch (error) {
 			serverError.value = apiErrorMessage(error);
@@ -354,6 +373,29 @@ const save = () =>
 </script>
 
 <style scoped>
+.create-steps {
+	margin-bottom: 24px;
+}
+
+.step-body {
+	display: grid;
+	gap: 14px;
+}
+
+.step-body h3 {
+	margin: 0;
+	font-size: 18px;
+	font-weight: 700;
+}
+
+.step-actions {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: 8px;
+	margin-top: 8px;
+}
+
 .admin-form-grid {
 	display: grid;
 	grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -373,6 +415,17 @@ const save = () =>
 	margin: 4px 0 0;
 	color: var(--cpl-ink-600);
 	font-size: 12px;
+}
+
+.username-preview {
+	margin: 0 0 12px;
+}
+
+.preview-label {
+	display: block;
+	margin-bottom: 4px;
+	color: var(--cpl-ink-600);
+	font-size: 14px;
 }
 
 .pane-note {
@@ -437,12 +490,6 @@ const save = () =>
 .review-group ul {
 	margin: 0;
 	padding-left: 18px;
-}
-
-.dialog-footer {
-	display: flex;
-	justify-content: flex-end;
-	gap: 8px;
 }
 
 @media (max-width: 767.98px) {
