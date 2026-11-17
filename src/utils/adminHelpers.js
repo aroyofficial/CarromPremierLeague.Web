@@ -1,4 +1,5 @@
-import { ElMessage, ElMessageBox } from "element-plus";
+import { ElMessageBox } from "element-plus";
+import { notify } from "@/utils/notify";
 import { apiErrorMessage } from "@/services/adminService";
 
 export const unwrap = (response) => response?.data ?? null;
@@ -6,10 +7,10 @@ export const unwrap = (response) => response?.data ?? null;
 export const runAction = async (action, successMessage) => {
 	try {
 		const result = await action();
-		if (successMessage) ElMessage.success(successMessage);
+		if (successMessage) notify.success(successMessage);
 		return { ok: true, result };
 	} catch (error) {
-		ElMessage.error(apiErrorMessage(error));
+		notify.error(apiErrorMessage(error));
 		return { ok: false, error };
 	}
 };

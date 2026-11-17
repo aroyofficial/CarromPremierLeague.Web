@@ -23,6 +23,12 @@ export const withCrop = (url, crop) => {
 	return `${base}#cplcrop=${number(crop.x)},${number(crop.y)},${number(crop.w)},${number(crop.h)}`;
 };
 
+// Size of a picture after turning it by whole quarter turns (1 = clockwise, 3 = counter-clockwise).
+export const rotatedDimensions = (width, height, quarterTurns) => {
+	const turns = ((Math.round(quarterTurns) % 4) + 4) % 4;
+	return turns % 2 === 1 ? { width: height, height: width } : { width, height };
+};
+
 export const frameFractions = ({ naturalWidth, naturalHeight, viewSize, panX, panY, zoom, circle }) => {
 	const cover = Math.max(viewSize / naturalWidth, viewSize / naturalHeight);
 	const scale = cover * zoom;

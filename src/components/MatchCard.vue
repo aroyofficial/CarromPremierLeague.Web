@@ -518,7 +518,8 @@ import {
 	takeFullScreen,
 	exitFullScreen,
 } from "../utils/common";
-import { ElMessage, ElMessageBox } from "element-plus";
+import { ElMessageBox } from "element-plus";
+import { notify } from "@/utils/notify";
 import { matchService } from "@/services/matchService";
 import { useSettingsStore } from "@/store/settingsStore";
 import { playerName } from "@/utils/media";
@@ -878,7 +879,7 @@ const persistMatch = (payload, what) =>
 			syncMatchCardFromApi(updatedMatch);
 			return updatedMatch;
 		} catch (error) {
-			ElMessage.error(apiMessage(error, `The ${what} could not be saved.`));
+			notify.error(apiMessage(error, `The ${what} could not be saved.`));
 			throw error;
 		}
 	});
@@ -890,7 +891,7 @@ const persistStats = () =>
 		try {
 			return await matchStore.updateMatchStats(props.match.id, payload);
 		} catch (error) {
-			ElMessage.error(apiMessage(error, "The scorecard could not be saved."));
+			notify.error(apiMessage(error, "The scorecard could not be saved."));
 			throw error;
 		}
 	}, "stats");
@@ -1388,7 +1389,7 @@ const resumeLiveMatch = async () => {
 		await loadScorecard();
 	} catch (error) {
 		console.error("Failed to resume the live match", error);
-		ElMessage.error(apiMessage(error, "The live match could not be loaded."));
+		notify.error(apiMessage(error, "The live match could not be loaded."));
 	} finally {
 		pauseLoader();
 	}
@@ -1437,7 +1438,7 @@ const resetToss = async () => {
 	try {
 		await persistMatch({ toss_outcome: TossOutcome.NotDecided }, "toss reset");
 		matchObject.value.toss_outcome = null;
-		ElMessage.success("The toss has been cleared.");
+		notify.success("The toss has been cleared.");
 		if (returnToToss) {
 			showMatchManager.value = false;
 			exitFullScreen();
@@ -1464,10 +1465,10 @@ const requestReset = async () => {
 		syncMatchCardFromApi(resetMatch);
 		showMatchManagementDialog.value = false;
 		await matchStore.fetchMatches(props.match.season_id);
-		ElMessage.success("The match is back to Scheduled.");
+		notify.success("The match is back to Scheduled.");
 	} catch (error) {
 		console.error("Failed to reset the match", error);
-		ElMessage.error(apiMessage(error, "The match could not be reset."));
+		notify.error(apiMessage(error, "The match could not be reset."));
 	} finally {
 		pauseLoader();
 	}
@@ -1485,7 +1486,7 @@ const editScores = async () => {
 		await loadScorecard();
 	} catch (error) {
 		console.error("Failed to load the scorecard", error);
-		window.alert("The scorecard could not be loaded.");
+		notify.error("The scorecard could not be loaded.");
 	} finally {
 		pauseLoader();
 	}
@@ -1501,21 +1502,21 @@ const requestFinish = () => {
 	}
 	const invalidCoinCount = getInvalidCoinCount();
 	if (invalidCoinCount) {
-		window.alert(
+		notify.warning(
 			`${invalidCoinCount.teamName}'s colour has ${invalidCoinCount.coins} coins off the board after fines. Each colour has only 9 coins.`,
 		);
 		return;
 	}
 	const invalidTeamNetPoints = getInvalidTeamNetPoints();
 	if (invalidTeamNetPoints) {
-		window.alert(
+		notify.warning(
 			`${invalidTeamNetPoints.teamName} cannot score more than 9 net coins. Current value: ${invalidTeamNetPoints.netPoints}.`,
 		);
 		return;
 	}
 	const invalidGoldenStrikeState = getInvalidGoldenStrikeState();
 	if (invalidGoldenStrikeState) {
-		window.alert(invalidGoldenStrikeState);
+		notify.warning(invalidGoldenStrikeState);
 		return;
 	}
 	if (!getFinishedMatchMetadata()) {
@@ -1542,21 +1543,21 @@ const finishMatch = async (forcefully = false) => {
 	}
 	const invalidCoinCount = getInvalidCoinCount();
 	if (invalidCoinCount) {
-		window.alert(
+		notify.warning(
 			`${invalidCoinCount.teamName}'s colour has ${invalidCoinCount.coins} coins off the board after fines. Each colour has only 9 coins.`,
 		);
 		return;
 	}
 	const invalidTeamNetPoints = getInvalidTeamNetPoints();
 	if (invalidTeamNetPoints) {
-		window.alert(
+		notify.warning(
 			`${invalidTeamNetPoints.teamName} cannot score more than 9 net coins. Current value: ${invalidTeamNetPoints.netPoints}.`,
 		);
 		return;
 	}
 	const invalidGoldenStrikeState = getInvalidGoldenStrikeState();
 	if (invalidGoldenStrikeState) {
-		window.alert(invalidGoldenStrikeState);
+		notify.warning(invalidGoldenStrikeState);
 		return;
 	}
 
@@ -1566,7 +1567,7 @@ const finishMatch = async (forcefully = false) => {
 			openGoldenStrikeDialog();
 			return;
 		}
-		window.alert(
+		notify.warning(
 			"The match is tied. Extra time has to be played before it can finish.",
 		);
 		return;
@@ -1614,7 +1615,7 @@ const finishMatch = async (forcefully = false) => {
 		showMatchManagementDialog.value = false;
 	} catch (error) {
 		console.error("Failed to persist finished match details", error);
-		window.alert(error?.message || "Failed to save match details.");
+		notify.error(error?.message || "Failed to save match details.");
 	} finally {
 		pauseLoader();
 	}

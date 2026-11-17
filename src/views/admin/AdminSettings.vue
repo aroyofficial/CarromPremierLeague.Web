@@ -36,7 +36,7 @@
 				</article>
 			</section>
 
-			<el-form class="settings-form" label-position="top" @submit.prevent="save">
+			<el-form novalidate class="settings-form" label-position="top" @submit.prevent="save">
 				<section class="admin-card setting-group">
 					<header class="group-head">
 						<h2>Match clock</h2>
@@ -173,7 +173,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
-import { ElMessage } from "element-plus";
+import { notify } from "@/utils/notify";
 import { useAuthStore } from "@/store/authStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import { Permission, Routes } from "@/utils/constants";
@@ -278,9 +278,9 @@ const save = async () => {
 			assistant_admin_enabled: form.assistant_admin_enabled,
 		});
 		copyFromStore();
-		ElMessage.success("Settings saved.");
+		notify.success("Settings saved.");
 	} catch (error) {
-		ElMessage.error(error?.message || "The settings could not be saved.");
+		notify.error(error?.message || "The settings could not be saved.");
 	} finally {
 		saving.value = false;
 	}

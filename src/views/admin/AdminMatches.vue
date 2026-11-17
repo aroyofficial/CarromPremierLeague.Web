@@ -110,7 +110,7 @@
 		</div>
 
 		<el-dialog v-model="dialogOpen" :title="editingMatch ? `Edit match #${editingMatch.order}` : 'New match'" width="min(1080px, 96vw)">
-			<el-form ref="formRef" :model="form" :rules="rules" label-position="top" class="admin-form-grid" @submit.prevent>
+			<el-form novalidate ref="formRef" :model="form" :rules="rules" label-position="top" class="admin-form-grid" @submit.prevent>
 				<el-form-item label="Team 1" prop="team1">
 					<el-select v-model="form.team1" clearable placeholder="Team 1" :disabled="playedLocked">
 						<el-option v-for="team in teamOptions" :key="team.id" :label="team.name" :value="team.id" />
@@ -193,7 +193,8 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from "vue";
-import { ElMessage, ElMessageBox } from "element-plus";
+import { ElMessageBox } from "element-plus";
+import { notify } from "@/utils/notify";
 import { MoreFilled, Plus, VideoPlay } from "@element-plus/icons-vue";
 import { useRouter } from "vue-router";
 import { adminApi } from "@/services/adminService";
@@ -445,7 +446,7 @@ const save = async () => {
 	const rows = editingMatch.value ? editScoreRows.value : [];
 	const overflow = colorOverflow(rows);
 	if (overflow) {
-		ElMessage.error(`${overflow}'s colour would have more than 9 coins off the board after fines.`);
+		notify.error(`${overflow}'s colour would have more than 9 coins off the board after fines.`);
 		return;
 	}
 	saving.value = true;

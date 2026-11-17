@@ -21,9 +21,9 @@
 			@wheel.prevent="onWheel"
 		>
 			<img
-				v-if="src"
+				v-if="displaySrc"
 				ref="imageRef"
-				:src="src"
+				:src="displaySrc"
 				alt=""
 				draggable="false"
 				:style="imageStyle"
@@ -31,6 +31,14 @@
 				@error="onError"
 			/>
 			<div class="frame-circle" :style="circleStyle" />
+		</div>
+		<div v-if="sourceFile" class="frame-tools" role="group" aria-label="Rotate picture">
+			<el-button size="small" :icon="RefreshLeft" :disabled="!canRotate" aria-label="Rotate left 90 degrees" @click="rotateBy(3)">
+				Rotate left
+			</el-button>
+			<el-button size="small" :icon="RefreshRight" :disabled="!canRotate" aria-label="Rotate right 90 degrees" @click="rotateBy(1)">
+				Rotate right
+			</el-button>
 		</div>
 		<div class="frame-sliders">
 			<label>
@@ -51,8 +59,9 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref, watch } from "vue";
-import { clampFrame, cropToFile, frameFractions, imagePlacement, withCrop } from "@/utils/pictureFrame";
+import { computed, onBeforeUnmount, reactive, ref, watch } from "vue";
+import { RefreshLeft, RefreshRight } from "@element-plus/icons-vue";
+import { clampFrame, cropToFile, frameFractions, imagePlacement, rotatedDimensions, withCrop } from "@/utils/pictureFrame";
 
 const props = defineProps({
 	modelValue: { type: Boolean, default: false },
@@ -75,6 +84,20 @@ const working = ref(false);
 const drag = ref(null);
 const confirmed = ref(false);
 
+// A rotated copy of the picture, made on a canvas. The crop reads from whichever image is shown.
+const workingSrc = ref("");
+let workingUrl = "";
+const displaySrc = computed(() => workingSrc.value || props.src);
+const canRotate = computed(() => Boolean(props.sourceFile) && ready.value && !working.value);
+
+const clearWorking = () => {
+	if (workingUrl) URL.revokeObjectURL(workingUrl);
+	workingUrl = "";
+	workingSrc.value = "";
+};
+
+onBeforeUnmount(clearWorking);
+
 const reset = () => {
 	viewSize.value = Math.max(220, Math.min(320, window.innerWidth - 64));
 	zoom.value = 1;
@@ -93,9 +116,41 @@ const reset = () => {
 watch(
 	() => props.modelValue,
 	(open) => {
-		if (open) reset();
+		if (!open) return;
+		clearWorking();
+		reset();
 	},
 );
+
+// Turn the picture by quarter turns. The new copy is drawn on a canvas, so the crop uses the turned pixels.
+const rotateBy = (quarterTurns) => {
+	if (!canRotate.value || !imageRef.value) return;
+	const image = imageRef.value;
+	const size = rotatedDimensions(image.naturalWidth, image.naturalHeight, quarterTurns);
+	const canvas = document.createElement("canvas");
+	canvas.width = size.width;
+	canvas.height = size.height;
+	const context = canvas.getContext("2d");
+	if (!context) {
+		loadError.value = "This browser could not turn the picture.";
+		return;
+	}
+	context.translate(size.width / 2, size.height / 2);
+	context.rotate((((quarterTurns % 4) + 4) % 4) * (Math.PI / 2));
+	context.drawImage(image, -image.naturalWidth / 2, -image.naturalHeight / 2);
+	canvas.toBlob((blob) => {
+		if (!blob) {
+			loadError.value = "This browser could not turn the picture.";
+			return;
+		}
+		const next = URL.createObjectURL(blob);
+		if (workingUrl) URL.revokeObjectURL(workingUrl);
+		workingUrl = next;
+		workingSrc.value = next;
+		// The circle and zoom belong to the old orientation, so start the frame again on the turned picture.
+		reset();
+	}, "image/png");
+};
 
 const geometry = () => ({
 	naturalWidth: imageRef.value?.naturalWidth || 1,
@@ -263,6 +318,14 @@ const confirm = async () => {
 	border-radius: 50%;
 	box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.55);
 	pointer-events: none;
+}
+
+.frame-tools {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	gap: 8px;
+	margin-top: 12px;
 }
 
 .frame-sliders {

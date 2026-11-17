@@ -73,7 +73,7 @@
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import { ElMessage } from "element-plus";
+import { notify } from "@/utils/notify";
 import { CircleCheck, Iphone, Loading, Monitor, SwitchButton } from "@element-plus/icons-vue";
 import { authService } from "@/services/authService";
 import { useAuthStore } from "@/store/authStore";
@@ -159,7 +159,7 @@ const approve = async () => {
 		await authService.approveLogin(request.value.request_id);
 		request.value = null;
 		authStore.dropLocal();
-		ElMessage.success("This device is logged out. The other device can sign in.");
+		notify.success("This device is logged out. The other device can sign in.");
 		router.push(Routes.LOGIN);
 	} catch (error) {
 		errorMessage.value = error?.detail || error?.message || "The approval could not be sent. Try again.";
@@ -175,7 +175,7 @@ const deny = async () => {
 	try {
 		await authService.denyLogin(request.value.request_id);
 		request.value = null;
-		ElMessage.success("The other sign-in was declined. You are still signed in here.");
+		notify.success("The other sign-in was declined. You are still signed in here.");
 	} catch (error) {
 		errorMessage.value = error?.detail || error?.message || "The decline could not be sent. Try again.";
 	} finally {

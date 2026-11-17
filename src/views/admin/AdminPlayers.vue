@@ -59,11 +59,12 @@
 			:show-close="!uploadBlocked"
 			:before-close="closeDialog"
 		>
-			<el-form ref="formRef" :model="form" :rules="rules" label-position="top" class="admin-form-grid" @submit.prevent>
-				<el-form-item label="First name" prop="first_name">
+			<el-alert v-if="formError" class="mb-3" type="error" show-icon :closable="false" role="alert" :title="formError" />
+			<el-form novalidate ref="formRef" :model="form" :rules="rules" label-position="top" class="admin-form-grid" @submit.prevent>
+				<el-form-item label="First name" prop="first_name" data-prop="first_name">
 					<el-input v-model="form.first_name" />
 				</el-form-item>
-				<el-form-item label="Last name" prop="last_name">
+				<el-form-item label="Last name" prop="last_name" data-prop="last_name">
 					<el-input v-model="form.last_name" />
 				</el-form-item>
 				<el-form-item label="Date of birth" prop="date_of_birth">
@@ -75,10 +76,43 @@
 						placeholder="Optional"
 					/>
 				</el-form-item>
-				<el-form-item label="Nationality" prop="nationality_id">
+				<el-form-item label="Nationality" prop="nationality_id" data-prop="nationality_id">
 					<el-select v-model="form.nationality_id" filterable clearable placeholder="Choose a country">
 						<el-option v-for="country in countries" :key="country.id" :label="country.name" :value="country.id" />
 					</el-select>
+				</el-form-item>
+				<el-form-item label="Country code (optional)" prop="phone_code" data-prop="phone_code">
+					<el-select
+						v-model="form.phone_code"
+						filterable
+						clearable
+						placeholder="Code"
+						:disabled="removePhone"
+						@change="formRef?.validateField('phone_number')"
+					>
+						<el-option v-for="country in phoneCountries" :key="country.code" :label="country.label" :value="country.code" />
+					</el-select>
+				</el-form-item>
+				<el-form-item
+					label="Contact number (optional)"
+					prop="phone_number"
+					data-prop="phone_number"
+					:error="phoneServerError || undefined"
+				>
+					<el-input
+						v-model="form.phone_number"
+						inputmode="numeric"
+						autocomplete="off"
+						placeholder="Digits only"
+						:disabled="removePhone"
+						@input="phoneServerError = ''"
+					/>
+				</el-form-item>
+				<el-form-item v-if="editingId" class="span-2" data-prop="remove_phone">
+					<el-checkbox v-model="removePhone">Remove the phone number on file</el-checkbox>
+					<small class="field-hint">
+						Leave both phone fields blank to keep the number already on file. A phone number must belong to one profile only.
+					</small>
 				</el-form-item>
 				<el-form-item label="Profile picture" class="span-2">
 					<ImageUploadField
@@ -118,6 +152,9 @@ import { useIsPhone } from "@/utils/viewport";
 import { usePermissions } from "@/utils/permissions";
 import { playerName } from "@/utils/media";
 import { usePlayerStore } from "@/store/playerStore";
+import { notify } from "@/utils/notify";
+import { optionalContactError } from "@/utils/contactNumber";
+import { validateForm } from "@/utils/formValidation";
 import EntityImage from "@/components/EntityImage.vue";
 import ImageUploadField from "@/components/admin/ImageUploadField.vue";
 
@@ -153,8 +190,23 @@ const dialogOpen = ref(false);
 const saving = ref(false);
 const editingId = ref(null);
 const formRef = ref(null);
-const emptyForm = () => ({ first_name: "", last_name: "", date_of_birth: null, nationality_id: null });
+const formError = ref("");
+const removePhone = ref(false);
+const phoneServerError = ref("");
+const emptyForm = () => ({
+	first_name: "",
+	last_name: "",
+	date_of_birth: null,
+	nationality_id: null,
+	phone_code: "",
+	phone_number: "",
+});
 const form = reactive(emptyForm());
+const phoneCountries = computed(() =>
+	countries.value
+		.filter((country) => country.phone_code)
+		.map((country) => ({ code: country.phone_code, label: `${country.name} (${country.phone_code})` })),
+);
 const editingAvatar = ref("");
 const pendingPhoto = ref(null);
 const pendingLink = ref("");
@@ -170,6 +222,17 @@ const closeDialog = (done) => {
 const rules = {
 	first_name: [{ required: true, whitespace: true, message: "First name is required", trigger: "blur" }],
 	last_name: [{ required: true, whitespace: true, message: "Last name is required", trigger: "blur" }],
+	phone_number: [
+		{
+			// Optional. Only a typed number is checked, and it needs a country code.
+			validator: (_rule, value, callback) => {
+				if (removePhone.value) return callback();
+				const problem = optionalContactError((value || "").trim(), form.phone_code || null);
+				return problem ? callback(new Error(problem)) : callback();
+			},
+			trigger: "blur",
+		},
+	],
 };
 
 const openCreate = () => {
@@ -178,6 +241,9 @@ const openCreate = () => {
 	pendingPhoto.value = null;
 	pendingLink.value = "";
 	pictureError.value = "";
+	formError.value = "";
+	phoneServerError.value = "";
+	removePhone.value = false;
 	Object.assign(form, emptyForm());
 	dialogOpen.value = true;
 	formRef.value?.clearValidate();
@@ -189,7 +255,11 @@ const openEdit = (player) => {
 	pendingPhoto.value = null;
 	pendingLink.value = "";
 	pictureError.value = "";
+	formError.value = "";
+	phoneServerError.value = "";
+	removePhone.value = false;
 	Object.assign(form, {
+		...emptyForm(),
 		first_name: player.first_name,
 		last_name: player.last_name,
 		date_of_birth: player.date_of_birth,
@@ -212,18 +282,44 @@ const pictureChanged = (player) => {
 };
 
 const save = async () => {
-	const valid = await formRef.value.validate().catch(() => false);
-	if (!valid) return;
+	if (saving.value) return;
+	const check = await validateForm(formRef);
+	if (!check.valid) return;
 	saving.value = true;
 	pictureError.value = "";
-	const payload = blankToNull({ ...form, first_name: form.first_name.trim(), last_name: form.last_name.trim() });
+	formError.value = "";
+	phoneServerError.value = "";
+	const payload = blankToNull({
+		first_name: form.first_name.trim(),
+		last_name: form.last_name.trim(),
+		date_of_birth: form.date_of_birth,
+		nationality_id: form.nationality_id,
+	});
+	// The phone keys are sent only when they mean something. An absent key keeps the number on file.
+	// An explicit null clears it, which is what the remove checkbox sends.
+	if (editingId.value && removePhone.value) {
+		payload.phone_code = null;
+		payload.phone_number = null;
+	} else if (form.phone_number.trim()) {
+		payload.phone_code = form.phone_code;
+		payload.phone_number = form.phone_number.trim();
+	}
 	const wasNew = !editingId.value;
-	const { ok, result } = await runAction(
-		() => (editingId.value ? adminApi.players.update(editingId.value, payload) : adminApi.players.create(payload)),
-		editingId.value ? "Player updated" : "Player created",
-	);
+	let result;
+	try {
+		result = await (editingId.value ? adminApi.players.update(editingId.value, payload) : adminApi.players.create(payload));
+	} catch (error) {
+		saving.value = false;
+		if (error?.httpStatus === 409 && /phone/i.test(error.message || "")) {
+			phoneServerError.value = error.message;
+		} else {
+			formError.value = apiErrorMessage(error);
+		}
+		return;
+	}
+	notify.success(wasNew ? "Player created" : "Player updated");
 	let pictureOk = true;
-	if (ok && wasNew && (pendingPhoto.value || pendingLink.value)) {
+	if (wasNew && (pendingPhoto.value || pendingLink.value)) {
 		const created = unwrap(result);
 		editingId.value = created.id;
 		uploading.value = true;
@@ -248,7 +344,7 @@ const save = async () => {
 		}
 	}
 	saving.value = false;
-	if (ok && pictureOk) {
+	if (pictureOk) {
 		dialogOpen.value = false;
 		refreshPublicPlayers();
 		await load();

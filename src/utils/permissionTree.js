@@ -40,6 +40,22 @@ export const buildIndex = (tree) => {
 	};
 };
 
+// Only the permissions in `held`. Empty areas and sections are dropped, and a role stays only
+// when every one of its permissions is held, so nothing outside `held` is ever shown.
+export const delegableTree = (tree, held) => {
+	const allowed = new Set(held || []);
+	const sections = (tree?.sections || [])
+		.map((section) => ({
+			...section,
+			areas: section.areas
+				.map((area) => ({ ...area, permissions: area.permissions.filter((permission) => allowed.has(permission.code)) }))
+				.filter((area) => area.permissions.length),
+		}))
+		.filter((section) => section.areas.length);
+	const roles = (tree?.roles || []).filter((role) => role.permissions.every((code) => allowed.has(code)));
+	return { ...tree, sections, roles };
+};
+
 export const inOrder = (index, codes) => {
 	const wanted = new Set(codes);
 	return index.order.filter((code) => wanted.has(code));

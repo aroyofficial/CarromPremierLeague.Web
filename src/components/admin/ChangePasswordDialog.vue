@@ -46,7 +46,7 @@
 			</el-button>
 		</section>
 
-		<el-form
+		<el-form novalidate
 			v-else-if="step === 'password'"
 			ref="formRef"
 			:model="form"
@@ -97,6 +97,7 @@ import { authService } from "@/services/authService";
 import { unwrap } from "@/utils/adminHelpers";
 import { formatDuration, MIN_PASSWORD_LENGTH, passwordReady } from "@/utils/passwordRules";
 import { storeCredential } from "@/utils/passwordTools";
+import { validateForm } from "@/utils/formValidation";
 
 const RESEND_SECONDS = 30;
 
@@ -202,8 +203,9 @@ const verify = async () => {
 const submit = async () => {
 	if (busy.value) return;
 	errorMessage.value = "";
-	const valid = await formRef.value?.validate().catch(() => false);
-	if (!valid || !ready.value) return;
+	// validateForm focuses the first field that needs attention, so the keyboard user lands on the problem.
+	const check = await validateForm(formRef);
+	if (!check.valid || !ready.value) return;
 	saving.value = true;
 	try {
 		await authService.changePassword(ticket.value, form.password);

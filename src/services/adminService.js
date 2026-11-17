@@ -64,6 +64,8 @@ export const adminApi = {
 	},
 	admins: {
 		me: () => api.get("auth/me"),
+		phoneCode: (phone_code, phone_number) => api.post("auth/me/phone/otp", { phone_code, phone_number }),
+		verifyPhone: (phone_code, phone_number, code) => api.post("auth/me/phone/verify", { phone_code, phone_number, code }),
 		list: () => api.get("admins"),
 		get: (id) => api.get(`admins/${id}`),
 		create: (payload) => api.post("admins", payload),
@@ -113,9 +115,6 @@ export const apiErrorMessage = (error, fallback = "Something went wrong. Please 
 				return field ? `${field}: ${item.msg}` : item.msg;
 			})
 			.join("; ");
-	}
-	if (typeof error.data === "string" && error.message === "Internal server error") {
-		return error.data;
 	}
 	return error.message || error.detail || fallback;
 };

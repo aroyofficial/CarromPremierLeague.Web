@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from "vue-router";
-import { ElMessage } from "element-plus";
+import { clearStale, notify } from "@/utils/notify";
 import { AdminSections, Routes } from "../utils/constants";
 import { authToken } from "../utils/authToken";
 import { useSeasonStore } from "@/store/seasonStore";
@@ -128,7 +128,10 @@ const router = createRouter({
 	},
 });
 
+let navigationStartedAt = 0;
+
 router.beforeEach(async (to) => {
+	navigationStartedAt = Date.now();
 	if (to.matched.some((record) => record.meta.requiresAuth) && !authToken.get()) {
 		return { path: Routes.LOGIN, query: { redirect: to.fullPath } };
 	}
@@ -141,7 +144,7 @@ router.beforeEach(async (to) => {
 			return authToken.get() ? { name: "admin-dashboard" } : { path: Routes.LOGIN, query: { redirect: to.fullPath } };
 		}
 		if (!authStore.canAny(required)) {
-			ElMessage.warning("You do not have permission to open that section.");
+			notify.warning("You do not have permission to open that section.");
 			return { name: "admin-dashboard" };
 		}
 	}
@@ -170,15 +173,17 @@ router.beforeEach(async (to) => {
 		}
 	} catch (error) {
 		console.error("Failed to preload route data", error);
-		ElMessage.error("Some league data could not be loaded. Please try again shortly.");
+		notify.error("Some league data could not be loaded. Please try again shortly.");
 	} finally {
 		pauseLoader();
 	}
 	return true;
 });
 
-router.afterEach((to) => {
+router.afterEach((to, from, failure) => {
 	document.title = to.meta.title ? `CPL | ${to.meta.title}` : "CPL";
+	// A query-only change (filters, paging) keeps the page's own messages.
+	if (!failure && to.path !== from.path) clearStale(navigationStartedAt);
 });
 
 export default router;

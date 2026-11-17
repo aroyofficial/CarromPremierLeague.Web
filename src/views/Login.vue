@@ -127,7 +127,7 @@
 						<p v-else class="fine-print">Confirming this session…</p>
 					</div>
 
-					<el-form
+					<el-form novalidate
 						v-else-if="view === 'forgot'"
 						ref="forgotRef"
 						:model="forgot"
@@ -179,7 +179,7 @@
 						</div>
 					</div>
 
-					<el-form
+					<el-form novalidate
 						v-else-if="view === 'newpass'"
 						ref="resetRef"
 						:model="forgot"
@@ -216,7 +216,7 @@
 						@cancel="step = 'login'"
 					/>
 
-					<el-form
+					<el-form novalidate
 						v-else
 						ref="formRef"
 						:model="form"

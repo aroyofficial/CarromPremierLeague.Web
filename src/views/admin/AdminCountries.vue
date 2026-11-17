@@ -58,7 +58,7 @@
 		</div>
 
 		<el-dialog v-model="dialogOpen" :title="editingId ? 'Edit country' : 'New country'" width="min(600px, 94vw)">
-			<el-form ref="formRef" :model="form" :rules="rules" label-position="top" class="admin-form-grid" @submit.prevent>
+			<el-form novalidate ref="formRef" :model="form" :rules="rules" label-position="top" class="admin-form-grid" @submit.prevent>
 				<el-form-item label="Name" prop="name" class="span-2">
 					<el-input v-model="form.name" />
 				</el-form-item>

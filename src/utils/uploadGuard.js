@@ -1,5 +1,6 @@
 import { onBeforeUnmount, watch } from "vue";
 import { onBeforeRouteLeave } from "vue-router";
+import { ElMessageBox } from "element-plus";
 
 export function useUploadLeaveGuard(isBusy) {
 	const onBeforeUnload = (event) => {
@@ -19,8 +20,17 @@ export function useUploadLeaveGuard(isBusy) {
 
 	onBeforeUnmount(() => window.removeEventListener("beforeunload", onBeforeUnload));
 
-	onBeforeRouteLeave(() => {
+	onBeforeRouteLeave(async () => {
 		if (!isBusy.value) return true;
-		return window.confirm("A picture is still uploading. Leave this page anyway?");
+		try {
+			await ElMessageBox.confirm(
+				"The picture is still uploading. If you leave now, the upload stops.",
+				"Leave this page?",
+				{ confirmButtonText: "Leave", cancelButtonText: "Stay", type: "warning" },
+			);
+			return true;
+		} catch {
+			return false;
+		}
 	});
 }

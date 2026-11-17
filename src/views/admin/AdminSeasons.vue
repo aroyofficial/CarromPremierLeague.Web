@@ -52,7 +52,7 @@
 		</div>
 
 		<el-dialog v-model="dialogOpen" :title="editingId ? 'Edit season' : 'New season'" width="min(560px, 94vw)">
-			<el-form ref="formRef" :model="form" :rules="rules" label-position="top" class="admin-form-grid" @submit.prevent>
+			<el-form novalidate ref="formRef" :model="form" :rules="rules" label-position="top" class="admin-form-grid" @submit.prevent>
 				<el-form-item label="Name" prop="name" class="span-2">
 					<el-input v-model="form.name" placeholder="e.g. 2027 Season 1" />
 				</el-form-item>

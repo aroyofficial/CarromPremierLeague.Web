@@ -56,7 +56,7 @@
 			:show-close="!uploadBlocked"
 			:before-close="closeDialog"
 		>
-			<el-form ref="formRef" :model="form" :rules="rules" label-position="top" @submit.prevent>
+			<el-form novalidate ref="formRef" :model="form" :rules="rules" label-position="top" @submit.prevent>
 				<el-form-item label="Name" prop="name">
 					<el-input v-model="form.name" placeholder="e.g. Dum Dum Diamonds" />
 				</el-form-item>

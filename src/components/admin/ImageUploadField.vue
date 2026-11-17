@@ -1,5 +1,13 @@
 <template>
-	<div class="image-field">
+	<div
+		class="image-field"
+		:class="{ 'is-dragging': dragging, 'is-locked': locked }"
+		:aria-describedby="hintId"
+		@dragenter.prevent="onDragEnter"
+		@dragover.prevent="onDragOver"
+		@dragleave="onDragLeave"
+		@drop.prevent="onDrop"
+	>
 		<EntityImage :src="previewSrc" :name="name" :kind="kind" class="image-field-preview" :class="`is-${kind}`" :alt="`${label} preview`" />
 		<div class="image-field-body">
 			<div class="image-field-actions">
@@ -24,7 +32,7 @@
 				<el-button size="small" type="primary" :disabled="locked" @click="applyLink">Use</el-button>
 			</div>
 			<small v-if="deferred && pendingLink" class="image-field-hint image-field-link-value">{{ pendingLink }}</small>
-			<small class="image-field-hint">{{ hint }}</small>
+			<small :id="hintId" class="image-field-hint">{{ dragging ? "Drop the picture to preview it." : hint }}</small>
 		</div>
 		<input ref="fileInput" type="file" class="d-none" :accept="IMAGE_ACCEPT" @change="picked" />
 		<ImageFramePicker v-model="pickerOpen" :src="pickerSrc" :source-file="pickerFile" @confirm="frameChosen" @cancel="frameCancelled" />
@@ -50,7 +58,8 @@
 
 <script setup>
 import { computed, onBeforeUnmount, ref, watch } from "vue";
-import { ElMessage, ElMessageBox } from "element-plus";
+import { ElMessageBox } from "element-plus";
+import { notify } from "@/utils/notify";
 import { Delete, Link, Upload } from "@element-plus/icons-vue";
 import EntityImage from "@/components/EntityImage.vue";
 import ImageFramePicker from "@/components/admin/ImageFramePicker.vue";
@@ -127,7 +136,7 @@ const hint = computed(() => {
 	if (mediaStore.loaded && !mediaStore.uploadsEnabled) return "File upload is not set up on the server. A public link can still be shown with the frame you choose.";
 	if (props.deferred && props.pendingFile) return "Uploads when you save.";
 	if (props.deferred && props.pendingLink) return "Shows this frame when you save. The link itself is not uploaded.";
-	return "JPEG, PNG or WebP, up to 5 MB. A public link is not uploaded; only the frame you choose is shown.";
+	return "Drop a picture here or choose one. JPEG, PNG or WebP, up to 5 MB. A public link is not uploaded; only the frame you choose is shown.";
 });
 
 const releasePickerUrl = () => {
@@ -166,10 +175,8 @@ const frameCancelled = () => {
 
 const choose = () => fileInput.value?.click();
 
-const picked = (event) => {
-	const file = event.target.files?.[0];
-	event.target.value = "";
-	if (!file) return;
+// One path for the file input and for drag and drop: the same checks, then the crop-and-zoom preview.
+const acceptFile = (file) => {
 	const problem = imageFileProblem(file);
 	if (problem) {
 		failure.value = problem;
@@ -178,6 +185,50 @@ const picked = (event) => {
 		return;
 	}
 	openPicker(URL.createObjectURL(file), file);
+};
+
+const picked = (event) => {
+	const file = event.target.files?.[0];
+	event.target.value = "";
+	if (!file) return;
+	acceptFile(file);
+};
+
+const dragging = ref(false);
+let dragDepth = 0;
+const hintId = `image-field-hint-${Math.random().toString(36).slice(2, 8)}`;
+
+const canDrop = (event) => !locked.value && Array.from(event.dataTransfer?.types || []).includes("Files");
+
+const onDragEnter = (event) => {
+	if (!canDrop(event)) return;
+	dragDepth += 1;
+	dragging.value = true;
+};
+
+const onDragOver = (event) => {
+	if (!canDrop(event)) return;
+	event.dataTransfer.dropEffect = "copy";
+};
+
+const onDragLeave = () => {
+	dragDepth = Math.max(0, dragDepth - 1);
+	if (dragDepth === 0) dragging.value = false;
+};
+
+const onDrop = (event) => {
+	dragDepth = 0;
+	dragging.value = false;
+	if (locked.value) return;
+	const files = Array.from(event.dataTransfer?.files || []);
+	if (files.length === 0) return;
+	if (files.length > 1) {
+		failure.value = "Drop one picture at a time.";
+		overlay.value = true;
+		busy.value = true;
+		return;
+	}
+	acceptFile(files[0]);
 };
 
 const applyLink = () => {
@@ -199,7 +250,7 @@ const remember = async (run, success) => {
 	try {
 		const response = await run();
 		emit("changed", response?.data ?? null);
-		ElMessage.success(success);
+		notify.success(success);
 		busy.value = false;
 		overlay.value = false;
 		progress.value = null;
@@ -266,7 +317,7 @@ const clear = async () => {
 	try {
 		const response = await props.remove();
 		emit("changed", response?.data ?? null);
-		ElMessage.success(`${props.label} removed`);
+		notify.success(`${props.label} removed`);
 		busy.value = false;
 		overlay.value = false;
 	} catch (error) {
@@ -281,6 +332,15 @@ const clear = async () => {
 	align-items: center;
 	gap: 14px;
 	width: 100%;
+	padding: 8px;
+	border: 2px dashed transparent;
+	border-radius: 14px;
+	transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.image-field.is-dragging {
+	border-color: var(--el-color-primary);
+	background: var(--el-color-primary-light-9, rgba(31, 111, 235, 0.06));
 }
 
 .image-field-preview {

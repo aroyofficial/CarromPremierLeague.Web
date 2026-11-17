@@ -58,10 +58,7 @@
 						<el-button v-if="status.totp_enabled" :disabled="busy" :loading="pending === 'totp-remove'" @click="removeTotp">
 							Remove
 						</el-button>
-						<el-button v-else-if="!setup" type="primary" :disabled="busy" :loading="pending === 'totp-start'" @click="beginTotp">
-							Set up
-						</el-button>
-						<span v-else class="in-progress">Setting up below</span>
+						<el-button v-else type="primary" :disabled="busy" @click="totpOpen = true">Set up</el-button>
 					</div>
 				</article>
 
@@ -87,56 +84,7 @@
 				</article>
 			</div>
 
-			<section v-if="setup" class="panel totp-setup" aria-labelledby="totp-title">
-				<div class="panel-head">
-					<h3 id="totp-title">Set up your authenticator app</h3>
-					<button type="button" class="link" :disabled="busy" @click="cancelTotp">Cancel</button>
-				</div>
-				<ol class="steps">
-					<li>
-						<span class="step-no">1</span>
-						<div>
-							<strong>Open your app</strong>
-							<p>In Microsoft Authenticator or a similar app, choose to add an account.</p>
-						</div>
-					</li>
-					<li>
-						<span class="step-no">2</span>
-						<div class="scan">
-							<strong>Scan this QR code</strong>
-							<div class="qr-wrap">
-								<img v-if="qr" :src="qr" width="196" height="196" alt="QR code for the authenticator app" />
-							</div>
-							<p>Can't scan? Enter this key instead:</p>
-							<div class="secret">
-								<code>{{ groupedSecret }}</code>
-								<el-button size="small" @click="copySecret">{{ copied ? "Copied" : "Copy" }}</el-button>
-							</div>
-						</div>
-					</li>
-					<li>
-						<span class="step-no">3</span>
-						<div>
-							<strong>Enter the 6-digit code it shows</strong>
-							<form class="code-row" @submit.prevent="confirmTotp">
-								<el-input
-									:model-value="totpCode"
-									class="otp-input"
-									maxlength="6"
-									inputmode="numeric"
-									autocomplete="one-time-code"
-									placeholder="000000"
-									aria-label="Authenticator code"
-									@update:model-value="totpCode = String($event).replace(/\D/g, '').slice(0, 6)"
-								/>
-								<el-button type="primary" native-type="submit" :loading="pending === 'totp-confirm'" :disabled="totpCode.length !== 6">
-									Turn on
-								</el-button>
-							</form>
-						</div>
-					</li>
-				</ol>
-			</section>
+			<AuthenticatorSetupDialog v-model="totpOpen" @enabled="onTotpEnabled" />
 
 			<section v-if="addingPasskey" class="panel" aria-labelledby="passkey-add-title">
 				<div class="panel-head">
@@ -174,20 +122,19 @@
 
 <script setup>
 import { computed, onMounted, ref } from "vue";
-import { ElMessage, ElMessageBox } from "element-plus";
+import { ElMessageBox } from "element-plus";
+import { notify } from "@/utils/notify";
 import { Iphone, Key, Lock, Message } from "@element-plus/icons-vue";
 import { authService } from "@/services/authService";
 import { unwrap } from "@/utils/adminHelpers";
 import { createPasskey } from "@/utils/webauthn";
+import AuthenticatorSetupDialog from "@/components/admin/AuthenticatorSetupDialog.vue";
 
 const status = ref(null);
 const loading = ref(true);
 const pending = ref("");
 const errorMessage = ref("");
-const setup = ref(null);
-const qr = ref("");
-const totpCode = ref("");
-const copied = ref(false);
+const totpOpen = ref(false);
 const addingPasskey = ref(false);
 const passkeyLabel = ref("This device");
 const passkeySupported = typeof window !== "undefined" && "PublicKeyCredential" in window;
@@ -203,8 +150,6 @@ const level = computed(() => {
 	return { tone: "low", label: "Password only" };
 });
 
-const groupedSecret = computed(() => (setup.value?.secret || "").replace(/(.{4})/g, "$1 ").trim());
-
 const dateFormat = new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", year: "numeric" });
 const formatDate = (value) => {
 	const date = new Date(value);
@@ -216,7 +161,7 @@ const run = async (key, action, failure) => {
 	try {
 		return await action();
 	} catch (error) {
-		if (error?.name !== "NotAllowedError" && error !== "cancel") ElMessage.error(error?.message || failure);
+		if (error?.name !== "NotAllowedError" && error !== "cancel") notify.error(error?.message || failure, { critical: true });
 		return undefined;
 	} finally {
 		pending.value = "";
@@ -244,59 +189,36 @@ const load = async () => {
 	}
 };
 
-const toggleEmail = (enabled) =>
-	run(
+// The switch is controlled by `status`. It only changes after the server confirms, so a cancelled
+// or failed change leaves the switch where it was.
+const toggleEmail = async (enabled) => {
+	if (busy.value) return;
+	if (!enabled) {
+		// Hold the switch while the question is open, so repeated clicks cannot stack confirmations.
+		pending.value = "email";
+		const confirmed = await ElMessageBox.confirm(
+			"Sign-in will stop asking for an email code. Your password and any other methods stay in place.",
+			"Turn off email codes?",
+			{ confirmButtonText: "Turn off", cancelButtonText: "Keep on", type: "warning" },
+		)
+			.then(() => true)
+			.catch(() => false);
+		pending.value = "";
+		if (!confirmed) return;
+	}
+	await run(
 		"email",
 		async () => {
 			status.value = unwrap(await authService.setEmailFactor(enabled));
-			ElMessage.success(enabled ? "Email codes are on." : "Email codes are off.");
+			notify.success(enabled ? "Email codes are on." : "Email codes are off.");
 		},
-		"That change could not be saved.",
+		"That change could not be saved. Your setting is unchanged.",
 	);
-
-const beginTotp = () =>
-	run(
-		"totp-start",
-		async () => {
-			const started = unwrap(await authService.startTotp());
-			const QRCode = (await import("qrcode")).default;
-			qr.value = await QRCode.toDataURL(started.otpauth_uri, { margin: 1, width: 196 });
-			setup.value = started;
-			totpCode.value = "";
-			copied.value = false;
-		},
-		"Authenticator setup could not start.",
-	);
-
-const cancelTotp = () => {
-	setup.value = null;
-	qr.value = "";
-	totpCode.value = "";
 };
 
-const copySecret = async () => {
-	try {
-		await navigator.clipboard.writeText(setup.value?.secret || "");
-		copied.value = true;
-	} catch {
-		ElMessage.info("Select the key and copy it by hand.");
-	}
-};
-
-const confirmTotp = () => {
-	if (!/^\d{6}$/.test(totpCode.value)) {
-		ElMessage.error("Enter the 6-digit code from the app.");
-		return undefined;
-	}
-	return run(
-		"totp-confirm",
-		async () => {
-			status.value = unwrap(await authService.confirmTotp(totpCode.value));
-			cancelTotp();
-			ElMessage.success("Authenticator app added.");
-		},
-		"That code was not accepted.",
-	);
+const onTotpEnabled = (next) => {
+	status.value = next;
+	notify.success("Authenticator app added.");
 };
 
 const removeTotp = async () => {
@@ -313,7 +235,7 @@ const removeTotp = async () => {
 const addPasskey = () => {
 	const label = passkeyLabel.value.trim();
 	if (!label) {
-		ElMessage.error("Name this passkey first.");
+		notify.error("Name this passkey first.");
 		return undefined;
 	}
 	return run(
@@ -323,7 +245,7 @@ const addPasskey = () => {
 			const credential = await createPasskey(options.options);
 			status.value = unwrap(await authService.savePasskey({ challenge_id: options.challenge_id, credential, label }));
 			addingPasskey.value = false;
-			ElMessage.success("Passkey saved.");
+			notify.success("Passkey saved.");
 		},
 		"The passkey was not saved.",
 	);
@@ -491,12 +413,6 @@ onMounted(load);
 	margin-top: 6px;
 }
 
-.in-progress {
-	color: var(--cpl-gold-text);
-	font-size: 13px;
-	font-weight: 600;
-}
-
 .panel {
 	margin-top: 16px;
 	padding: 16px;
@@ -540,86 +456,6 @@ onMounted(load);
 	min-height: 32px;
 }
 
-.steps {
-	display: grid;
-	grid-template-columns: repeat(3, minmax(0, 1fr));
-	gap: 14px;
-	margin: 8px 0 0;
-	padding: 0;
-	list-style: none;
-
-	li {
-		display: flex;
-		gap: 12px;
-		padding: 14px;
-		border-radius: 12px;
-		background: var(--cpl-surface);
-		border: 1px solid var(--cpl-line);
-		min-width: 0;
-	}
-
-	strong {
-		display: block;
-		margin-bottom: 4px;
-		font-size: 14px;
-		color: var(--cpl-ink-900);
-	}
-
-	p {
-		margin: 0 0 8px;
-		color: var(--cpl-ink-600);
-		font-size: 13px;
-	}
-}
-
-.step-no {
-	flex: 0 0 28px;
-	width: 28px;
-	height: 28px;
-	display: grid;
-	place-items: center;
-	border-radius: 50%;
-	background: var(--cpl-navy-900, #0b1426);
-	color: var(--cpl-gold-400, #ffc94a);
-	font-size: 13px;
-	font-weight: 800;
-}
-
-.scan {
-	min-width: 0;
-}
-
-.qr-wrap {
-	width: fit-content;
-	margin: 4px 0 10px;
-	padding: 8px;
-	border-radius: 12px;
-	background: #fff;
-	border: 1px solid var(--cpl-line);
-
-	img {
-		display: block;
-		max-width: 100%;
-		height: auto;
-	}
-}
-
-.secret {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: 8px;
-
-	code {
-		padding: 6px 8px;
-		border-radius: 8px;
-		background: var(--cpl-info-soft);
-		font-size: 13px;
-		letter-spacing: 0.04em;
-		overflow-wrap: anywhere;
-	}
-}
-
 .code-row {
 	display: flex;
 	flex-wrap: wrap;
@@ -629,13 +465,6 @@ onMounted(load);
 		flex: 1 1 160px;
 		max-width: 280px;
 	}
-}
-
-.otp-input :deep(input) {
-	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-	font-size: 20px;
-	letter-spacing: 0.35em;
-	text-align: center;
 }
 
 .keys {
@@ -690,12 +519,6 @@ onMounted(load);
 	}
 	to {
 		background-position: 0 50%;
-	}
-}
-
-@media (max-width: 1199.98px) {
-	.steps {
-		grid-template-columns: minmax(0, 1fr);
 	}
 }
 

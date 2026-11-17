@@ -1,5 +1,5 @@
 <template>
-	<el-form
+	<el-form novalidate
 		ref="formRef"
 		class="activate"
 		:model="form"
@@ -11,50 +11,93 @@
 	>
 		<div class="badge" aria-hidden="true"><el-icon><Key /></el-icon></div>
 		<span class="page-eyebrow">First sign-in · Last step</span>
-		<h2 id="activate-title" ref="titleRef" tabindex="-1">Choose your password</h2>
+		<h2 id="activate-title" ref="titleRef" tabindex="-1">Verify your email and set a password</h2>
 		<p class="activate-lead">
-			This account was set up with a temporary password. Enter the code sent to your email, then choose your own
-			password. That verifies the address and switches the account on.
+			Your account was created with a temporary password. Enter the code we email to the address on your account, then
+			choose your own password. That confirms the address and turns the account on.
 		</p>
+
+		<ol class="verify-steps" aria-label="What to do">
+			<li :class="{ done: codeSent }">
+				<span class="step-no" aria-hidden="true">1</span>
+				<span>Open the email sent to <strong>{{ maskedEmail || "the address on your account" }}</strong></span>
+			</li>
+			<li>
+				<span class="step-no" aria-hidden="true">2</span>
+				<span>Type or paste the 6-digit code</span>
+			</li>
+			<li>
+				<span class="step-no" aria-hidden="true">3</span>
+				<span>Choose your password and activate</span>
+			</li>
+		</ol>
+
 		<div v-if="authStore.username" class="who">
 			<el-icon aria-hidden="true"><UserFilled /></el-icon>
-			<span>Account <strong>{{ authStore.username }}</strong></span>
+			<span>Signed in as <strong>{{ authStore.username }}</strong></span>
 		</div>
-		<el-alert v-if="errorMessage" :title="errorMessage" type="error" show-icon class="mb-3" role="alert" @close="errorMessage = ''" />
-		<el-form-item label="Email code" prop="code">
+
+		<el-alert
+			v-if="errorMessage"
+			:title="errorMessage"
+			:type="errorType"
+			show-icon
+			class="mb-3"
+			role="alert"
+			@close="errorMessage = ''"
+		/>
+
+		<el-form-item label="6-digit code" prop="code" data-prop="code">
 			<el-input
+				ref="codeInputRef"
 				:model-value="form.code"
 				inputmode="numeric"
 				autocomplete="one-time-code"
-				maxlength="6"
-				placeholder="6-digit code"
-				:disabled="saving"
-				@update:model-value="form.code = String($event).replace(/\D/g, '').slice(0, 6)"
+				placeholder="123456"
+				:disabled="submitting"
+				aria-describedby="code-help"
+				@update:model-value="onCodeInput"
 			/>
 		</el-form-item>
-		<p class="code-note">
-			<button type="button" class="switch-link inline" :disabled="sending || saving" @click="sendCode">
-				{{ sending ? "Sending…" : codeSent ? "Send a new code" : "Email me a code" }}
-			</button>
-			<span v-if="codeSent">A code is on its way to your email address.</span>
-		</p>
+		<div class="code-row">
+			<p id="code-help" class="code-help">
+				{{ codeSent ? "The newest code works. Older codes stop working." : "We email a code when this page opens." }}
+			</p>
+			<el-button
+				link
+				type="primary"
+				class="resend"
+				:disabled="sending || submitting || cooldown > 0"
+				:loading="sending"
+				@click="sendCode"
+			>
+				{{ sending ? "Sending…" : cooldown > 0 ? `Resend in ${cooldown}s` : codeSent ? "Send a new code" : "Email me a code" }}
+			</el-button>
+		</div>
+
 		<NewPasswordFields
 			v-model:password="form.password"
 			v-model:confirm="form.confirm"
 			v-model:save="form.save"
 			:username="authStore.username"
-			:disabled="saving"
+			:disabled="submitting"
 		/>
-		<el-button type="primary" native-type="submit" class="w-100 submit-btn" :loading="saving">
-			{{ saving ? "Activating…" : "Activate account" }}
+		<el-button type="primary" native-type="submit" class="w-100 submit-btn" :loading="submitting" :disabled="submitting">
+			{{ submitting ? "Activating…" : "Activate account" }}
 		</el-button>
-		<button type="button" class="switch-link" :disabled="saving" @click="switchAccount">Not you? Sign in with a different account</button>
+		<p class="help-note">
+			No code after a few minutes? Check your spam folder, then send a new one. If it still does not arrive, ask an
+			administrator to check the email address on your account.
+		</p>
+		<button type="button" class="switch-link" :disabled="submitting" @click="switchAccount">
+			Not you? Sign in with a different account
+		</button>
 	</el-form>
 </template>
 
 <script setup>
-import { onMounted, reactive, ref, watch } from "vue";
-import { ElMessage } from "element-plus";
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
+import { notify } from "@/utils/notify";
 import { Key, UserFilled } from "@element-plus/icons-vue";
 import NewPasswordFields from "@/components/admin/NewPasswordFields.vue";
 import { adminApi } from "@/services/adminService";
@@ -62,19 +105,65 @@ import { authService } from "@/services/authService";
 import { useAuthStore } from "@/store/authStore";
 import { MIN_PASSWORD_LENGTH } from "@/utils/passwordRules";
 import { storeCredential } from "@/utils/passwordTools";
+import { maskEmail } from "@/utils/maskEmail";
+import { focusField, useFormSubmit } from "@/utils/formValidation";
+
+const COOLDOWN_SECONDS = 60;
 
 const props = defineProps({
 	quiet: { type: Boolean, default: false },
 });
 const emit = defineEmits(["done"]);
+
 const authStore = useAuthStore();
 const formRef = ref(null);
 const titleRef = ref(null);
-const saving = ref(false);
+const codeInputRef = ref(null);
 const errorMessage = ref("");
+const errorType = ref("error");
 const form = reactive({ code: "", password: "", confirm: "", save: true });
 const sending = ref(false);
 const codeSent = ref(false);
+const cooldown = ref(0);
+let cooldownTimer = null;
+
+const { submitting, validate, submit } = useFormSubmit(formRef);
+
+const maskedEmail = computed(() => maskEmail(authStore.email));
+
+// The server gives each code state its own message. Map those words to how serious they are.
+const classify = (message) => {
+	const text = String(message || "");
+	if (/not right/i.test(text)) return "error";
+	if (/expired|already used|too many/i.test(text)) return "warning";
+	if (/send a code first/i.test(text)) return "info";
+	return "error";
+};
+
+const isCodeProblem = (message) => /not right|expired|already used|too many|send a code first|6-digit/i.test(String(message || ""));
+
+const showError = (error, fallback) => {
+	errorMessage.value = error?.message || fallback;
+	errorType.value = classify(errorMessage.value);
+};
+
+const startCooldown = () => {
+	clearInterval(cooldownTimer);
+	cooldown.value = COOLDOWN_SECONDS;
+	cooldownTimer = setInterval(() => {
+		cooldown.value -= 1;
+		if (cooldown.value <= 0) {
+			cooldown.value = 0;
+			clearInterval(cooldownTimer);
+			cooldownTimer = null;
+		}
+	}, 1000);
+};
+
+const onCodeInput = (value) => {
+	// Pasted codes often arrive as "123 456" or "123-456". Keep only the digits.
+	form.code = String(value).replace(/\D/g, "").slice(0, 6);
+};
 
 const rules = {
 	code: [{ pattern: /^\d{6}$/, required: true, message: "Enter the 6-digit code from the email", trigger: "blur" }],
@@ -99,39 +188,45 @@ const rules = {
 };
 
 const sendCode = async () => {
+	if (sending.value || cooldown.value > 0) return;
 	errorMessage.value = "";
 	sending.value = true;
 	try {
 		await authService.passwordCode();
 		codeSent.value = true;
+		startCooldown();
 	} catch (error) {
-		errorMessage.value = error?.message || "The code could not be sent.";
+		showError(error, "The code could not be sent. Try again in a moment.");
 	} finally {
 		sending.value = false;
 	}
 };
 
-const save = async () => {
-	errorMessage.value = "";
-	const valid = await formRef.value.validate().catch(() => false);
-	if (!valid) return;
-	if (!authStore.adminId) {
-		errorMessage.value = "Your account details are still loading. Try again in a moment.";
-		return;
-	}
-	saving.value = true;
-	try {
-		await adminApi.admins.update(authStore.adminId, { password: form.password, password_code: form.code });
-		if (form.save) await storeCredential(authStore.username, form.password, authStore.displayName);
-		authStore.logout();
-		if (!props.quiet) ElMessage.success("Password saved. The account is active. Sign in with the new password.");
-		emit("done");
-	} catch (error) {
-		errorMessage.value = error?.message || "The password could not be saved. Try again.";
-	} finally {
-		saving.value = false;
-	}
-};
+const save = () =>
+	submit(async () => {
+		errorMessage.value = "";
+		const check = await validate();
+		if (!check.valid) return;
+		if (!authStore.adminId) {
+			showError(null, "Your account details are still loading. Try again in a moment.");
+			return;
+		}
+		try {
+			await adminApi.admins.update(authStore.adminId, { password: form.password, password_code: form.code });
+			if (form.save) await storeCredential(authStore.username, form.password, authStore.displayName);
+			authStore.logout();
+			if (!props.quiet) notify.success("Password saved. The account is active. Sign in with the new password.");
+			emit("done");
+		} catch (error) {
+			showError(error, "The password could not be saved. Try again.");
+			if (isCodeProblem(errorMessage.value)) {
+				// The old code cannot be used again. Clear it and put the cursor back in the code field.
+				form.code = "";
+				// The field is disabled until this submit finishes, so move focus after that render.
+				setTimeout(() => focusField(formRef, "code"), 0);
+			}
+		}
+	});
 
 const switchAccount = () => {
 	authStore.logout();
@@ -149,7 +244,11 @@ watch(
 
 onMounted(() => {
 	sendCode();
-	formRef.value?.$el?.querySelector("input")?.focus();
+	codeInputRef.value?.$el?.querySelector("input")?.focus();
+});
+
+onBeforeUnmount(() => {
+	clearInterval(cooldownTimer);
 });
 </script>
 
@@ -188,6 +287,45 @@ h2 {
 	line-height: 1.5;
 }
 
+.verify-steps {
+	display: grid;
+	gap: 8px;
+	margin: 0 0 16px;
+	padding: 0;
+	list-style: none;
+	font-size: 14px;
+	color: var(--cpl-ink-600);
+
+	li {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		overflow-wrap: anywhere;
+	}
+
+	li.done .step-no {
+		background: var(--cpl-success-soft);
+		color: var(--cpl-success-text);
+	}
+
+	strong {
+		color: var(--cpl-ink-900);
+	}
+}
+
+.step-no {
+	flex: 0 0 26px;
+	width: 26px;
+	height: 26px;
+	display: grid;
+	place-items: center;
+	border-radius: 50%;
+	background: var(--cpl-surface-muted);
+	color: var(--cpl-ink-900);
+	font-size: 13px;
+	font-weight: 700;
+}
+
 .who {
 	display: flex;
 	align-items: center;
@@ -203,6 +341,32 @@ h2 {
 
 .who strong {
 	color: var(--cpl-ink-900);
+}
+
+.code-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	margin: -6px 0 12px;
+}
+
+.code-help {
+	margin: 0;
+	color: var(--cpl-ink-600);
+	font-size: 13px;
+}
+
+.resend {
+	font-weight: 600;
+}
+
+.help-note {
+	margin: 12px 0 0;
+	color: var(--cpl-ink-600);
+	font-size: 13px;
+	line-height: 1.5;
 }
 
 .submit-btn {
@@ -226,21 +390,6 @@ html.dark .submit-btn.el-button--primary:not(.is-plain):not(.is-link):not(.is-te
 	--el-button-disabled-text-color: rgba(11, 20, 38, 0.6);
 	--el-button-disabled-bg-color: rgba(245, 184, 46, 0.55);
 	--el-button-disabled-border-color: transparent;
-}
-
-.code-note {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: 8px;
-	margin: -6px 0 12px;
-	color: var(--cpl-ink-600);
-	font-size: 13px;
-}
-
-.switch-link.inline {
-	display: inline;
-	margin: 0;
 }
 
 .switch-link {

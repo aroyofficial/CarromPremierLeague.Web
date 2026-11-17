@@ -38,7 +38,10 @@ api.interceptors.response.use(
 		if (error.response?.status === 403 && authToken.get()) {
 			window.dispatchEvent(new CustomEvent("cpl:permission-denied"));
 		}
-		return Promise.reject(error.response?.data || error);
+		// Keep the HTTP status next to the server's message so screens can tell a limit from a bad code.
+		const body = error.response?.data || error;
+		if (body && typeof body === "object") body.httpStatus = error.response?.status;
+		return Promise.reject(body);
 	},
 );
 

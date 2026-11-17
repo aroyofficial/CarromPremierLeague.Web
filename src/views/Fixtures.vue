@@ -244,6 +244,7 @@
 <script setup>
 import { ref, onMounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { notify } from "@/utils/notify";
 import { correctedQuery, matchingId } from "@/utils/queryState";
 import { useSeasonStore } from "@/store/seasonStore";
 import { useTeamStore } from "@/store/teamStore";
@@ -384,28 +385,28 @@ const validateMatchObject = () => {
 	);
 	let isValidOpponent = matchObject.value.team1 !== matchObject.value.team2;
 	if (!isFinal && (!isValidTeam1 || !isValidTeam2)) {
-		window.alert("Please select an opponent team");
+		notify.warning("Please select an opponent team");
 		return false;
 	}
 	if (
 		!(isFinal && !matchObject.value.team && !matchObject.value.team2) &&
 		!isValidOpponent
 	) {
-		window.alert("Please select a different opponent team");
+		notify.warning("Please select a different opponent team");
 		return false;
 	}
 	let isValidSeason = seasons.value.find(
 		(season) => season.id === matchObject.value.season_id && isSeasonOpen(season),
 	);
 	if (!isValidSeason) {
-		window.alert("Please select a scheduled season");
+		notify.warning("Please select a scheduled season");
 		return false;
 	}
 	let isValidCategory = matchCategories.find(
 		(category) => category.id === matchObject.value.category,
 	);
 	if (!isValidCategory) {
-		window.alert("Please select a category");
+		notify.warning("Please select a category");
 		return false;
 	}
 	if (matchObject.value.scheduled_date !== null) {
@@ -416,11 +417,11 @@ const validateMatchObject = () => {
 				!dayjs(scheduledDate).isSameOrAfter(dayjs(m.scheduled_date), "day"),
 		);
 		if (!isSameOrAfter || notFittingInSeasonSchedule) {
-			window.alert("Please select a valid date to schedule the match");
+			notify.warning("Please select a valid date to schedule the match");
 			return false;
 		}
 	} else {
-		window.alert("Please select a date to schedule the match");
+		notify.warning("Please select a date to schedule the match");
 		return false;
 	}
 	return true;

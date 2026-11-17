@@ -15,6 +15,7 @@
 					</li>
 					<li v-if="account.phone_number">
 						<el-icon><Phone /></el-icon><span>{{ account.phone_code }} {{ account.phone_number }}</span>
+						<span class="phone-badge" :class="{ 'is-verified': account.phone_verified }">{{ account.phone_verified ? "Verified" : "Not verified" }}</span>
 					</li>
 				</ul>
 			</div>
@@ -26,7 +27,22 @@
 		</div>
 
 		<div v-else v-loading="loading" class="profile-body">
-			<el-form
+			<el-alert
+				v-if="formErrors.length"
+				class="error-summary"
+				type="error"
+				:closable="false"
+				show-icon
+				role="alert"
+				title="Fix these before saving your profile"
+			>
+				<ul class="error-list">
+					<li v-for="problem in formErrors" :key="problem.prop">
+						<button type="button" class="error-link" @click="jumpTo(problem.prop)">{{ problem.label }}: {{ problem.message }}</button>
+					</li>
+				</ul>
+			</el-alert>
+			<el-form novalidate
 				v-if="account"
 				ref="formRef"
 				:model="form"
@@ -59,13 +75,13 @@
 					<section class="profile-card" aria-labelledby="personal-title">
 						<h2 id="personal-title" class="card-title"><el-icon><User /></el-icon>Personal details</h2>
 						<div class="field-grid">
-							<el-form-item label="First name" prop="first_name">
+							<el-form-item label="First name" prop="first_name" data-prop="first_name">
 								<el-input v-model="form.first_name" autocomplete="given-name" />
 							</el-form-item>
-							<el-form-item label="Last name" prop="last_name">
+							<el-form-item label="Last name" prop="last_name" data-prop="last_name">
 								<el-input v-model="form.last_name" autocomplete="family-name" />
 							</el-form-item>
-							<el-form-item label="Date of birth" prop="date_of_birth">
+							<el-form-item label="Date of birth" prop="date_of_birth" data-prop="date_of_birth">
 								<el-date-picker
 									v-model="form.date_of_birth"
 									type="date"
@@ -74,7 +90,7 @@
 									placeholder="Optional"
 								/>
 							</el-form-item>
-							<el-form-item label="Gender" prop="gender">
+							<el-form-item label="Gender" prop="gender" data-prop="gender">
 								<el-select v-model="form.gender" clearable placeholder="Optional">
 									<el-option v-for="option in genderOptions" :key="option.value" :label="option.label" :value="option.value" />
 								</el-select>
@@ -85,24 +101,64 @@
 					<section class="profile-card" aria-labelledby="contact-title">
 						<h2 id="contact-title" class="card-title"><el-icon><Message /></el-icon>Contact</h2>
 						<div class="field-grid">
-							<el-form-item label="Country code" prop="phone_country_id">
+							<el-form-item label="Country code (optional)" prop="phone_country_id" data-prop="phone_country_id">
 								<el-select v-model="form.phone_country_id" filterable clearable placeholder="Code" @change="formRef?.validateField('phone_number')">
 									<el-option v-for="country in phoneChoices" :key="country.id" :label="country.label" :value="country.id" />
 								</el-select>
 							</el-form-item>
-							<el-form-item label="Contact number" prop="phone_number">
-								<el-input v-model="form.phone_number" inputmode="numeric" autocomplete="tel" placeholder="10 digits" />
+							<el-form-item label="Contact number (optional)" prop="phone_number" data-prop="phone_number">
+								<el-input v-model="form.phone_number" inputmode="numeric" autocomplete="tel" placeholder="Digits only" />
 							</el-form-item>
 							<p v-if="countriesError" class="span-2 field-note">{{ countriesError }}</p>
-							<el-form-item label="Email" prop="email" class="span-2">
+							<el-form-item label="Email" prop="email" data-prop="email" class="span-2">
 								<el-input v-model="form.email" type="email" autocomplete="email" />
 							</el-form-item>
 							<div v-if="emailChanged" class="span-2 code-box">
 								<p>Confirm the new address with the code we email to it.</p>
 								<div class="code-row">
-									<el-input v-model.trim="form.email_code" maxlength="6" inputmode="numeric" autocomplete="one-time-code" placeholder="6-digit code" aria-label="Email change code" />
+									<el-input
+										:model-value="form.email_code"
+										inputmode="numeric"
+										autocomplete="one-time-code"
+										placeholder="6-digit code"
+										aria-label="Email change code"
+										@update:model-value="form.email_code = digitsOnly($event)"
+									/>
 									<el-button :loading="sendingCode" @click="sendEmailCode">Email code</el-button>
 								</div>
+							</div>
+							<div v-if="savedPhone" class="span-2 code-box phone-verify" :class="{ 'is-verified': account.phone_verified }">
+								<p v-if="account.phone_verified" class="phone-status">
+									<el-icon aria-hidden="true"><CircleCheck /></el-icon>Phone number verified.
+								</p>
+								<template v-else>
+									<p>
+										This number is not verified yet. Only a verified number is trusted.
+										<span v-if="phoneUnsaved" class="phone-note">Save your profile first, then verify the new number.</span>
+									</p>
+									<div class="code-row">
+										<el-button
+											:loading="sendingPhoneCode"
+											:disabled="phoneUnsaved || phoneCooldown > 0 || verifyingPhone"
+											@click="sendPhoneCode"
+										>
+											{{ phoneCooldown > 0 ? `Resend in ${phoneCooldown}s` : phoneCodeSent ? "Resend code" : "Send code" }}
+										</el-button>
+									</div>
+									<div v-if="phoneCodeSent" class="code-row">
+										<el-input
+											:model-value="phoneCode"
+											inputmode="numeric"
+											autocomplete="one-time-code"
+											placeholder="6-digit code"
+											aria-label="Phone verification code"
+											@update:model-value="phoneCode = digitsOnly($event)"
+										/>
+										<el-button type="primary" :loading="verifyingPhone" :disabled="sendingPhoneCode" @click="verifyPhone">Verify phone</el-button>
+									</div>
+								</template>
+								<p v-if="phoneMessage" class="phone-status" role="status">{{ phoneMessage }}</p>
+								<p v-if="phoneError" class="phone-error" role="alert">{{ phoneError }}</p>
 							</div>
 						</div>
 					</section>
@@ -110,7 +166,7 @@
 					<section class="profile-card" aria-labelledby="signin-title">
 						<h2 id="signin-title" class="card-title"><el-icon><Key /></el-icon>Sign-in details</h2>
 						<div class="field-grid">
-							<el-form-item label="Username" prop="username" class="span-2">
+							<el-form-item label="Username" prop="username" data-prop="username" class="span-2">
 								<el-input v-model="form.username" autocomplete="username" />
 							</el-form-item>
 							<el-alert
@@ -155,10 +211,10 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import { ElMessage } from "element-plus";
-import { Camera, Key, Lock, Message, Phone, User } from "@element-plus/icons-vue";
+import { notify } from "@/utils/notify";
+import { CircleCheck, Camera, Key, Lock, Message, Phone, User } from "@element-plus/icons-vue";
 import AdminSecurity from "@/components/admin/AdminSecurity.vue";
 import ChangePasswordDialog from "@/components/admin/ChangePasswordDialog.vue";
 import ImageUploadField from "@/components/admin/ImageUploadField.vue";
@@ -167,7 +223,8 @@ import { useAuthStore } from "@/store/authStore";
 import { blankToNull, runAction, unwrap } from "@/utils/adminHelpers";
 import { Routes } from "@/utils/constants";
 import { adminName, initialsOf } from "@/utils/media";
-import { contactNumberError } from "@/utils/contactNumber";
+import { optionalContactError } from "@/utils/contactNumber";
+import { focusField, validateForm } from "@/utils/formValidation";
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -269,16 +326,18 @@ const rules = {
 	],
 	phone_number: [
 		{
+			// The phone is optional. An empty number is fine, and only a typed number needs a valid country code.
 			validator: (_rule, value, callback) => {
-				const number = (value || "").trim();
-				const hasCode = form.phone_country_id === 0 || Boolean(form.phone_country_id);
-				const problem = contactNumberError(number, hasCode);
+				const problem = optionalContactError((value || "").trim(), selectedPhoneCode());
 				return problem ? callback(new Error(problem)) : callback();
 			},
 			trigger: "blur",
 		},
 	],
 };
+
+// Codes are typed or pasted; "123 456" should still count as six digits.
+const digitsOnly = (value) => String(value ?? "").replace(/\D/g, "").slice(0, 6);
 
 const phoneCountryIdFor = (code) => {
 	if (!code) return null;
@@ -346,28 +405,105 @@ const selectedPhoneCode = () => {
 	return phoneChoices.value.find((country) => country.id === form.phone_country_id)?.code || null;
 };
 
+const savedPhone = computed(() => Boolean(account.value?.phone_code && account.value?.phone_number));
+const phoneUnsaved = computed(
+	() =>
+		savedPhone.value &&
+		(selectedPhoneCode() !== account.value.phone_code || form.phone_number.trim() !== account.value.phone_number),
+);
+
+const sendingPhoneCode = ref(false);
+const verifyingPhone = ref(false);
+const phoneCodeSent = ref(false);
+const phoneCode = ref("");
+const phoneCooldown = ref(0);
+const phoneMessage = ref("");
+const phoneError = ref("");
+let cooldownTimer = null;
+
+const startCooldown = (seconds = 60) => {
+	phoneCooldown.value = seconds;
+	clearInterval(cooldownTimer);
+	cooldownTimer = setInterval(() => {
+		phoneCooldown.value -= 1;
+		if (phoneCooldown.value <= 0) clearInterval(cooldownTimer);
+	}, 1000);
+};
+
+onBeforeUnmount(() => clearInterval(cooldownTimer));
+
+const sendPhoneCode = async () => {
+	if (sendingPhoneCode.value || phoneCooldown.value > 0 || !account.value) return;
+	sendingPhoneCode.value = true;
+	phoneError.value = "";
+	phoneMessage.value = "";
+	try {
+		await adminApi.admins.phoneCode(account.value.phone_code, account.value.phone_number);
+		phoneCodeSent.value = true;
+		phoneMessage.value = "A code was sent to your phone number.";
+		startCooldown();
+	} catch (error) {
+		phoneError.value = error?.message || "The code could not be sent. Try again later.";
+	} finally {
+		sendingPhoneCode.value = false;
+	}
+};
+
+const verifyPhone = async () => {
+	if (verifyingPhone.value || !account.value) return;
+	if (!/^\d{6}$/.test(phoneCode.value)) {
+		phoneError.value = "Enter the 6-digit code from the text message.";
+		return;
+	}
+	verifyingPhone.value = true;
+	phoneError.value = "";
+	phoneMessage.value = "";
+	try {
+		const response = await adminApi.admins.verifyPhone(account.value.phone_code, account.value.phone_number, phoneCode.value);
+		const fresh = unwrap(response);
+		// Only the verification flag is refreshed, so unsaved edits in the form are kept.
+		account.value = { ...account.value, phone_verified: Boolean(fresh?.phone_verified) };
+		phoneCodeSent.value = false;
+		phoneCode.value = "";
+		phoneMessage.value = "Phone number verified.";
+	} catch (error) {
+		phoneError.value = error?.message || "The code could not be checked. Try again.";
+	} finally {
+		verifyingPhone.value = false;
+	}
+};
+
 const sendEmailCode = async () => {
 	const text = form.email.trim();
 	if (!account.value || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text)) {
-		ElMessage.error("Enter the new email address first.");
+		notify.error("Enter the new email address first.");
 		return;
 	}
 	sendingCode.value = true;
 	try {
 		await adminApi.admins.emailCode(account.value.id, text);
-		ElMessage.success("A code was sent to that email address.");
+		notify.success("A code was sent to that email address.");
 	} catch (error) {
-		ElMessage.error(error?.message || "The code could not be sent.");
+		notify.error(error?.message || "The code could not be sent.");
 	} finally {
 		sendingCode.value = false;
 	}
 };
 
+const formErrors = ref([]);
+
+const jumpTo = async (prop) => {
+	await nextTick();
+	focusField(formRef, prop);
+};
+
 const save = async () => {
-	const valid = await formRef.value.validate().catch(() => false);
-	if (!valid || !account.value) return;
+	if (saving.value) return;
+	const check = await validateForm(formRef);
+	formErrors.value = check.errors;
+	if (!check.valid || !account.value) return;
 	if (emailChanged.value && !/^\d{6}$/.test(form.email_code)) {
-		ElMessage.error("Email the code to the new address, then enter it here.");
+		notify.error("Email the code to the new address, then enter it here.");
 		return;
 	}
 	saving.value = true;
@@ -387,7 +523,7 @@ const save = async () => {
 	saving.value = false;
 	if (!ok) return;
 	if (signInChanged) {
-		ElMessage.info("Your sign-in details changed. Please sign in again.");
+		notify.info("Your sign-in details changed. Please sign in again.", { critical: true });
 		await authStore.logout();
 		router.push(Routes.LOGIN);
 		return;
@@ -643,6 +779,62 @@ onMounted(load);
 
 .password-warn {
 	color: var(--cpl-gold-text) !important;
+}
+
+.phone-verify {
+	.phone-status {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		color: var(--cpl-ink-900);
+		font-weight: 600;
+	}
+
+	.phone-note {
+		display: block;
+		margin-top: 4px;
+		color: var(--cpl-gold-text);
+	}
+
+	&.is-verified {
+		border-style: solid;
+	}
+}
+
+.phone-error {
+	margin: 0;
+	color: var(--el-color-danger, #c53030) !important;
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.phone-badge {
+	margin-left: 4px;
+	padding: 1px 8px;
+	border-radius: 999px;
+	background: rgba(255, 201, 74, 0.2);
+	font-size: 12px;
+	font-weight: 700;
+
+	&.is-verified {
+		background: rgba(61, 138, 43, 0.25);
+	}
+}
+
+.error-list {
+	margin: 0;
+	padding-left: 18px;
+}
+
+.error-link {
+	padding: 0;
+	border: 0;
+	background: none;
+	color: inherit;
+	font: inherit;
+	text-align: left;
+	text-decoration: underline;
+	cursor: pointer;
 }
 
 .field-note {

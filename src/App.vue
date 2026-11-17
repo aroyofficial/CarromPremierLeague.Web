@@ -6,16 +6,18 @@
 	<Footer v-if="!isAdminRoute" />
 	<StrikerChat v-if="showPublicAssistant" mode="public" />
 	<SessionHandoff v-if="authStore.isAuthenticated" />
+	<NotifyHost />
 </template>
 
 <script setup>
 import { computed, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { ElMessage } from "element-plus";
+import { notify } from "@/utils/notify";
 import Navbar from "./components/Navbar.vue";
 import Footer from "./components/Footer.vue";
 import StrikerChat from "./components/striker/StrikerChat.vue";
 import SessionHandoff from "./components/admin/SessionHandoff.vue";
+import NotifyHost from "./components/NotifyHost.vue";
 import { useAuthStore } from "@/store/authStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import { assistantIsVisible } from "@/utils/assistantVisibility";
@@ -41,7 +43,7 @@ const showPublicAssistant = computed(
 
 const onSessionExpired = () => {
 	authStore.dropLocal();
-	ElMessage.warning("Your admin session has expired. Please sign in again.");
+	notify.warning("Your admin session has expired. Please sign in again.", { critical: true });
 	// The login page stays put, so "You're already signed in" is not replaced by the public site.
 	if (route.path === Routes.LOGIN || route.path === Routes.HOME) return;
 	router.push(Routes.HOME);

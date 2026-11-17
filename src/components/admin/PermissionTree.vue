@@ -309,7 +309,8 @@ watch(
 const matches = (permission, area) => {
 	const q = normalizedQuery.value;
 	if (!q) return true;
-	return [permission.name, permission.description, area.name].some((text) => text.toLowerCase().includes(q));
+	// Descriptions are optional, so a missing one must not break the search.
+	return [permission.name, permission.description, area.name].some((text) => String(text ?? "").toLowerCase().includes(q));
 };
 
 const changeOf = (code) => {

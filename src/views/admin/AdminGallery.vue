@@ -138,7 +138,7 @@
 					<video v-else-if="isVideoItem(draft)" :src="draft.url" :poster="tilePoster(draft)" controls playsinline></video>
 					<FramedPicture v-else :src="draft.url" alt="" />
 				</div>
-				<el-form label-position="top">
+				<el-form novalidate label-position="top">
 					<el-form-item label="Caption">
 						<el-input v-model="draft.caption" maxlength="500" :disabled="!canUpdate" />
 					</el-form-item>
