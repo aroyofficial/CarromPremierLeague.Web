@@ -1,7 +1,7 @@
 import axios from "axios";
 import { authToken } from "@/utils/authToken";
 
-const apiBaseUrl =
+export const apiBaseUrl =
 	globalThis.__CPL_API_BASE_URL__ || import.meta.env.VITE_API_BASE_URL;
 
 const api = axios.create({
@@ -29,7 +29,10 @@ api.interceptors.response.use(
 		// A failed sign-in, a token refresh, or the other-device poll must not end a session that is still good.
 		const path = String(error.config?.url || "");
 		const background =
-			path.includes("auth/login-request") || path.includes("auth/refresh") || path.includes("assistant/");
+			path.includes("auth/login-request") ||
+			path.includes("auth/refresh") ||
+			path.includes("assistant/") ||
+			path.includes("realtime/");
 		const failedLogin = /auth\/login\/?$/.test(path);
 		if (error.response?.status === 401 && authToken.get() && !background && !failedLogin) {
 			authToken.clear();

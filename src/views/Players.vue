@@ -144,6 +144,8 @@ import { useStatsStore } from "@/store/statsStore";
 import { useCountryStore } from "@/store/countryStore";
 import dayjs from "@/plugins/dayjs";
 import { playerName } from "@/utils/media";
+import { keepFresh } from "@/utils/realtime";
+import { areas } from "@/utils/realtimeRules";
 import EntityImage from "@/components/EntityImage.vue";
 
 const SEASON_FILTER_ALL = "all_seasons";
@@ -306,7 +308,7 @@ const playerMetrics = (player) => {
 };
 
 let playersRequest = 0;
-let refreshTimer = null;
+let stopFresh = () => {};
 
 const fetchPlayersDirectory = async (options) => {
 	const quiet = Boolean(options && options.quiet);
@@ -373,12 +375,12 @@ onMounted(() => {
 	teams.value = teamStore.teams;
 	selectedSeason.value = SEASON_FILTER_ALL;
 	fetchPlayersDirectory();
-	refreshTimer = setInterval(() => fetchPlayersDirectory({ quiet: true }), 5000);
+	stopFresh = keepFresh(() => fetchPlayersDirectory({ quiet: true }), { areas: areas.players });
 	document.addEventListener("visibilitychange", refreshPlayersIfVisible);
 });
 
 onUnmounted(() => {
-	clearInterval(refreshTimer);
+	stopFresh();
 	document.removeEventListener("visibilitychange", refreshPlayersIfVisible);
 });
 </script>

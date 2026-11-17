@@ -15,6 +15,10 @@ export const authService = {
 		return await api.post("auth/logout", { device_id: deviceId() });
 	},
 
+	async realtimeTicket() {
+		return await api.post("realtime/ticket");
+	},
+
 	async pendingLogin() {
 		return await api.get("auth/login-request");
 	},

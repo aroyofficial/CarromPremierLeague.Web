@@ -264,6 +264,8 @@ import { useTeamStore } from "@/store/teamStore";
 import { seasonService } from "@/services/seasonService";
 import { MatchCategory, MatchStatus, TossOutcome } from "@/utils/constants";
 import { playerName } from "@/utils/media";
+import { keepFresh } from "@/utils/realtime";
+import { areas } from "@/utils/realtimeRules";
 import EntityImage from "@/components/EntityImage.vue";
 
 const seasonStore = useSeasonStore();
@@ -275,7 +277,7 @@ const matches = ref([]);
 const loading = ref(false);
 const errorMessage = ref("");
 const openId = ref(null);
-let refreshTimer = null;
+let stopFresh = () => {};
 const statsOpen = ref(false);
 const statsMatch = ref(null);
 const statsTitle = computed(() => {
@@ -574,7 +576,7 @@ onMounted(() => {
 	seasons.value = seasonStore.visibleSeasons;
 	selectedSeason.value = seasonStore.selectedSeason;
 	fetchSchedule();
-	refreshTimer = setInterval(() => fetchSchedule({ quiet: true }), 5000);
+	stopFresh = keepFresh(() => fetchSchedule({ quiet: true }), { areas: areas.schedule });
 	document.addEventListener("visibilitychange", refreshScheduleIfVisible);
 });
 
@@ -584,7 +586,7 @@ const clockTimer = setInterval(() => {
 
 onUnmounted(() => {
 	clearInterval(clockTimer);
-	clearInterval(refreshTimer);
+	stopFresh();
 	document.removeEventListener("visibilitychange", refreshScheduleIfVisible);
 });
 </script>

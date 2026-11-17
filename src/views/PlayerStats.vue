@@ -73,6 +73,8 @@ import { ref, onMounted, onUnmounted } from "vue";
 import { useSeasonStore } from "@/store/seasonStore";
 import { useStatsStore } from "@/store/statsStore";
 import { playerName } from "@/utils/media";
+import { keepFresh } from "@/utils/realtime";
+import { areas } from "@/utils/realtimeRules";
 import EntityImage from "@/components/EntityImage.vue";
 import StatsSwitch from "@/components/StatsSwitch.vue";
 
@@ -90,7 +92,7 @@ const dropdownPopperOptions = ref({
 });
 
 let statsRequest = 0;
-let refreshTimer = null;
+let stopFresh = () => {};
 
 const fetchPlayerStats = async (options) => {
 	const quiet = Boolean(options && options.quiet);
@@ -136,12 +138,12 @@ onMounted(() => {
 	seasons.value = seasonStore.visibleSeasons;
 	selectedSeason.value = seasonStore.selectedSeason;
 	fetchPlayerStats();
-	refreshTimer = setInterval(() => fetchPlayerStats({ quiet: true }), 5000);
+	stopFresh = keepFresh(() => fetchPlayerStats({ quiet: true }), { areas: areas.playerStats });
 	document.addEventListener("visibilitychange", refreshPlayerStatsIfVisible);
 });
 
 onUnmounted(() => {
-	clearInterval(refreshTimer);
+	stopFresh();
 	document.removeEventListener("visibilitychange", refreshPlayerStatsIfVisible);
 });
 </script>

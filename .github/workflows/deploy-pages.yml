@@ -52,6 +52,8 @@ jobs:
           VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
           VITE_WEB_ENV: production
           VITE_BASE_PATH: /${{ github.event.repository.name }}/
+          # Repository variable; anything but "true" keeps the screens on polling only.
+          VITE_REALTIME_ENABLED: ${{ vars.VITE_REALTIME_ENABLED }}
         run: |
           set -euo pipefail
           node -e '

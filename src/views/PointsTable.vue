@@ -81,6 +81,8 @@ import { useTeamStore } from "@/store/teamStore";
 import { useMatchStore } from "@/store/matchStore";
 import { BackgroundMusic, MatchCategory, MatchStatus, SeasonStatus } from "@/utils/constants";
 import { pauseBgm, playBgm } from "@/utils/common";
+import { keepFresh } from "@/utils/realtime";
+import { areas } from "@/utils/realtimeRules";
 import EntityImage from "@/components/EntityImage.vue";
 
 const seasonStore = useSeasonStore();
@@ -186,13 +188,13 @@ const startTableMusic = () => {
 	return musicStart;
 };
 
-let refreshTimer = null;
+let stopFresh = () => {};
 
 onMounted(() => {
 	seasons.value = seasonStore.visibleSeasons;
 	selectedSeason.value = seasonStore.selectedSeason;
 	fetchLeagueTable();
-	refreshTimer = setInterval(() => fetchLeagueTable({ quiet: true }), 5000);
+	stopFresh = keepFresh(() => fetchLeagueTable({ quiet: true }), { areas: areas.points });
 	document.addEventListener("visibilitychange", refreshTableIfVisible);
 	startTableMusic();
 	window.addEventListener("pointerdown", startTableMusic);
@@ -200,7 +202,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-	clearInterval(refreshTimer);
+	stopFresh();
 	document.removeEventListener("visibilitychange", refreshTableIfVisible);
 	window.removeEventListener("pointerdown", startTableMusic);
 	window.removeEventListener("keydown", startTableMusic);

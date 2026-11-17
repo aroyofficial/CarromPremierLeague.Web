@@ -99,6 +99,8 @@ import { ref, onMounted, onUnmounted } from "vue";
 import { useSeasonStore } from "@/store/seasonStore";
 import { useStatsStore } from "@/store/statsStore";
 import { playerName } from "@/utils/media";
+import { keepFresh } from "@/utils/realtime";
+import { areas } from "@/utils/realtimeRules";
 import EntityImage from "@/components/EntityImage.vue";
 import { InfoFilled } from "@element-plus/icons-vue";
 import StatsSwitch from "@/components/StatsSwitch.vue";
@@ -122,7 +124,7 @@ const dropdownPopperOptions = ref({
 });
 
 let statsRequest = 0;
-let refreshTimer = null;
+let stopFresh = () => {};
 
 const fetchTopCoinPotters = async (options) => {
 	const quiet = Boolean(options && options.quiet);
@@ -169,12 +171,12 @@ onMounted(() => {
 	seasons.value = seasonStore.visibleSeasons;
 	selectedSeason.value = seasonStore.selectedSeason;
 	fetchTopCoinPotters();
-	refreshTimer = setInterval(() => fetchTopCoinPotters({ quiet: true }), 5000);
+	stopFresh = keepFresh(() => fetchTopCoinPotters({ quiet: true }), { areas: areas.stats });
 	document.addEventListener("visibilitychange", refreshStatsIfVisible);
 });
 
 onUnmounted(() => {
-	clearInterval(refreshTimer);
+	stopFresh();
 	document.removeEventListener("visibilitychange", refreshStatsIfVisible);
 });
 </script>
