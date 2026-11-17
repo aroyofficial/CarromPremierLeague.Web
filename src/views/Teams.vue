@@ -27,10 +27,7 @@
 			</header>
 
 			<div v-loading="loading" element-loading-text="Loading..." id="teams-body">
-				<div v-if="!loading && !hasSeasonRoster" class="empty-state">
-					Data is not available for this season.
-				</div>
-				<div v-else-if="!loading && teams.length > 0" class="teams-grid">
+				<div v-if="!loading && teams.length > 0" class="teams-grid">
 					<div
 						v-for="team in teams"
 						:key="team.id"
@@ -57,26 +54,22 @@
 								</div>
 								<div class="team-slogan">{{ team.slogan || "No slogan available" }}</div>
 							</div>
-							<div class="team-count-badge">
-								{{ getTeamPlayers(team.id).length }} Players
-							</div>
 						</div>
 
 						<div class="team-divider"></div>
 
-						<div v-if="getTeamPlayers(team.id).length > 0" class="player-list">
+						<div class="player-list">
 							<div
-								v-for="player in getTeamPlayers(team.id)"
-								:key="player.player_id"
+								v-for="(player, index) in teamSlots(team.id)"
+								:key="player ? player.player_id : `tbd-${team.id}-${index}`"
 								class="player-item"
+								:class="{ 'is-open': !player }"
 							>
-								<EntityImage :src="player.avatar_url || ''" :name="playerName(player)" kind="player" class="player-avatar" />
-								<div class="player-name">
-									{{ player.first_name }} {{ player.last_name }}
-								</div>
+								<EntityImage v-if="player" :src="player.avatar_url || ''" :name="playerName(player)" kind="player" class="player-avatar" />
+								<span v-else class="player-avatar is-open" aria-hidden="true"></span>
+								<div class="player-name">{{ player ? playerName(player) : "TBD" }}</div>
 							</div>
 						</div>
-						<div v-else class="empty-roster">No players assigned for this season</div>
 					</div>
 				</div>
 				<div v-else-if="!loading" class="empty-state">No teams found.</div>
@@ -125,11 +118,13 @@ const rosterByTeamId = computed(() => {
 
 const teams = computed(() => teamStore.teams || []);
 
-const hasSeasonRoster = computed(() =>
-	(seasonRosters.value || []).some((team) => (team.players || []).length > 0),
-);
-
 const getTeamPlayers = (teamId) => rosterByTeamId.value.get(teamId) || [];
+
+const teamSlots = (teamId) => {
+	const slots = [...getTeamPlayers(teamId)];
+	while (slots.length < 2) slots.push(null);
+	return slots;
+};
 
 const getChampionSeasons = (teamId) => championSeasonsByTeamId.value.get(teamId) || [];
 
@@ -243,7 +238,7 @@ onMounted(async () => {
 
 .team-head {
 	display: grid;
-	grid-template-columns: auto 1fr auto;
+	grid-template-columns: auto 1fr;
 	align-items: center;
 	gap: 10px;
 }
@@ -290,15 +285,6 @@ onMounted(async () => {
 	text-overflow: ellipsis;
 }
 
-.team-count-badge {
-	font-size: 11px;
-	padding: 5px 8px;
-	border-radius: 999px;
-	background: var(--pl-count-bg);
-	color: var(--pl-count-text);
-	border: 1px solid var(--pl-count-line);
-}
-
 .team-divider {
 	margin: 10px 0;
 	border-top: 1px dashed var(--pl-line);
@@ -327,6 +313,15 @@ onMounted(async () => {
 	object-fit: cover;
 }
 
+.player-avatar.is-open {
+	border: 1px dashed var(--pl-line);
+	background: transparent;
+}
+
+.player-item.is-open .player-name {
+	color: var(--pl-muted);
+}
+
 .player-name {
 	font-size: 12px;
 	color: var(--pl-ink-2);
@@ -335,7 +330,6 @@ onMounted(async () => {
 	text-overflow: ellipsis;
 }
 
-.empty-roster,
 .empty-state {
 	color: var(--pl-muted);
 	font-size: 13px;
@@ -352,17 +346,6 @@ onMounted(async () => {
 @media (max-width: 767.98px) {
 	.teams-grid {
 		grid-template-columns: 1fr;
-	}
-}
-
-@media (max-width: 575.98px) {
-	.team-head {
-		grid-template-columns: auto 1fr;
-	}
-
-	.team-count-badge {
-		grid-column: 1 / -1;
-		justify-self: start;
 	}
 }
 

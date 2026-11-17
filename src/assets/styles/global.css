@@ -408,6 +408,20 @@ li {
 	width: 29.1666666% !important;
 }
 
+.carrom-region-mask {
+	position: absolute;
+	inset: 0;
+	z-index: 20;
+	display: grid;
+	place-items: center;
+	border-radius: inherit;
+	background: rgba(246, 248, 252, 0.88);
+}
+
+html.dark .carrom-region-mask {
+	background: rgba(11, 20, 38, 0.82);
+}
+
 @media (prefers-reduced-motion: reduce) {
 	*,
 	*::before,

@@ -1,7 +1,9 @@
-import { ElLoading } from "element-plus";
+import { createApp, h } from "vue";
 import { BackgroundMusic } from "./constants";
+import CarromLoader from "@/components/CarromLoader.vue";
 
-let loaderInstance = null;
+let loaderApp = null;
+let loaderHost = null;
 
 export async function playBgm(
 	type = BackgroundMusic.Match,
@@ -94,21 +96,28 @@ export function resolveAsset(url) {
 	return `${base}${path.slice(1)}`;
 }
 
-export function startLoader(text = "Loading...") {
-	if (loaderInstance) return;
+export function startLoader(text = "Loading...", options = {}) {
+	if (loaderApp) return;
 
-	loaderInstance = ElLoading.service({
-		lock: true,
-		text: text,
-		background: "rgba(0, 0, 0, 0.7)",
+	loaderHost = document.createElement("div");
+	document.body.appendChild(loaderHost);
+	loaderApp = createApp({
+		render: () =>
+			h(CarromLoader, {
+				overlay: options.overlay !== false,
+				theme: options.theme || "",
+				text,
+			}),
 	});
+	loaderApp.mount(loaderHost);
 }
 
 export function pauseLoader() {
-	if (loaderInstance) {
-		loaderInstance.close();
-		loaderInstance = null;
-	}
+	if (!loaderApp) return;
+	loaderApp.unmount();
+	loaderHost.remove();
+	loaderApp = null;
+	loaderHost = null;
 }
 
 export function takeFullScreen() {

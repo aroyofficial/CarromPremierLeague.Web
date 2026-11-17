@@ -47,10 +47,12 @@ export default defineConfig({
 		serveFresh(),
 		vue(),
 		AutoImport({
-			resolvers: [ElementPlusResolver()],
+			// Keep Element Plus from importing its own v-loading spinner. main.js registers the carrom board.
+			resolvers: [ElementPlusResolver({ directives: false })],
 		}),
 		Components({
-			resolvers: [ElementPlusResolver()],
+			// Keep Element Plus from importing its own v-loading spinner. main.js registers the carrom board.
+			resolvers: [ElementPlusResolver({ directives: false })],
 		}),
 	],
 

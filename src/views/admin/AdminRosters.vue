@@ -3,7 +3,7 @@
 		<div class="admin-page-head">
 			<div>
 				<h1>Rosters</h1>
-				<p>Assign players to a team for a season. Assigning a player who is already on a team moves them.</p>
+				<p>Each team has two places. Assigning a player who is already on a team moves them.</p>
 			</div>
 			<div class="admin-toolbar">
 				<el-select v-model="seasonId" placeholder="Choose a season" style="width: 240px" @change="loadSeason">
@@ -35,7 +35,7 @@
 						/>
 					</el-select>
 					<el-select v-model="assignForm.team_id" placeholder="Team" style="width: 240px">
-						<el-option v-for="team in seasonTeams" :key="team.team_id" :label="team.team_name" :value="team.team_id" />
+						<el-option v-for="team in openTeams" :key="team.team_id" :label="team.team_name" :value="team.team_id" />
 					</el-select>
 					<el-button
 						type="primary"
@@ -50,15 +50,11 @@
 
 			<div class="roster-grid" v-loading="loading">
 				<div v-for="team in rosterByTeam" :key="team.team_id" class="admin-card roster-card">
-					<h2 class="admin-card-title">
-						<span>{{ team.team_name }}</span>
-						<el-tag size="small">{{ team.players.length }} players</el-tag>
-					</h2>
-					<el-empty v-if="!team.players.length" :image-size="60" description="No players assigned" />
-					<ul v-else class="roster-list">
-						<li v-for="player in team.players" :key="player.player_id">
-							<span>{{ player.first_name }} {{ player.last_name }}</span>
-							<el-button v-if="canManage" size="small" type="danger" link @click="removePlayer(player, team)">
+					<h2 class="admin-card-title">{{ team.team_name }}</h2>
+					<ul class="roster-list">
+						<li v-for="(player, index) in slotsFor(team)" :key="player ? player.player_id : `tbd-${team.team_id}-${index}`">
+							<span :class="{ 'is-open': !player }">{{ player ? `${player.first_name} ${player.last_name}` : "TBD" }}</span>
+							<el-button v-if="player && canManage" size="small" type="danger" link @click="removePlayer(player, team)">
 								Remove
 							</el-button>
 						</li>
@@ -70,7 +66,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import { Plus } from "@element-plus/icons-vue";
 import { adminApi } from "@/services/adminService";
 import { confirmDelete, defaultSeasonId, runAction, unwrap } from "@/utils/adminHelpers";
@@ -106,6 +102,32 @@ const rosterByTeam = computed(() => {
 	});
 	return [...groups.values()];
 });
+
+const TEAM_PLACES = 2;
+
+const slotsFor = (team) => {
+	const slots = [...team.players];
+	while (slots.length < TEAM_PLACES) slots.push(null);
+	return slots;
+};
+
+const teamHasRoom = (teamId, playerId) => {
+	const team = rosterByTeam.value.find((item) => item.team_id === teamId);
+	const members = team?.players || [];
+	if (members.length < TEAM_PLACES) return true;
+	return Boolean(playerId) && members.some((member) => member.player_id === playerId);
+};
+
+const openTeams = computed(() => seasonTeams.value.filter((team) => teamHasRoom(team.team_id, assignForm.player_id)));
+
+watch(
+	() => openTeams.value.map((team) => team.team_id).join(","),
+	() => {
+		if (assignForm.team_id && !openTeams.value.some((team) => team.team_id === assignForm.team_id)) {
+			assignForm.team_id = null;
+		}
+	},
+);
 
 const loadSeason = async () => {
 	if (!seasonId.value) return;
@@ -203,6 +225,10 @@ onMounted(async () => {
 		&:last-child {
 			border-bottom: none;
 		}
+	}
+
+	.is-open {
+		color: var(--cpl-ink-600);
 	}
 }
 </style>
