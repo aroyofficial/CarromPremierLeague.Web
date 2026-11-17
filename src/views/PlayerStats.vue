@@ -22,7 +22,7 @@
 			</div>
 		</header>
 
-		<div v-loading="loading" element-loading-text="Loading..." class="table-card">
+		<div v-loading="loading" class="table-card">
 			<div v-if="!loading && dataAvailable && players.length" class="table-scroll">
 				<table class="standings">
 					<thead>

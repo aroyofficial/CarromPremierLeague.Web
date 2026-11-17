@@ -18,7 +18,7 @@
 			</div>
 		</header>
 
-		<div v-loading="loading" element-loading-text="Loading..." class="table-card">
+		<div v-loading="loading" class="table-card">
 			<div v-if="dataAvailable && standings.length" class="table-scroll">
 				<table class="standings">
 					<thead>

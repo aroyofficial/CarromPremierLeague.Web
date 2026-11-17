@@ -4,6 +4,7 @@ import CarromLoader from "@/components/CarromLoader.vue";
 
 let loaderApp = null;
 let loaderHost = null;
+let loaderDepth = 0;
 
 export async function playBgm(
 	type = BackgroundMusic.Match,
@@ -96,24 +97,27 @@ export function resolveAsset(url) {
 	return `${base}${path.slice(1)}`;
 }
 
-export function startLoader(text = "Loading...", options = {}) {
+export function startLoader(options = {}) {
+	loaderDepth += 1;
 	if (loaderApp) return;
 
+	const theme = typeof options === "string" ? "" : options.theme || "";
 	loaderHost = document.createElement("div");
 	document.body.appendChild(loaderHost);
 	loaderApp = createApp({
 		render: () =>
 			h(CarromLoader, {
-				overlay: options.overlay !== false,
-				theme: options.theme || "",
-				text,
+				overlay: true,
+				theme,
 			}),
 	});
 	loaderApp.mount(loaderHost);
 }
 
 export function pauseLoader() {
-	if (!loaderApp) return;
+	if (loaderDepth === 0) return;
+	loaderDepth -= 1;
+	if (loaderDepth > 0 || !loaderApp) return;
 	loaderApp.unmount();
 	loaderHost.remove();
 	loaderApp = null;

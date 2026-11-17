@@ -155,7 +155,6 @@
 				</g>
 			</svg>
 		</div>
-		<p v-if="text" class="loader-text">{{ text }}</p>
 	</div>
 </template>
 
@@ -171,7 +170,6 @@ import { pieceTransform, poseAt } from "@/utils/carromLoaderMotion";
 const props = defineProps({
 	overlay: { type: Boolean, default: false },
 	theme: { type: String, default: "" },
-	text: { type: String, default: "" },
 });
 
 const uid = `carrom-loader-${++nextLoaderId}`;
@@ -185,7 +183,7 @@ const pose = ref(poseAt(0));
 const resolvedTheme = computed(() =>
 	props.theme === "light" || props.theme === "dark" ? props.theme : siteTheme.value,
 );
-const label = computed(() => props.text || "Loading");
+const label = "Loading";
 
 let frame = 0;
 let started = 0;
@@ -255,21 +253,5 @@ onUnmounted(() => {
 	width: 100%;
 	height: 100%;
 	overflow: visible;
-}
-
-.loader-text {
-	margin: 0;
-	max-width: 280px;
-	font-size: 14px;
-	line-height: 1.4;
-	text-align: center;
-}
-
-.is-dark .loader-text {
-	color: #ffd166;
-}
-
-.is-light .loader-text {
-	color: #7a4424;
 }
 </style>

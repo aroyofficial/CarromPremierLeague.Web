@@ -19,7 +19,7 @@
 			</div>
 		</header>
 
-		<div v-loading="loading" element-loading-text="Loading..." class="schedule-body">
+		<div v-loading="loading" class="schedule-body">
 			<section v-for="group in groups" :key="group.date" class="day-group">
 				<h2 class="day-label">{{ groupLabel(group.date) }}</h2>
 				<div class="day-rail" aria-hidden="true">

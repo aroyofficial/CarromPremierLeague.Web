@@ -52,7 +52,6 @@
 
 			<div
 				v-loading="loading"
-				element-loading-text="Loading..."
 				id="players-body"
 			>
 				<div v-if="!loading && filteredPlayers.length > 0" class="players-grid">

@@ -26,7 +26,7 @@
 				</div>
 			</header>
 
-			<div v-loading="loading" element-loading-text="Loading..." id="teams-body">
+			<div v-loading="loading" id="teams-body">
 				<div v-if="!loading && teams.length > 0" class="teams-grid">
 					<div
 						v-for="team in teams"

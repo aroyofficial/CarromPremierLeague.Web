@@ -35,7 +35,7 @@
 					</el-select>
 				</div>
 			</div>
-			<div v-loading="loading" element-loading-text="Loading..." id="stats-body">
+			<div v-loading="loading" id="stats-body">
 				<div class="status-row">
 					<div class="completion-pill" :class="{ done: isLeagueStageCompleted }">
 						{{ isLeagueStageCompleted ? "League Stage Completed" : "League Stage Ongoing" }}
