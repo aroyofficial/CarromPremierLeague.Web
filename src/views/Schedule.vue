@@ -209,7 +209,7 @@
 								>
 									<em>{{ row.rank }}</em>
 									<strong>
-										<EntityImage :src="teamLogo(row.team_id)" :name="row.team_name || teamName(match, row.team_id)" kind="team" />
+										<EntityImage :src="teamLogo(row.team_id)" :name="row.team_name || teamName(match, row.team_id)" kind="team" class="snapshot-logo" />
 										{{ row.team_name || teamName(match, row.team_id) }}
 									</strong>
 									<span>{{ moveLabel(row) }}</span>
@@ -1455,11 +1455,10 @@ html.dark .split-track span {
 		font-weight: 700;
 	}
 
-	img {
+	.snapshot-logo {
 		width: 28px;
 		height: 28px;
 		border-radius: 50%;
-		object-fit: cover;
 		flex: 0 0 28px;
 	}
 
@@ -1541,7 +1540,7 @@ html.dark .split-track span {
 			font-size: 12px;
 		}
 
-		img {
+		.snapshot-logo {
 			width: 22px;
 			height: 22px;
 			flex-basis: 22px;
