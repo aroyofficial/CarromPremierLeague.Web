@@ -153,6 +153,8 @@ import { matchesSearch, runAction, unwrap } from "@/utils/adminHelpers";
 import { accessLabel, buildIndex, emptyTree, inOrder, sameSet } from "@/utils/permissionTree";
 import { Permission } from "@/utils/constants";
 import { useAuthStore } from "@/store/authStore";
+import { areas } from "@/utils/realtimeRules";
+import { useAdminLive } from "@/utils/useLive";
 
 const route = useRoute();
 const router = useRouter();
@@ -303,6 +305,28 @@ watch(
 		}
 		if (value != null && String(value) !== String(selectedId.value ?? "")) alignAdminQuery();
 	},
+);
+
+useAdminLive(
+	async () => {
+		if (loading.value) return;
+		try {
+			const [treeResponse, adminsResponse] = await Promise.all([adminApi.permissions.tree(), adminApi.admins.list()]);
+			if (dirty.value || saving.value) return;
+			tree.value = unwrap(treeResponse) || emptyTree();
+			admins.value = unwrap(adminsResponse) || [];
+			if (!selected.value) {
+				selectedId.value = admins.value.find((admin) => admin.id !== authStore.adminId)?.id ?? admins.value[0]?.id ?? null;
+				resetDraft();
+				alignAdminQuery();
+				return;
+			}
+			draft.value = [...selected.value.permissions];
+		} catch (error) {
+			console.error("Failed to refresh permissions", error);
+		}
+	},
+	{ areas: areas.adminPermissions, paused: () => dirty.value || saving.value },
 );
 
 onBeforeRouteLeave(confirmDiscard);

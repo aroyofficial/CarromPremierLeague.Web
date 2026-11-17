@@ -36,6 +36,8 @@ import { adminApi } from "@/services/adminService";
 import { defaultSeasonId, unwrap } from "@/utils/adminHelpers";
 import { AdminSections, Permission } from "@/utils/constants";
 import { useAuthStore } from "@/store/authStore";
+import { areas } from "@/utils/realtimeRules";
+import { useAdminLive } from "@/utils/useLive";
 
 const authStore = useAuthStore();
 
@@ -72,8 +74,10 @@ const cards = computed(() =>
 
 const lengthOf = (outcome) => (outcome.status === "fulfilled" ? (unwrap(outcome.value) || []).length : null);
 
-const load = async () => {
-	loading.value = true;
+const load = async (options) => {
+	const quiet = Boolean(options && options.quiet);
+	if (quiet && loading.value) return;
+	if (!quiet) loading.value = true;
 	const settled = await Promise.allSettled([
 		adminApi.seasons.list(),
 		adminApi.teams.list(),
@@ -101,8 +105,10 @@ const load = async () => {
 		counts.rostered = null;
 		counts.matches = null;
 	}
-	loading.value = false;
+	if (!quiet) loading.value = false;
 };
+
+useAdminLive(() => load({ quiet: true }), { areas: areas.adminDashboard });
 
 onMounted(async () => {
 	await authStore.loadProfile().catch(() => undefined);

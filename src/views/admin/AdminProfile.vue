@@ -218,6 +218,8 @@ import { Routes } from "@/utils/constants";
 import { adminName, initialsOf } from "@/utils/media";
 import { optionalContactError } from "@/utils/contactNumber";
 import { focusField, validateForm } from "@/utils/formValidation";
+import { areas } from "@/utils/realtimeRules";
+import { useAdminLive } from "@/utils/useLive";
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -331,6 +333,10 @@ const phoneCountryIdFor = (code) => {
 	return phoneOptions.value.find((country) => country.code === code)?.id ?? 0;
 };
 
+const FORM_ACCOUNT_KEYS = ["first_name", "last_name", "date_of_birth", "gender", "phone_code", "phone_number", "email"];
+let formBaseline = "";
+const formEdited = () => JSON.stringify(form) !== formBaseline;
+
 const applyAccount = (admin) => {
 	account.value = admin;
 	avatar.value = admin.avatar_url || "";
@@ -345,12 +351,39 @@ const applyAccount = (admin) => {
 		phone_number: admin.phone_number || "",
 		email: admin.email || "",
 	});
+	formBaseline = JSON.stringify(form);
 };
 
 watch(phoneOptions, () => {
 	if (!account.value || !form.phone_code || (form.phone_country_id && form.phone_country_id !== 0)) return;
+	const untouched = !formEdited();
 	form.phone_country_id = phoneCountryIdFor(form.phone_code);
+	if (untouched) formBaseline = JSON.stringify(form);
 });
+
+// While the form has unsaved edits, only the fields the form does not hold (picture, verification, password age) are refreshed.
+useAdminLive(
+	async () => {
+		if (loading.value || saving.value || !account.value) return;
+		try {
+			const [meResponse, countryResponse] = await Promise.all([adminApi.admins.me(), adminApi.countries.list()]);
+			countries.value = unwrap(countryResponse) || [];
+			countriesError.value = "";
+			const fresh = unwrap(meResponse);
+			if (!fresh?.id || saving.value) return;
+			if (!formEdited()) {
+				applyAccount(fresh);
+				return;
+			}
+			const kept = Object.fromEntries(FORM_ACCOUNT_KEYS.map((key) => [key, account.value[key]]));
+			account.value = { ...fresh, ...kept };
+			avatar.value = fresh.avatar_url || "";
+		} catch (error) {
+			console.error("Failed to refresh the profile", error);
+		}
+	},
+	{ areas: areas.adminProfile },
+);
 
 const load = async () => {
 	loading.value = true;

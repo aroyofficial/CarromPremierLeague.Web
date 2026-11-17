@@ -187,6 +187,8 @@ import { packGalleryRows } from "@/utils/galleryLayout";
 import { embedUrl, isVideoItem, isVideoUrl, tilePoster, videoPoster } from "@/utils/galleryMedia";
 import { IMAGE_ACCEPT, VIDEO_ACCEPT, mediaFileProblem, publicImageLinkProblem } from "@/utils/media";
 import { useUploadLeaveGuard } from "@/utils/uploadGuard";
+import { areas } from "@/utils/realtimeRules";
+import { useAdminLive } from "@/utils/useLive";
 
 const MEDIA_ACCEPT = `${IMAGE_ACCEPT},${VIDEO_ACCEPT}`;
 const authStore = useAuthStore();
@@ -298,6 +300,38 @@ const load = async (reset) => {
 };
 
 const reload = () => load(true);
+
+// Refetches at least as many items as are on screen and swaps them in at once, so the grid never empties.
+const refreshQuietly = async () => {
+	if (loading.value || loadingMore.value) return;
+	const query = { status: status.value, q: search.value.trim(), season: seasonId.value };
+	const wantAll = query.status === "all" && !query.q && canUpdate.value;
+	const shown = photos.value.length;
+	try {
+		const seasonResult = await adminApi.seasons.list();
+		seasons.value = seasonResult.data || [];
+		let items = [];
+		let next;
+		do {
+			const params = { status: query.status, limit: 100, q: query.q || undefined, cursor: next };
+			if (query.season) params.season_id = query.season;
+			const page = (await adminApi.gallery.adminList(params)).data || { items: [], next_cursor: null };
+			items = items.concat(page.items);
+			next = page.next_cursor;
+		} while (next && (wantAll || items.length < shown));
+		const unchanged = query.status === status.value && query.q === search.value.trim() && query.season === seasonId.value;
+		if (!unchanged || loading.value || loadingMore.value || livePaused()) return;
+		photos.value = items;
+		cursor.value = next || null;
+		pageError.value = "";
+	} catch (err) {
+		console.error("Failed to refresh the gallery", err);
+	}
+};
+
+const livePaused = () => ordering.value || selecting.value || uploading.value || dragId.value != null || saving.value;
+
+useAdminLive(refreshQuietly, { areas: areas.adminGallery, paused: livePaused });
 
 const measureFile = (file) =>
 	new Promise((resolve, reject) => {

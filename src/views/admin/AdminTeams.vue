@@ -101,6 +101,8 @@ import { useIsPhone } from "@/utils/viewport";
 import { usePermissions } from "@/utils/permissions";
 import EntityImage from "@/components/EntityImage.vue";
 import ImageUploadField from "@/components/admin/ImageUploadField.vue";
+import { areas } from "@/utils/realtimeRules";
+import { useAdminLive } from "@/utils/useLive";
 
 const isPhone = useIsPhone();
 const { Permission, can, canAny } = usePermissions();
@@ -119,6 +121,18 @@ const load = async () => {
 	teams.value = ok ? unwrap(result) || [] : [];
 	loading.value = false;
 };
+
+useAdminLive(
+	async () => {
+		if (loading.value) return;
+		try {
+			teams.value = unwrap(await adminApi.teams.list()) || [];
+		} catch (error) {
+			console.error("Failed to refresh teams", error);
+		}
+	},
+	{ areas: areas.adminTeams },
+);
 
 const dialogOpen = ref(false);
 const saving = ref(false);

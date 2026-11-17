@@ -75,14 +75,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useSeasonStore } from "@/store/seasonStore";
 import { useTeamStore } from "@/store/teamStore";
 import { useMatchStore } from "@/store/matchStore";
 import { BackgroundMusic, MatchCategory, MatchStatus, SeasonStatus } from "@/utils/constants";
 import { pauseBgm, playBgm } from "@/utils/common";
-import { keepFresh } from "@/utils/realtime";
 import { areas } from "@/utils/realtimeRules";
+import { useLive } from "@/utils/useLive";
 import EntityImage from "@/components/EntityImage.vue";
 
 const seasonStore = useSeasonStore();
@@ -138,9 +138,14 @@ const fetchLeagueTable = async (options) => {
 	}
 };
 
-const refreshTableIfVisible = () => {
-	if (document.visibilityState === "visible") fetchLeagueTable({ quiet: true });
-};
+useLive(() => fetchLeagueTable({ quiet: true }), { areas: areas.points });
+
+watch(
+	() => seasonStore.visibleSeasons,
+	(next) => {
+		seasons.value = next;
+	},
+);
 
 const isSeasonEnded = () => leagueTable.value?.season_status === SeasonStatus.FINISHED;
 
@@ -188,22 +193,16 @@ const startTableMusic = () => {
 	return musicStart;
 };
 
-let stopFresh = () => {};
-
 onMounted(() => {
 	seasons.value = seasonStore.visibleSeasons;
 	selectedSeason.value = seasonStore.selectedSeason;
 	fetchLeagueTable();
-	stopFresh = keepFresh(() => fetchLeagueTable({ quiet: true }), { areas: areas.points });
-	document.addEventListener("visibilitychange", refreshTableIfVisible);
 	startTableMusic();
 	window.addEventListener("pointerdown", startTableMusic);
 	window.addEventListener("keydown", startTableMusic);
 });
 
 onUnmounted(() => {
-	stopFresh();
-	document.removeEventListener("visibilitychange", refreshTableIfVisible);
 	window.removeEventListener("pointerdown", startTableMusic);
 	window.removeEventListener("keydown", startTableMusic);
 	pauseBgm(BackgroundMusic.Match, 400);

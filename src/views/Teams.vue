@@ -88,12 +88,14 @@
 <script setup>
 import { playerName } from "@/utils/media";
 import EntityImage from "@/components/EntityImage.vue";
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useSeasonStore } from "@/store/seasonStore";
 import { useTeamStore } from "@/store/teamStore";
 import { useRosterStore } from "@/store/rosterStore";
 import { seasonService } from "@/services/seasonService";
 import { isSeasonFinished } from "@/utils/season";
+import { areas } from "@/utils/realtimeRules";
+import { useLive } from "@/utils/useLive";
 
 const seasonStore = useSeasonStore();
 const teamStore = useTeamStore();
@@ -131,24 +133,25 @@ const getTeamPlayers = (teamId) => rosterByTeamId.value.get(teamId) || [];
 
 const getChampionSeasons = (teamId) => championSeasonsByTeamId.value.get(teamId) || [];
 
-const fetchRosterForSeason = async () => {
+const fetchRosterForSeason = async (options) => {
+	const quiet = Boolean(options && options.quiet);
 	if (!selectedSeason.value) {
 		seasonRosters.value = [];
 		return;
 	}
 
-	loading.value = true;
+	if (!quiet) loading.value = true;
 	try {
 		seasonStore.setSeason(selectedSeason.value);
-		if (!rosterStore.teams.has(selectedSeason.value)) {
+		if (quiet || !rosterStore.teams.has(selectedSeason.value)) {
 			await rosterStore.fetchTeamDetails(selectedSeason.value);
 		}
 		seasonRosters.value = rosterStore.teams.get(selectedSeason.value) || [];
 	} catch (error) {
 		console.error("Failed to fetch team rosters", error);
-		seasonRosters.value = [];
+		if (!quiet) seasonRosters.value = [];
 	} finally {
-		loading.value = false;
+		if (!quiet) loading.value = false;
 	}
 };
 
@@ -180,6 +183,17 @@ const fetchChampionCounts = async () => {
 
 	championSeasonsByTeamId.value = championSeasons;
 };
+
+useLive(() => Promise.all([fetchRosterForSeason({ quiet: true }), fetchChampionCounts()]), {
+	areas: areas.teams,
+});
+
+watch(
+	() => seasonStore.visibleSeasons,
+	(next) => {
+		seasons.value = next;
+	},
+);
 
 onMounted(async () => {
 	seasons.value = seasonStore.visibleSeasons;

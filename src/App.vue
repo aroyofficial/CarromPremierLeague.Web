@@ -10,9 +10,14 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted } from "vue";
+import { computed, onMounted, onUnmounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { notify } from "@/utils/notify";
+import { authService } from "@/services/authService";
+import { hub, watchLive } from "@/utils/realtime";
+import { areaOf, areas } from "@/utils/realtimeRules";
+import { useSeasonStore } from "@/store/seasonStore";
+import { useTeamStore } from "@/store/teamStore";
 import Navbar from "./components/Navbar.vue";
 import Footer from "./components/Footer.vue";
 import StrikerChat from "./components/striker/StrikerChat.vue";
@@ -27,6 +32,47 @@ const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 const settingsStore = useSettingsStore();
+const seasonStore = useSeasonStore();
+const teamStore = useTeamStore();
+
+const adminTicket = async () => {
+	if (!authStore.isAuthenticated) return null;
+	try {
+		const response = await authService.realtimeTicket();
+		return response?.ticket || null;
+	} catch {
+		return null;
+	}
+};
+
+watch(
+	() => authStore.isAuthenticated,
+	(signedIn) => hub.setTicketSource(signedIn ? adminTicket : null),
+	{ immediate: true },
+);
+
+const quietly = (promise) => Promise.resolve(promise).catch(() => undefined);
+
+// Shared data the navbar, countdown, home page, and admin sidebar read without fetching themselves.
+const refreshStores = (area) => {
+	if (!area || area === "seasons") quietly(seasonStore.fetchSeasons());
+	if (!area || area === "teams") quietly(teamStore.fetchTeams());
+	if (!area || area === "settings") quietly(settingsStore.fetchSettings());
+	if ((!area || area === "me") && authStore.isAuthenticated) quietly(authStore.loadProfile({ force: true }));
+};
+
+let streamOpened = false;
+let streamWasOpen = false;
+const stopStoreSync = watchLive({
+	areas: areas.stores,
+	onEvent: (body) => refreshStores(areaOf(body)),
+	onState: (state) => {
+		const reopened = state === "open" && !streamWasOpen && streamOpened;
+		if (state === "open") streamOpened = true;
+		streamWasOpen = state === "open";
+		if (reopened) refreshStores(null);
+	},
+});
 
 const isAdminRoute = computed(() => route.path.startsWith(Routes.ADMIN));
 const showPublicAssistant = computed(
@@ -79,6 +125,7 @@ onMounted(() => {
 	if (!settingsStore.loaded) settingsStore.fetchSettings().catch(() => undefined);
 });
 onUnmounted(() => {
+	stopStoreSync();
 	window.removeEventListener("cpl:session-expired", onSessionExpired);
 	window.removeEventListener("cpl:permission-denied", onPermissionDenied);
 	window.removeEventListener("storage", onStorage);

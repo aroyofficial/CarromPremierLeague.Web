@@ -202,6 +202,8 @@ import { confirmDelete, defaultSeasonId, runAction, unwrap } from "@/utils/admin
 import { MatchCategory, MatchOutcome, MatchStatus, Routes, TossOutcome } from "@/utils/constants";
 import { coinBounds, colourOverflow } from "@/utils/coinLimits";
 import { usePermissions } from "@/utils/permissions";
+import { areas } from "@/utils/realtimeRules";
+import { useAdminLive } from "@/utils/useLive";
 
 const { Permission, can, canAny, canAll } = usePermissions();
 
@@ -515,6 +517,26 @@ const runRowCommand = (command, match) => {
 	else if (command === "reset-toss") resetToss(match);
 	else if (command === "delete") remove(match);
 };
+
+useAdminLive(
+	async () => {
+		if (loading.value || saving.value) return;
+		try {
+			const [seasonList, teamList] = await Promise.all([adminApi.seasons.list(), adminApi.teams.list()]);
+			seasons.value = unwrap(seasonList) || [];
+			teams.value = unwrap(teamList) || [];
+			const shown = seasonId.value;
+			if (!shown) return;
+			const [matchList, teamLinks] = await Promise.all([adminApi.matches.list(shown), adminApi.seasons.teams(shown)]);
+			if (shown !== seasonId.value) return;
+			matches.value = unwrap(matchList) || [];
+			seasonTeams.value = unwrap(teamLinks) || [];
+		} catch (error) {
+			console.error("Failed to refresh matches", error);
+		}
+	},
+	{ areas: areas.adminMatches },
+);
 
 onMounted(async () => {
 	const { ok, result } = await runAction(() => Promise.all([adminApi.seasons.list(), adminApi.teams.list()]));

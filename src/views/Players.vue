@@ -135,7 +135,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useSeasonStore } from "@/store/seasonStore";
 import { useTeamStore } from "@/store/teamStore";
 import { useRosterStore } from "@/store/rosterStore";
@@ -144,8 +144,8 @@ import { useStatsStore } from "@/store/statsStore";
 import { useCountryStore } from "@/store/countryStore";
 import dayjs from "@/plugins/dayjs";
 import { playerName } from "@/utils/media";
-import { keepFresh } from "@/utils/realtime";
 import { areas } from "@/utils/realtimeRules";
+import { useLive } from "@/utils/useLive";
 import EntityImage from "@/components/EntityImage.vue";
 
 const SEASON_FILTER_ALL = "all_seasons";
@@ -308,7 +308,6 @@ const playerMetrics = (player) => {
 };
 
 let playersRequest = 0;
-let stopFresh = () => {};
 
 const fetchPlayersDirectory = async (options) => {
 	const quiet = Boolean(options && options.quiet);
@@ -316,7 +315,7 @@ const fetchPlayersDirectory = async (options) => {
 	const requestId = ++playersRequest;
 	if (!quiet) loading.value = true;
 	try {
-		const tasks = [playerStore.fetchPlayerProfiles(true), countryStore.fetchCountries()];
+		const tasks = [playerStore.fetchPlayerProfiles(true), countryStore.fetchCountries(quiet)];
 		if (!isAllSeasons.value) {
 			tasks.push(
 				(async () => {
@@ -366,22 +365,26 @@ const fetchPlayersDirectory = async (options) => {
 	}
 };
 
-const refreshPlayersIfVisible = () => {
-	if (document.visibilityState === "visible") fetchPlayersDirectory({ quiet: true });
-};
+useLive(() => fetchPlayersDirectory({ quiet: true }), { areas: areas.players });
+
+watch(
+	() => seasonStore.visibleSeasons,
+	(next) => {
+		seasons.value = next;
+	},
+);
+watch(
+	() => teamStore.teams,
+	(next) => {
+		teams.value = next;
+	},
+);
 
 onMounted(() => {
 	seasons.value = seasonStore.visibleSeasons;
 	teams.value = teamStore.teams;
 	selectedSeason.value = SEASON_FILTER_ALL;
 	fetchPlayersDirectory();
-	stopFresh = keepFresh(() => fetchPlayersDirectory({ quiet: true }), { areas: areas.players });
-	document.addEventListener("visibilitychange", refreshPlayersIfVisible);
-});
-
-onUnmounted(() => {
-	stopFresh();
-	document.removeEventListener("visibilitychange", refreshPlayersIfVisible);
 });
 </script>
 

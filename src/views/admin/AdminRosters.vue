@@ -75,6 +75,8 @@ import { Plus } from "@element-plus/icons-vue";
 import { adminApi } from "@/services/adminService";
 import { confirmDelete, defaultSeasonId, runAction, unwrap } from "@/utils/adminHelpers";
 import { usePermissions } from "@/utils/permissions";
+import { areas } from "@/utils/realtimeRules";
+import { useAdminLive } from "@/utils/useLive";
 
 const { Permission, can } = usePermissions();
 const canManage = computed(() => can(Permission.ROSTERS_MANAGE));
@@ -140,6 +142,26 @@ const removePlayer = async (player, team) => {
 	);
 	if (ok) await loadSeason();
 };
+
+useAdminLive(
+	async () => {
+		if (loading.value || saving.value) return;
+		try {
+			const [seasonList, playerList] = await Promise.all([adminApi.seasons.list(), adminApi.players.list()]);
+			seasons.value = unwrap(seasonList) || [];
+			players.value = unwrap(playerList) || [];
+			const shown = seasonId.value;
+			if (!shown) return;
+			const [teamList, rosterList] = await Promise.all([adminApi.seasons.teams(shown), adminApi.rosters.season(shown)]);
+			if (shown !== seasonId.value) return;
+			seasonTeams.value = unwrap(teamList) || [];
+			rosters.value = unwrap(rosterList)?.rosters || [];
+		} catch (error) {
+			console.error("Failed to refresh rosters", error);
+		}
+	},
+	{ areas: areas.adminRosters },
+);
 
 onMounted(async () => {
 	const { ok, result } = await runAction(() => Promise.all([adminApi.seasons.list(), adminApi.players.list()]));

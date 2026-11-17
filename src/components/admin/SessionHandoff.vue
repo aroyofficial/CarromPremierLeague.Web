@@ -81,7 +81,8 @@ import { Routes } from "@/utils/constants";
 import { deviceLabel } from "@/utils/deviceSession";
 import { requestDeadline, secondsLeft } from "@/utils/loginRequest";
 import { formatDuration } from "@/utils/passwordRules";
-import { keepFresh, watchAdmin } from "@/utils/realtime";
+import { areas } from "@/utils/realtimeRules";
+import { useLive } from "@/utils/useLive";
 
 const authStore = useAuthStore();
 const router = useRouter();
@@ -95,7 +96,6 @@ const now = ref(Date.now());
 const deadline = ref(0);
 const windowSeconds = ref(600);
 const thisDevice = deviceLabel();
-let stopFresh = () => {};
 let clock = 0;
 let returnFocus = null;
 
@@ -113,12 +113,6 @@ const timerShare = computed(() => {
 watch(left, (value) => {
 	if (request.value && value <= 0 && !busy.value) request.value = null;
 });
-
-const getTicket = async () => {
-	if (!authStore.isAuthenticated) return null;
-	const response = await authService.realtimeTicket();
-	return response?.ticket || null;
-};
 
 const look = async () => {
 	if (!authStore.isAuthenticated || busy.value) return;
@@ -210,19 +204,15 @@ const onKeydown = (event) => {
 	}
 };
 
+useLive(look, { areas: areas.loginRequest, fastMs: 4000 });
+
 onMounted(() => {
 	look();
-	stopFresh = keepFresh(look, {
-		watch: (handlers) => watchAdmin({ getTicket, ...handlers }),
-		fastMs: 4000,
-		slowMs: 60000,
-	});
 	clock = window.setInterval(() => {
 		now.value = Date.now();
 	}, 1000);
 });
 onUnmounted(() => {
-	stopFresh();
 	window.clearInterval(clock);
 });
 </script>

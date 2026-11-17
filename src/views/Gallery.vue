@@ -211,6 +211,8 @@ import { packGalleryRows } from "@/utils/galleryLayout";
 import { embedUrl, isVideoItem, tilePoster } from "@/utils/galleryMedia";
 import { spokenDate } from "@/utils/media";
 import { correctedQuery, galleryChoice, positiveId } from "@/utils/queryState";
+import { areas } from "@/utils/realtimeRules";
+import { useLive } from "@/utils/useLive";
 import { Download, ZoomIn, ZoomOut } from "@element-plus/icons-vue";
 
 const route = useRoute();
@@ -477,6 +479,34 @@ const loadSeasons = async () => {
 		loading.value = false;
 	}
 };
+
+// Public pages are capped at 60 items, so a long scroll is trimmed back to the first 60 on refresh.
+const refreshQuietly = async () => {
+	if (loading.value || loadingMore.value) return;
+	try {
+		const result = await adminApi.gallery.seasons();
+		seasons.value = (result.data || []).filter((season) => Number(season.photo_count) > 0);
+		seasonsLoaded.value = true;
+		const shownSeason = seasonId.value;
+		if (!shownSeason || !seasons.value.some((season) => season.id === shownSeason)) {
+			await applyQuery();
+			return;
+		}
+		const pageResult = await adminApi.gallery.list({
+			season_id: shownSeason,
+			limit: Math.min(60, Math.max(24, items.value.length)),
+		});
+		if (shownSeason !== seasonId.value || loadingMore.value) return;
+		const page = pageResult.data || { items: [], next_cursor: null };
+		items.value = page.items;
+		cursor.value = page.next_cursor;
+		if (viewer.value) viewer.value = items.value.find((item) => item.id === viewer.value.id) || viewer.value;
+	} catch (err) {
+		console.error("Failed to refresh the gallery", err);
+	}
+};
+
+useLive(refreshQuietly, { areas: areas.gallery });
 
 const chooseSeason = (id) => {
 	if (id === seasonId.value) return;

@@ -257,6 +257,8 @@ import dayjs from "@/plugins/dayjs";
 import MatchCard from "../components/MatchCard.vue";
 import EntityImage from "@/components/EntityImage.vue";
 import { startLoader, pauseLoader } from "../utils/common";
+import { areas } from "@/utils/realtimeRules";
+import { useLive } from "@/utils/useLive";
 
 const seasonStore = useSeasonStore();
 const route = useRoute();
@@ -334,16 +336,41 @@ watch(
 	},
 );
 
-const fetchMatches = async () => {
-	startLoader();
-	await matchStore.fetchMatches(fixtureFilter.value.season);
-	if (!rosterStore.teams.has(fixtureFilter.value.season)) {
-		await rosterStore.fetchTeamDetails(fixtureFilter.value.season);
+const fetchMatches = async (options) => {
+	const quiet = Boolean(options && options.quiet);
+	const season = fixtureFilter.value.season;
+	if (!season) return;
+	if (!quiet) startLoader();
+	try {
+		await matchStore.fetchMatches(season);
+		if (quiet || !rosterStore.teams.has(season)) {
+			await rosterStore.fetchTeamDetails(season);
+		}
+		if (season !== fixtureFilter.value.season) return;
+		teamDetails.value = rosterStore.teams.get(season);
+		matches.value = matchStore.matches;
+	} catch (error) {
+		if (!quiet) throw error;
+		console.error("Failed to refresh fixtures", error);
+	} finally {
+		if (!quiet) pauseLoader();
 	}
-	teamDetails.value = rosterStore.teams.get(fixtureFilter.value.season);
-	matches.value = matchStore.matches;
-	pauseLoader();
 };
+
+useLive(() => fetchMatches({ quiet: true }), { areas: areas.fixtures });
+
+watch(
+	() => seasonStore.visibleSeasons,
+	(next) => {
+		seasons.value = next;
+	},
+);
+watch(
+	() => teamStore.teams,
+	(next) => {
+		teams.value = next;
+	},
+);
 
 const disabledDate = (time) => {
 	const oneDay = 24 * 60 * 60 * 1000;

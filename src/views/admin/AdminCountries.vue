@@ -95,6 +95,8 @@ import { adminApi } from "@/services/adminService";
 import { blankToNull, confirmDelete, matchesSearch, runAction, unwrap } from "@/utils/adminHelpers";
 import { useIsPhone } from "@/utils/viewport";
 import { usePermissions } from "@/utils/permissions";
+import { areas } from "@/utils/realtimeRules";
+import { useAdminLive } from "@/utils/useLive";
 
 const isPhone = useIsPhone();
 const { Permission, can, canAny } = usePermissions();
@@ -121,6 +123,19 @@ const load = async () => {
 	countries.value = ok ? unwrap(result) || [] : [];
 	loading.value = false;
 };
+
+useAdminLive(
+	async () => {
+		if (loading.value) return;
+		try {
+			countries.value = unwrap(await adminApi.countries.list()) || [];
+			page.value = Math.min(page.value, Math.max(1, Math.ceil(filtered.value.length / pageSize)));
+		} catch (error) {
+			console.error("Failed to refresh countries", error);
+		}
+	},
+	{ areas: areas.adminCountries },
+);
 
 const dialogOpen = ref(false);
 const saving = ref(false);

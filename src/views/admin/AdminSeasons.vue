@@ -108,6 +108,8 @@ import { blankToNull, confirmDelete, matchesSearch, runAction, unwrap } from "@/
 import { useIsPhone } from "@/utils/viewport";
 import { usePermissions } from "@/utils/permissions";
 import EntityImage from "@/components/EntityImage.vue";
+import { areas } from "@/utils/realtimeRules";
+import { useAdminLive } from "@/utils/useLive";
 
 const isPhone = useIsPhone();
 const { Permission, can, canAny } = usePermissions();
@@ -251,6 +253,25 @@ const removeTeam = async (team) => {
 	);
 	if (ok) await loadSeasonTeams();
 };
+
+useAdminLive(
+	async () => {
+		if (loading.value) return;
+		try {
+			const [seasonList, teamList] = await Promise.all([adminApi.seasons.list(), adminApi.teams.list()]);
+			seasons.value = unwrap(seasonList) || [];
+			teams.value = unwrap(teamList) || [];
+			if (teamsOpen.value && teamsSeason.value && !teamsLoading.value && !teamsSaving.value) {
+				const shown = teamsSeason.value.id;
+				const linked = unwrap(await adminApi.seasons.teams(shown)) || [];
+				if (teamsOpen.value && teamsSeason.value?.id === shown) seasonTeams.value = linked;
+			}
+		} catch (error) {
+			console.error("Failed to refresh seasons", error);
+		}
+	},
+	{ areas: areas.adminSeasons },
+);
 
 onMounted(load);
 </script>

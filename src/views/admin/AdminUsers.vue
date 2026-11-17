@@ -117,6 +117,8 @@ import { adminName } from "@/utils/media";
 import { accessLabel as describeAccess, buildIndex, emptyTree } from "@/utils/permissionTree";
 import { useAuthStore } from "@/store/authStore";
 import { Permission } from "@/utils/constants";
+import { areas } from "@/utils/realtimeRules";
+import { useAdminLive } from "@/utils/useLive";
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -149,11 +151,11 @@ const accessPercent = (admin) =>
 const areaSummary = (admin) => {
 	if (!index.value.order.length || !admin.permissions.length) return "Cannot change anything yet.";
 	const held = new Set(admin.permissions);
-	const areas = [];
+	const heldAreas = [];
 	index.value.items.forEach((item) => {
-		if (held.has(item.code) && !areas.includes(item.area)) areas.push(item.area);
+		if (held.has(item.code) && !heldAreas.includes(item.area)) heldAreas.push(item.area);
 	});
-	return areas.join(" · ");
+	return heldAreas.join(" · ");
 };
 
 const load = async () => {
@@ -174,6 +176,23 @@ const load = async () => {
 		.catch(() => {});
 	loading.value = false;
 };
+
+useAdminLive(
+	async () => {
+		if (loading.value) return;
+		try {
+			const requests = [adminApi.permissions.tree(), adminApi.countries.list()];
+			if (canView.value) requests.push(adminApi.admins.list());
+			const [treeResult, countryResult, adminResult] = await Promise.all(requests);
+			tree.value = unwrap(treeResult) || emptyTree();
+			countries.value = unwrap(countryResult) || [];
+			admins.value = canView.value ? unwrap(adminResult) || [] : [];
+		} catch (error) {
+			console.error("Failed to refresh admin users", error);
+		}
+	},
+	{ areas: areas.adminUsers },
+);
 
 const createOpen = ref(false);
 const openCreate = () => {

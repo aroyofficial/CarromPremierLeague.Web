@@ -95,12 +95,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from "vue";
+import { ref, onMounted, watch } from "vue";
 import { useSeasonStore } from "@/store/seasonStore";
 import { useStatsStore } from "@/store/statsStore";
 import { playerName } from "@/utils/media";
-import { keepFresh } from "@/utils/realtime";
 import { areas } from "@/utils/realtimeRules";
+import { useLive } from "@/utils/useLive";
 import EntityImage from "@/components/EntityImage.vue";
 import { InfoFilled } from "@element-plus/icons-vue";
 import StatsSwitch from "@/components/StatsSwitch.vue";
@@ -124,7 +124,6 @@ const dropdownPopperOptions = ref({
 });
 
 let statsRequest = 0;
-let stopFresh = () => {};
 
 const fetchTopCoinPotters = async (options) => {
 	const quiet = Boolean(options && options.quiet);
@@ -163,21 +162,19 @@ const fetchTopCoinPotters = async (options) => {
 	}
 };
 
-const refreshStatsIfVisible = () => {
-	if (document.visibilityState === "visible") fetchTopCoinPotters({ quiet: true });
-};
+useLive(() => fetchTopCoinPotters({ quiet: true }), { areas: areas.stats });
+
+watch(
+	() => seasonStore.visibleSeasons,
+	(next) => {
+		seasons.value = next;
+	},
+);
 
 onMounted(() => {
 	seasons.value = seasonStore.visibleSeasons;
 	selectedSeason.value = seasonStore.selectedSeason;
 	fetchTopCoinPotters();
-	stopFresh = keepFresh(() => fetchTopCoinPotters({ quiet: true }), { areas: areas.stats });
-	document.addEventListener("visibilitychange", refreshStatsIfVisible);
-});
-
-onUnmounted(() => {
-	stopFresh();
-	document.removeEventListener("visibilitychange", refreshStatsIfVisible);
 });
 </script>
 

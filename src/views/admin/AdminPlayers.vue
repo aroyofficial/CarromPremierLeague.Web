@@ -157,6 +157,8 @@ import { optionalContactError } from "@/utils/contactNumber";
 import { validateForm } from "@/utils/formValidation";
 import EntityImage from "@/components/EntityImage.vue";
 import ImageUploadField from "@/components/admin/ImageUploadField.vue";
+import { areas } from "@/utils/realtimeRules";
+import { useAdminLive } from "@/utils/useLive";
 
 const isPhone = useIsPhone();
 const { Permission, can, canAny } = usePermissions();
@@ -185,6 +187,20 @@ const load = async () => {
 	}
 	loading.value = false;
 };
+
+useAdminLive(
+	async () => {
+		if (loading.value) return;
+		try {
+			const [playerList, countryList] = await Promise.all([adminApi.players.list(), adminApi.countries.list()]);
+			players.value = unwrap(playerList) || [];
+			countries.value = unwrap(countryList) || [];
+		} catch (error) {
+			console.error("Failed to refresh players", error);
+		}
+	},
+	{ areas: areas.adminPlayers },
+);
 
 const dialogOpen = ref(false);
 const saving = ref(false);

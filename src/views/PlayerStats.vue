@@ -69,12 +69,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from "vue";
+import { ref, onMounted, watch } from "vue";
 import { useSeasonStore } from "@/store/seasonStore";
 import { useStatsStore } from "@/store/statsStore";
 import { playerName } from "@/utils/media";
-import { keepFresh } from "@/utils/realtime";
 import { areas } from "@/utils/realtimeRules";
+import { useLive } from "@/utils/useLive";
 import EntityImage from "@/components/EntityImage.vue";
 import StatsSwitch from "@/components/StatsSwitch.vue";
 
@@ -92,7 +92,6 @@ const dropdownPopperOptions = ref({
 });
 
 let statsRequest = 0;
-let stopFresh = () => {};
 
 const fetchPlayerStats = async (options) => {
 	const quiet = Boolean(options && options.quiet);
@@ -130,21 +129,19 @@ const fetchPlayerStats = async (options) => {
 	}
 };
 
-const refreshPlayerStatsIfVisible = () => {
-	if (document.visibilityState === "visible") fetchPlayerStats({ quiet: true });
-};
+useLive(() => fetchPlayerStats({ quiet: true }), { areas: areas.playerStats });
+
+watch(
+	() => seasonStore.visibleSeasons,
+	(next) => {
+		seasons.value = next;
+	},
+);
 
 onMounted(() => {
 	seasons.value = seasonStore.visibleSeasons;
 	selectedSeason.value = seasonStore.selectedSeason;
 	fetchPlayerStats();
-	stopFresh = keepFresh(() => fetchPlayerStats({ quiet: true }), { areas: areas.playerStats });
-	document.addEventListener("visibilitychange", refreshPlayerStatsIfVisible);
-});
-
-onUnmounted(() => {
-	stopFresh();
-	document.removeEventListener("visibilitychange", refreshPlayerStatsIfVisible);
 });
 </script>
 

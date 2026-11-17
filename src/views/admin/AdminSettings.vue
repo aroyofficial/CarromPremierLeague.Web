@@ -172,11 +172,13 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import { notify } from "@/utils/notify";
 import { useAuthStore } from "@/store/authStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import { Permission, Routes } from "@/utils/constants";
+import { areas } from "@/utils/realtimeRules";
+import { useAdminLive } from "@/utils/useLive";
 
 const settingsStore = useSettingsStore();
 const authStore = useAuthStore();
@@ -200,14 +202,18 @@ const regulationValid = computed(() => wholeNumber(form.regulation_minutes, 5, 3
 const extraValid = computed(() => wholeNumber(form.extra_minutes, 1, 10));
 const formValid = computed(() => regulationValid.value && extraValid.value);
 
+const SETTING_KEYS = Object.keys(form);
+// What the form was last filled from. Edits are measured against this, so a background store refresh never looks like an edit.
+const baseline = reactive({ ...form });
+
 const dirty = computed(
 	() =>
-		form.regulation_minutes !== settingsStore.regulation_minutes ||
-		form.extra_minutes !== settingsStore.extra_minutes ||
-		form.league_queen !== settingsStore.league_queen ||
-		(form.league_queen && form.queen_needs_cover) !== settingsStore.queen_needs_cover ||
-		form.assistant_public_enabled !== settingsStore.assistant_public_enabled ||
-		form.assistant_admin_enabled !== settingsStore.assistant_admin_enabled,
+		form.regulation_minutes !== baseline.regulation_minutes ||
+		form.extra_minutes !== baseline.extra_minutes ||
+		form.league_queen !== baseline.league_queen ||
+		(form.league_queen && form.queen_needs_cover) !== baseline.queen_needs_cover ||
+		form.assistant_public_enabled !== baseline.assistant_public_enabled ||
+		form.assistant_admin_enabled !== baseline.assistant_admin_enabled,
 );
 
 const canSave = computed(() => formValid.value && dirty.value && !saving.value);
@@ -240,13 +246,30 @@ const queenDetail = computed(() => {
 });
 
 const copyFromStore = () => {
-	form.regulation_minutes = settingsStore.regulation_minutes;
-	form.extra_minutes = settingsStore.extra_minutes;
-	form.league_queen = settingsStore.league_queen;
-	form.queen_needs_cover = settingsStore.queen_needs_cover;
-	form.assistant_public_enabled = settingsStore.assistant_public_enabled;
-	form.assistant_admin_enabled = settingsStore.assistant_admin_enabled;
+	SETTING_KEYS.forEach((key) => {
+		form[key] = settingsStore[key];
+		baseline[key] = settingsStore[key];
+	});
 };
+
+watch(
+	() => SETTING_KEYS.map((key) => settingsStore[key]),
+	() => {
+		if (!loading.value && !saving.value && !dirty.value) copyFromStore();
+	},
+);
+
+useAdminLive(
+	async () => {
+		if (loading.value || saving.value) return;
+		try {
+			await settingsStore.fetchSettings();
+		} catch (error) {
+			console.error("Failed to refresh settings", error);
+		}
+	},
+	{ areas: areas.adminSettings },
+);
 
 const onLeagueQueenChange = (enabled) => {
 	if (!enabled) form.queen_needs_cover = false;

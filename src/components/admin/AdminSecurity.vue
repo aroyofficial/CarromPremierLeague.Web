@@ -129,6 +129,8 @@ import { authService } from "@/services/authService";
 import { unwrap } from "@/utils/adminHelpers";
 import { createPasskey } from "@/utils/webauthn";
 import AuthenticatorSetupDialog from "@/components/admin/AuthenticatorSetupDialog.vue";
+import { areas } from "@/utils/realtimeRules";
+import { useAdminLive } from "@/utils/useLive";
 
 const status = ref(null);
 const loading = ref(true);
@@ -261,6 +263,19 @@ const removePasskey = async (key) => {
 		"The passkey could not be removed.",
 	);
 };
+
+useAdminLive(
+	async () => {
+		if (loading.value || busy.value || totpOpen.value) return;
+		try {
+			const next = unwrap(await authService.mfaStatus());
+			if (!busy.value) status.value = next;
+		} catch (error) {
+			console.error("Failed to refresh sign-in security", error);
+		}
+	},
+	{ areas: areas.adminSecurity },
+);
 
 onMounted(load);
 </script>
