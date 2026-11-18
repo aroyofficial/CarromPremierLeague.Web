@@ -305,6 +305,9 @@
 					<span v-else-if="!canRunMatch" class="match-access-note">
 						Your account cannot run matches. Ask for the 'Edit and run matches' and 'Save scorecards' permissions.
 					</span>
+					<span v-else-if="showStartBtn() && blockMatchManagement()" class="match-access-note">
+						This match can be started only on {{ scheduledDayText() }}.
+					</span>
 					<el-button @click="hideMatchManagementDialog()">Cancel</el-button>
 					<el-button
 						v-if="showResetTossBtn()"
@@ -526,6 +529,7 @@ import {
 import { ElMessageBox } from "element-plus";
 import { notify } from "@/utils/notify";
 import { matchService } from "@/services/matchService";
+import { startBlockedUntilScheduledDay } from "@/utils/scheduledStart";
 import { useSettingsStore } from "@/store/settingsStore";
 import { playerName } from "@/utils/media";
 import EntityImage from "@/components/EntityImage.vue";
@@ -703,9 +707,16 @@ const getTeamLogo = (teamId) => (teamId ? getTeam(teamId)?.logo_url || "" : "");
 
 const teamLabel = (teamId) => (teamId ? getTeam(teamId)?.name || "" : "TBD");
 
-const blockMatchManagement = () => {
-	return false;
-	// return !dayjs(props.match.scheduled_date).isSame(dayjs(), 'day');
+const blockMatchManagement = () =>
+	startBlockedUntilScheduledDay({
+		enabled: settingsStore.start_on_scheduled_day,
+		scheduledDate: props.match.scheduled_date,
+		today: dayjs.tz().format("YYYY-MM-DD"),
+	});
+
+const scheduledDayText = () => {
+	const scheduled = String(props.match.scheduled_date || "").slice(0, 10);
+	return scheduled ? dayjs.tz(scheduled, "Asia/Kolkata").format("D MMM YYYY") : "its scheduled date";
 };
 
 const toLimitRow = (player, teamId) => ({
@@ -1196,6 +1207,7 @@ watch(showTossDialog, (open) => {
 });
 
 const scaleDialog = async () => {
+	if (blockMatchManagement()) return;
 	if (matchObject.value.toss_outcome == null && tossDecided(props.match.toss_outcome)) {
 		matchObject.value.toss_outcome = props.match.toss_outcome;
 	}
@@ -1289,7 +1301,7 @@ const statusId = (name) => MatchStatus.find((status) => status.name === name)?.i
 const scheduledStatus = () => statusId("Scheduled");
 
 const startMatch = async () => {
-	if (!showResetTossBtn()) return;
+	if (!showResetTossBtn() || blockMatchManagement()) return;
 	pauseBgm();
 	clearMatchTimeouts();
 	lock.value = true;

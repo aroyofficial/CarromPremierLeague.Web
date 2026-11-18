@@ -3,7 +3,7 @@
 		<div class="admin-page-head">
 			<div>
 				<h1>Settings</h1>
-				<p>Match clock, Queen rules, and the Striker chatbot. The public site and match completion both use these values.</p>
+				<p>Match clock, Queen rules, when a match may start, and the Striker chatbot. The public site and match completion both use these values.</p>
 			</div>
 		</div>
 
@@ -28,6 +28,11 @@
 					<span>League Queen</span>
 					<strong>{{ queenHeadline }}</strong>
 					<small>{{ queenDetail }}</small>
+				</article>
+				<article class="preview-card">
+					<span>Match day</span>
+					<strong>{{ startDayHeadline }}</strong>
+					<small>{{ startDayDetail }}</small>
 				</article>
 				<article class="preview-card">
 					<span>Striker</span>
@@ -122,6 +127,26 @@
 
 				<section class="admin-card setting-group">
 					<header class="group-head">
+						<h2>Match day</h2>
+						<p>Choose whether a scheduled match can be started only on the date it was given.</p>
+					</header>
+
+					<div class="setting-row">
+						<div class="setting-copy">
+							<h3 id="start-day-label">Start a match only on its scheduled date</h3>
+							<p>When this is on, Start stays unavailable on every other day. When it is off, a match can be started on any day.</p>
+						</div>
+						<el-switch
+							v-model="form.start_on_scheduled_day"
+							class="setting-switch"
+							size="large"
+							aria-labelledby="start-day-label"
+						/>
+					</div>
+				</section>
+
+				<section class="admin-card setting-group">
+					<header class="group-head">
 						<h2>Striker</h2>
 						<p>Striker answers from league data. Choose who sees it. A switch that is off hides Striker from that audience and stops it from answering.</p>
 					</header>
@@ -192,6 +217,7 @@ const form = reactive({
 	extra_minutes: 5,
 	league_queen: false,
 	queen_needs_cover: false,
+	start_on_scheduled_day: false,
 	assistant_public_enabled: true,
 	assistant_admin_enabled: true,
 });
@@ -212,6 +238,7 @@ const dirty = computed(
 		form.extra_minutes !== baseline.extra_minutes ||
 		form.league_queen !== baseline.league_queen ||
 		(form.league_queen && form.queen_needs_cover) !== baseline.queen_needs_cover ||
+		form.start_on_scheduled_day !== baseline.start_on_scheduled_day ||
 		form.assistant_public_enabled !== baseline.assistant_public_enabled ||
 		form.assistant_admin_enabled !== baseline.assistant_admin_enabled,
 );
@@ -238,6 +265,12 @@ const assistantDetail = computed(
 );
 
 const queenHeadline = computed(() => (form.league_queen ? "On" : "Off"));
+
+const startDayHeadline = computed(() => (form.start_on_scheduled_day ? "That day" : "Any day"));
+
+const startDayDetail = computed(() =>
+	form.start_on_scheduled_day ? "Start only on the scheduled date" : "Start is not tied to the date",
+);
 
 const queenDetail = computed(() => {
 	if (!form.league_queen) return "Stays off the board in league matches";
@@ -297,6 +330,7 @@ const save = async () => {
 			extra_minutes: form.extra_minutes,
 			league_queen: form.league_queen,
 			queen_needs_cover: form.league_queen && form.queen_needs_cover,
+			start_on_scheduled_day: form.start_on_scheduled_day,
 			assistant_public_enabled: form.assistant_public_enabled,
 			assistant_admin_enabled: form.assistant_admin_enabled,
 		});
@@ -325,7 +359,7 @@ onMounted(load);
 
 .preview {
 	display: grid;
-	grid-template-columns: repeat(4, minmax(0, 1fr));
+	grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
 	gap: 12px;
 }
 

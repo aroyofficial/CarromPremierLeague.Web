@@ -8,6 +8,7 @@ const defaults = {
 	extra_minutes: 5,
 	league_queen: false,
 	queen_needs_cover: false,
+	start_on_scheduled_day: false,
 	assistant_public_enabled: true,
 	assistant_admin_enabled: true,
 };
