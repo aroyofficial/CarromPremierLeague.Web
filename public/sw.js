@@ -6,14 +6,30 @@ self.addEventListener("push", (event) => {
 		payload = { title: "Carrom Premier League", body: event.data ? event.data.text() : "" };
 	}
 	const title = payload.title || "Carrom Premier League";
-	event.waitUntil(
-		self.registration.showNotification(title, {
-			body: payload.body || "",
-			tag: payload.tag || "cpl-match",
-			data: { url: payload.url || "./" },
-		}),
-	);
+	event.waitUntil(deliverPush(title, payload));
 });
+
+// Only Chromium documents that a push may skip the system alert while a page of the site is
+// in front. Safari requires an alert for every push and can drop a subscription that skips
+// one, so outside Chromium the alert is always shown.
+const quietWhenInFront = Boolean(self.navigator && self.navigator.userAgentData);
+
+// A focused, visible page already shows the person the league is talking about. In Chromium it
+// gets an in-page notice instead of a second system alert. Every other case gets the alert.
+async function deliverPush(title, payload) {
+	const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+	const inFront = windows.filter((item) => item.visibilityState === "visible" && item.focused);
+	if (quietWhenInFront && inFront.length) {
+		const message = { type: "cpl-push", title, body: payload.body || "", url: payload.url || "./" };
+		inFront.forEach((client) => client.postMessage(message));
+		return;
+	}
+	await self.registration.showNotification(title, {
+		body: payload.body || "",
+		tag: payload.tag || "cpl-match",
+		data: { url: payload.url || "./" },
+	});
+}
 
 const API_BASE = (new URL(self.location.href).searchParams.get("api") || "").replace(/\/+$/, "");
 

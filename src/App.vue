@@ -14,6 +14,7 @@
 import { computed, onMounted, onUnmounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { notify } from "@/utils/notify";
+import { listenForForegroundPush } from "@/utils/foregroundPush";
 import { authService } from "@/services/authService";
 import { hub, watchLive } from "@/utils/realtime";
 import { areaOf, areas } from "@/utils/realtimeRules";
@@ -119,15 +120,19 @@ const onPermissionDenied = () => {
 	authStore.loadProfile({ force: true }).catch(() => undefined);
 };
 
+let stopForegroundPush = () => undefined;
+
 onMounted(() => {
 	window.addEventListener("cpl:session-expired", onSessionExpired);
 	window.addEventListener("cpl:permission-denied", onPermissionDenied);
 	window.addEventListener("storage", onStorage);
+	stopForegroundPush = listenForForegroundPush(navigator.serviceWorker, (message) => notify.info(message));
 	if (authStore.isAuthenticated) authStore.loadProfile().catch(() => undefined);
 	if (!settingsStore.loaded) settingsStore.fetchSettings().catch(() => undefined);
 });
 onUnmounted(() => {
 	stopStoreSync();
+	stopForegroundPush();
 	window.removeEventListener("cpl:session-expired", onSessionExpired);
 	window.removeEventListener("cpl:permission-denied", onPermissionDenied);
 	window.removeEventListener("storage", onStorage);

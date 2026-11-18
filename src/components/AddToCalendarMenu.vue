@@ -12,6 +12,9 @@
 				<button v-if="item.canConnect" type="button" class="add-to-calendar-link" :disabled="busy" @click.stop.prevent="connect(item.provider)">
 					{{ item.action }}
 				</button>
+				<button v-if="item.calendarAction" type="button" class="add-to-calendar-link" :disabled="busy" @click.stop.prevent="toggleMatch(item)">
+					{{ item.calendarAction.label }}
+				</button>
 			</li>
 		</ul>
 		<p v-if="message" class="add-to-calendar-message" role="status">{{ message }}</p>
@@ -22,7 +25,7 @@
 import { computed, onMounted, ref } from "vue";
 
 import { authToken } from "@/utils/authToken";
-import { syncStateLabel } from "@/utils/matchFollow";
+import { matchCalendarAction, syncStateLabel } from "@/utils/matchFollow";
 import { notifyService } from "@/services/notifyService";
 
 const props = defineProps({
@@ -43,6 +46,7 @@ function sharedCapabilities() {
 
 const caps = ref(null);
 const connections = ref([]);
+const matchStates = ref([]);
 const busy = ref(false);
 const message = ref("");
 const connectionsLoaded = ref(false);
@@ -68,7 +72,12 @@ const providerRows = computed(() =>
 	PROVIDERS.filter((item) => signedIn.value && caps.value?.[item.capability]?.ready).map((item) => {
 		if (!connectionsLoaded.value) return { ...item, state: "Checking", canConnect: false };
 		const saved = connections.value.find((row) => row.provider === item.provider);
-		if (saved?.state === "connected") return { ...item, state: syncStateLabel(saved.sync_state), canConnect: false };
+		if (saved?.state === "connected") {
+			const current = matchStates.value.find((row) => row.id === saved.id);
+			const calendarAction = matchCalendarAction(current);
+			const state = current?.removed ? "Removed from this match" : syncStateLabel(saved.sync_state);
+			return { ...item, state, canConnect: false, calendarAction: calendarAction ? { ...calendarAction, connectionId: saved.id } : null };
+		}
 		if (saved?.state === "reauthorization_required") {
 			return { ...item, state: "Reauthorization required", action: "Connect again", canConnect: true };
 		}
@@ -76,16 +85,49 @@ const providerRows = computed(() =>
 	}),
 );
 
-async function onToggle(event) {
-	if (!event.target.open || connectionsRequested || !signedIn.value) return;
-	connectionsRequested = true;
+async function loadMatchStates() {
 	try {
-		const body = await notifyService.listConnections();
-		connections.value = body.data || [];
+		const body = await notifyService.matchConnectionStates(props.matchId);
+		matchStates.value = body.data || [];
 	} catch {
-		connections.value = [];
+		matchStates.value = [];
 	}
-	connectionsLoaded.value = true;
+}
+
+async function onToggle(event) {
+	if (!event.target.open || !signedIn.value) return;
+	if (!connectionsRequested) {
+		connectionsRequested = true;
+		try {
+			const body = await notifyService.listConnections();
+			connections.value = body.data || [];
+		} catch {
+			connections.value = [];
+		}
+		connectionsLoaded.value = true;
+	}
+	await loadMatchStates();
+}
+
+async function toggleMatch(item) {
+	const action = item.calendarAction;
+	if (!action) return;
+	busy.value = true;
+	message.value = "";
+	try {
+		if (action.action === "withdraw") {
+			await notifyService.withdrawMatch(action.connectionId, props.matchId);
+			message.value = `Removed this match from ${item.name}. The change reaches your calendar shortly.`;
+		} else {
+			await notifyService.restoreMatch(action.connectionId, props.matchId);
+			message.value = `Added this match back to ${item.name}. The change reaches your calendar shortly.`;
+		}
+		await loadMatchStates();
+	} catch (error) {
+		message.value = error?.response?.data?.detail || "The calendar could not be updated. Try again.";
+	} finally {
+		busy.value = false;
+	}
 }
 
 async function connect(provider) {

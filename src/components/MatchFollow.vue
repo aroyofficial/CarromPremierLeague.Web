@@ -16,18 +16,22 @@
 				{{ pushLabel }}
 			</button>
 			<button v-if="caps.google?.ready && signedIn" type="button" class="follow-btn follow-btn-quiet" :disabled="busy" @click="connect('google')">
-				Connect Google Calendar
+				{{ connecting === "google" ? "Connecting..." : "Connect Google Calendar" }}
 			</button>
 			<button v-if="caps.microsoft?.ready && signedIn" type="button" class="follow-btn follow-btn-quiet" :disabled="busy" @click="connect('microsoft')">
-				Connect Outlook
+				{{ connecting === "microsoft" ? "Connecting..." : "Connect Outlook" }}
 			</button>
 		</div>
 
+		<p v-if="canAskForPush && !endpoint" class="match-follow-status">
+			Get a device alert when a match is scheduled, moved, goes live, finishes, or is cancelled, and on match day.
+			Your browser asks for permission only after you tap the button.
+		</p>
 		<p v-if="pushUnsupported" class="match-follow-status" role="status">
 			This browser cannot show web push alerts. On iPhone or iPad, add this site to the Home Screen first (iOS 16.4 or later), then open it from there.
 		</p>
-		<p v-else-if="pushDenied && !endpoint" class="match-follow-status" role="status">
-			Alerts are blocked for this site. Allow notifications in the browser's site settings, then reload this page.
+		<p v-else-if="permissionText" class="match-follow-status" role="status">
+			{{ permissionText }}
 		</p>
 
 		<p v-if="status" class="match-follow-status" role="status">{{ status }}</p>
@@ -36,11 +40,12 @@
 			<a :href="feed.webcal_url">Open in Apple Calendar</a>
 			<a :href="feed.https_url">Open the subscription link</a>
 			<button type="button" class="follow-text" @click="copyLink">{{ copied ? "Copied" : "Copy subscription link" }}</button>
+			<button type="button" class="follow-text" :disabled="busy" @click="revokeLink">Revoke this link</button>
 		</div>
 
 		<form v-if="endpoint" class="match-follow-prefs" @submit.prevent="saveChoices">
 			<span>Alerts on this device</span>
-			<label v-for="choice in choices" :key="choice.key">
+			<label v-for="choice in visibleChoices" :key="choice.key">
 				<input v-model="preferences[choice.key]" type="checkbox" />
 				{{ choice.label }}
 			</label>
@@ -57,7 +62,7 @@ import { useRouter } from "vue-router";
 import { notifyService } from "@/services/notifyService";
 import { apiBaseUrl } from "@/services/api";
 import { authToken } from "@/utils/authToken";
-import { alertChoices, pushSupported, reconcileSaved, serviceWorkerUrl, urlBase64ToUint8Array } from "@/utils/matchFollow";
+import { alertChoices, forgetFeed, permissionLabel, pushSupported, reconcileSaved, rememberFeed, savedFeed, serviceWorkerUrl, unsubscribeSettled, urlBase64ToUint8Array } from "@/utils/matchFollow";
 
 const props = defineProps({
 	seasonId: { type: [Number, String], default: null },
@@ -82,7 +87,17 @@ const choices = [
 	{ key: "notify_ended", label: "Finished" },
 	{ key: "notify_score", label: "Score" },
 	{ key: "notify_reminder", label: "Match-day reminder" },
+	// Only an admin's own device can hear this: a calendar connection of theirs needs attention.
+	{ key: "notify_sync_problem", label: "Calendar needs attention", adminOnly: true },
 ];
+
+const visibleChoices = computed(() => choices.filter((choice) => !choice.adminOnly || signedIn.value));
+const permissionState = ref("default");
+const connecting = ref("");
+const permissionText = computed(() => {
+	if (!caps.value?.push?.ready || !pushSupported()) return "";
+	return permissionLabel(permissionState.value, true);
+});
 
 const shown = computed(() => {
 	if (!props.seasonId || !caps.value) return false;
@@ -91,25 +106,32 @@ const shown = computed(() => {
 	);
 });
 
-const canAskForPush = computed(() => caps.value?.push?.ready && pushSupported());
+// A blocked permission cannot be asked again from the page, so the button only returns once the site settings allow it.
+const canAskForPush = computed(
+	() => caps.value?.push?.ready && pushSupported() && (permissionState.value !== "denied" || Boolean(endpoint.value)),
+);
 const signedIn = computed(() => Boolean(authToken.get()));
 const pushUnsupported = ref(false);
-const pushDenied = ref(false);
 const pushLabel = computed(() => (endpoint.value ? "Alerts are on" : "Notify this device"));
 
 onMounted(loadCapabilities);
-watch(() => props.seasonId, () => {
-	feed.value = null;
+watch(() => [props.seasonId, props.teamId], () => {
 	status.value = "";
+	restoreFeed();
 });
+
+function restoreFeed() {
+	feed.value = props.seasonId ? savedFeed(localStorage, props.seasonId, props.teamId) : null;
+}
 
 async function loadCapabilities() {
 	try {
 		const body = await notifyService.capabilities();
 		caps.value = body.data;
+		restoreFeed();
 		const pushReady = Boolean(caps.value?.push?.ready);
 		pushUnsupported.value = pushReady && !pushSupported();
-		pushDenied.value = pushReady && pushSupported() && Notification.permission === "denied";
+		permissionState.value = pushSupported() ? Notification.permission : "default";
 		const saved = readSaved();
 		if (saved?.endpoint) endpoint.value = saved.endpoint;
 		if (pushReady && pushSupported()) await reconcileWithBrowser(saved);
@@ -130,8 +152,15 @@ async function reconcileWithBrowser(saved) {
 			remember(next.value);
 		}
 		if (next.action === "clear") {
-			localStorage.removeItem(STORAGE_KEY);
 			endpoint.value = "";
+			// The Windows push service keeps accepting messages for a dropped endpoint, so the
+			// server row is turned off as well. Any other failure keeps it saved to retry next visit.
+			try {
+				await notifyService.unsubscribe(saved.endpoint);
+			} catch (error) {
+				if (!unsubscribeSettled(error)) return;
+			}
+			localStorage.removeItem(STORAGE_KEY);
 		}
 	} catch {
 		// The saved state stays as it was; Save and Turn off report any mismatch.
@@ -167,10 +196,35 @@ async function subscribeCalendar() {
 			season_id: Number(props.seasonId),
 			team_id: props.teamId ? Number(props.teamId) : null,
 		});
+		const previous = savedFeed(localStorage, props.seasonId, props.teamId);
+		if (previous?.token && previous.token !== body.data.token) {
+			try {
+				await notifyService.revokeFeed(previous.token);
+			} catch {
+				// The new link is the one in use. The old one stays revocable from this page.
+			}
+		}
 		feed.value = body.data;
+		rememberFeed(localStorage, props.seasonId, props.teamId, body.data);
 		status.value = "Subscribe to the link. The calendar updates when this season changes. A downloaded copy will not.";
 	} catch (error) {
 		status.value = error?.response?.data?.detail || "The calendar link could not be created.";
+	} finally {
+		busy.value = false;
+	}
+}
+
+async function revokeLink() {
+	if (!feed.value?.token) return;
+	busy.value = true;
+	try {
+		await notifyService.revokeFeed(feed.value.token);
+		forgetFeed(localStorage, props.seasonId, props.teamId);
+		feed.value = null;
+		copied.value = false;
+		status.value = "That link no longer updates. Create a new one to subscribe again.";
+	} catch (error) {
+		status.value = error?.response?.data?.detail || "The link could not be revoked. Try again.";
 	} finally {
 		busy.value = false;
 	}
@@ -192,8 +246,8 @@ async function enablePush() {
 	status.value = "";
 	try {
 		const permission = await Notification.requestPermission();
+		permissionState.value = permission;
 		if (permission !== "granted") {
-			pushDenied.value = permission === "denied";
 			status.value = "Notifications stay off until this browser allows them.";
 			return;
 		}
@@ -256,6 +310,7 @@ async function connect(provider) {
 		return;
 	}
 	busy.value = true;
+	connecting.value = provider;
 	status.value = "";
 	try {
 		const body = provider === "google" ? await notifyService.connectGoogle() : await notifyService.connectMicrosoft();
@@ -263,6 +318,7 @@ async function connect(provider) {
 	} catch (error) {
 		status.value = error?.response?.data?.detail || "Calendar connection is not available.";
 		busy.value = false;
+		connecting.value = "";
 	}
 }
 </script>
