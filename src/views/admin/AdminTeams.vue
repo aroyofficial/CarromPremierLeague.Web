@@ -1,5 +1,5 @@
 <template>
-	<div>
+	<div class="admin-page">
 		<div class="admin-page-head">
 			<div>
 				<h1>Teams</h1>
@@ -13,8 +13,9 @@
 			</div>
 		</div>
 
-		<div class="admin-card">
-			<el-table :data="filtered" v-loading="loading" empty-text="No teams yet" stripe>
+		<div class="admin-card admin-table-card">
+			<div ref="tableBox" class="admin-table-fill">
+			<el-table :height="tableHeight" :data="filtered" v-loading="loading" empty-text="No teams yet" stripe>
 				<el-table-column prop="id" label="ID" :width="isPhone ? 48 : 70" />
 				<el-table-column label="Team" min-width="220">
 					<template #default="{ row }">
@@ -45,6 +46,7 @@
 					</template>
 				</el-table-column>
 			</el-table>
+			</div>
 		</div>
 
 		<el-dialog
@@ -97,6 +99,7 @@ import { computed, onMounted, reactive, ref } from "vue";
 import { Delete, Edit, Plus, Search } from "@element-plus/icons-vue";
 import { adminApi, apiErrorMessage } from "@/services/adminService";
 import { blankToNull, confirmDelete, matchesSearch, runAction, unwrap } from "@/utils/adminHelpers";
+import { useFillHeight } from "@/utils/useFillHeight";
 import { useIsPhone } from "@/utils/viewport";
 import { usePermissions } from "@/utils/permissions";
 import EntityImage from "@/components/EntityImage.vue";
@@ -105,6 +108,7 @@ import { areas } from "@/utils/realtimeRules";
 import { useAdminLive } from "@/utils/useLive";
 
 const isPhone = useIsPhone();
+const { box: tableBox, height: tableHeight } = useFillHeight();
 const { Permission, can, canAny } = usePermissions();
 import { useTeamStore } from "@/store/teamStore";
 

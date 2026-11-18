@@ -1,5 +1,5 @@
 <template>
-	<div>
+	<div class="admin-page">
 		<div class="admin-page-head">
 			<div>
 				<h1>Matches</h1>
@@ -25,9 +25,9 @@
 			</div>
 		</div>
 
-		<el-empty v-if="!seasonId" description="Choose a season to manage its matches" />
+		<el-empty v-if="!seasonId" class="admin-page-rest" description="Choose a season to manage its matches" />
 
-		<div v-else class="admin-card">
+		<div v-else class="admin-card admin-table-card">
 			<el-alert class="mb-3 timing-alert" type="info" :closable="false" show-icon title="Match timing is enforced">
 				<p class="timing-lead">Saving the last league result builds the knockout automatically.</p>
 				<ul class="timing-steps">
@@ -49,7 +49,8 @@
 					</li>
 				</ul>
 			</el-alert>
-			<el-table class="matches-table" :data="filteredMatches" v-loading="loading" empty-text="No matches in this season yet" stripe>
+			<div ref="tableBox" class="admin-table-fill">
+			<el-table class="matches-table" :height="tableHeight" :data="filteredMatches" v-loading="loading" empty-text="No matches in this season yet" stripe>
 				<el-table-column prop="order" label="#" width="52" />
 				<el-table-column label="Date" width="112">
 					<template #default="{ row }">{{ row.scheduled_date }}</template>
@@ -107,6 +108,7 @@
 					</template>
 				</el-table-column>
 			</el-table>
+			</div>
 		</div>
 
 		<el-dialog v-model="dialogOpen" :title="editingMatch ? `Edit match #${editingMatch.order}` : 'New match'" width="min(1080px, 96vw)">
@@ -201,11 +203,13 @@ import { adminApi } from "@/services/adminService";
 import { confirmDelete, defaultSeasonId, runAction, unwrap } from "@/utils/adminHelpers";
 import { MatchCategory, MatchOutcome, MatchStatus, Routes, TossOutcome } from "@/utils/constants";
 import { coinBounds, colourOverflow } from "@/utils/coinLimits";
+import { useFillHeight } from "@/utils/useFillHeight";
 import { usePermissions } from "@/utils/permissions";
 import { areas } from "@/utils/realtimeRules";
 import { useAdminLive } from "@/utils/useLive";
 
 const { Permission, can, canAny, canAll } = usePermissions();
+const { box: tableBox, height: tableHeight } = useFillHeight();
 
 const playedStatusId = MatchStatus.find((status) => status.name === "Played")?.id;
 

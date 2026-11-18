@@ -257,7 +257,10 @@ html.dark body:has(.admin-shell) .el-popper {
 	--panel-width: 256px;
 	display: grid;
 	grid-template-columns: var(--rail-width) minmax(0, 1fr);
-	min-height: calc(100vh - var(--app-header-height));
+	height: calc(100dvh - var(--app-header-height));
+	max-height: calc(100dvh - var(--app-header-height));
+	min-height: 0;
+	overflow: hidden;
 	background: var(--cpl-surface-muted);
 	transition: grid-template-columns 0.25s ease;
 
@@ -479,10 +482,27 @@ html.dark .admin-sidebar {
 .admin-main {
 	grid-column: 2;
 	min-width: 0;
-	padding: 24px clamp(16px, 3vw, 36px) 48px;
+	min-height: 0;
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+	padding: 24px clamp(16px, 3vw, 36px) 16px;
+}
+
+.admin-main > * {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow: auto;
+}
+
+.admin-main > .admin-page {
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
 }
 
 .admin-page-head {
+	flex: 0 0 auto;
 	display: flex;
 	flex-wrap: wrap;
 	align-items: flex-end;
@@ -526,6 +546,29 @@ html.dark .admin-sidebar {
 
 .admin-card + .admin-card {
 	margin-top: 16px;
+}
+
+.admin-table-card {
+	flex: 1 1 auto;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+.admin-table-fill {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow: hidden;
+}
+
+.timing-alert {
+	flex: 0 0 auto;
+}
+
+.admin-page-rest {
+	flex: 1 1 auto;
+	min-height: 0;
 }
 
 .admin-card-title {

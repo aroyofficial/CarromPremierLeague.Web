@@ -276,6 +276,8 @@
 						@click="startMatch()"
 						size="large"
 						type="success"
+						:disabled="!showResetTossBtn()"
+						title="The toss has to be saved before the match can start"
 						>Proceed</el-button
 					>
 					<template v-else>
@@ -426,32 +428,35 @@
 			:close-on-press-escape="false"
 			:show-close="false"
 			align-center
-			width="min(400px, 92vw)"
+			width="min(520px, 94vw)"
 		>
 			<template #header>
-				<div class="ms-2">Who won the Toss?</div>
+				<div class="ms-2">Toss</div>
 			</template>
-			<div>
-				<el-radio-group v-model="matchObject.toss_outcome">
-					<div class="radio-column ms-2">
-						<el-radio :value="TossOutcome.Team1Won">{{
-							getTeam(match.team1).name
-						}}</el-radio>
-						<el-radio :value="TossOutcome.Team2Won">{{
-							getTeam(match.team2).name
-						}}</el-radio>
+			<div class="toss-ceremony">
+				<div class="toss-name" :class="{ 'is-winner': tossLanded && matchObject.toss_outcome === TossOutcome.Team1Won }">{{ tossTeamName(match.team1) }}</div>
+				<div class="toss-stage">
+					<div class="toss-shadow" :style="{ transform: `scale(${1 - coinLift / 80})` }"></div>
+					<div
+						class="toss-coin"
+						:style="{ transform: `translateY(${-coinLift}px) rotateY(${coinAngle}deg)` }"
+					>
+						<div class="toss-face toss-face-a">{{ tossTeamName(match.team1) }}</div>
+						<div class="toss-face toss-face-b">{{ tossTeamName(match.team2) }}</div>
 					</div>
-				</el-radio-group>
+				</div>
+				<div class="toss-name" :class="{ 'is-winner': tossLanded && matchObject.toss_outcome === TossOutcome.Team2Won }">{{ tossTeamName(match.team2) }}</div>
+				<p class="toss-result">
+					{{ tossSpinning ? "The coin is in the air." : tossLanded ? `${tossWinnerName()} won the toss.` : "Toss the coin. It decides the winner." }}
+				</p>
 			</div>
 			<template #footer>
-				<el-button type="primary" @click="closeTossDialog()">Back</el-button>
-				<el-button
-					type="success"
-					@click="scaleDialog()"
-					:disabled="matchObject.toss_outcome == null"
-					class="me-2"
-				>
-					Proceed
+				<el-button type="primary" :disabled="tossSpinning || savingToss" @click="closeTossDialog()">Back</el-button>
+				<el-button v-if="!tossLanded" type="success" :disabled="tossSpinning" @click="startToss()">
+					{{ tossSpinning ? "Tossing" : "Toss" }}
+				</el-button>
+				<el-button v-else type="success" :loading="savingToss" class="me-2" @click="confirmToss()">
+					Continue
 				</el-button>
 			</template>
 		</el-dialog>
@@ -526,6 +531,7 @@ import { playerName } from "@/utils/media";
 import EntityImage from "@/components/EntityImage.vue";
 import { COINS_PER_COLOR, coinBounds, colourOverflow, eitherTeamReachedNine, fineCoins as fineCoinCount, teamScore } from "@/utils/coinLimits";
 import { matchQueue } from "@/utils/requestQueue";
+import { tossFrameState, tossPlan } from "@/utils/tossSpin";
 
 const props = defineProps({
 	match: Object,
@@ -552,6 +558,12 @@ const regulationTimeExhausted = ref(false);
 const extraTimeExhausted = ref(false);
 const live = ref(false);
 const showTossDialog = ref(false);
+const tossSpinning = ref(false);
+const tossLanded = ref(false);
+const savingToss = ref(false);
+const coinAngle = ref(0);
+const coinLift = ref(0);
+let tossFrame = 0;
 const showRegulationDecisionDialog = ref(false);
 const showRegulationCompleteDialog = ref(false);
 const showExtraDecisionDialog = ref(false);
@@ -1138,20 +1150,75 @@ const getStatusText = () => {
 
 const tossDecided = (value) => value != null && value !== TossOutcome.NotDecided;
 
-const scaleDialog = () => {
+const tossTeamName = (teamId) => getTeam(teamId)?.name || "Team";
+
+const tossWinnerName = () =>
+	matchObject.value.toss_outcome === TossOutcome.Team1Won
+		? tossTeamName(props.match.team1)
+		: tossTeamName(props.match.team2);
+
+const stopTossSpin = () => {
+	cancelAnimationFrame(tossFrame);
+	tossFrame = 0;
+	tossSpinning.value = false;
+};
+
+const resetTossStage = () => {
+	stopTossSpin();
+	tossLanded.value = false;
+	coinAngle.value = 0;
+	coinLift.value = 0;
+	matchObject.value.toss_outcome = null;
+};
+
+const startToss = () => {
+	if (tossSpinning.value || tossLanded.value) return;
+	const plan = tossPlan();
+	tossSpinning.value = true;
+	const started = performance.now();
+	const frame = (now) => {
+		const state = tossFrameState(plan, now - started);
+		coinAngle.value = state.angle;
+		coinLift.value = state.lift;
+		if (!state.done) {
+			tossFrame = requestAnimationFrame(frame);
+			return;
+		}
+		tossSpinning.value = false;
+		tossLanded.value = true;
+		matchObject.value.toss_outcome = plan.winner === 1 ? TossOutcome.Team1Won : TossOutcome.Team2Won;
+	};
+	tossFrame = requestAnimationFrame(frame);
+};
+
+watch(showTossDialog, (open) => {
+	if (open) resetTossStage();
+});
+
+const scaleDialog = async () => {
 	if (matchObject.value.toss_outcome == null && tossDecided(props.match.toss_outcome)) {
 		matchObject.value.toss_outcome = props.match.toss_outcome;
 	}
-	if (matchObject.value.toss_outcome == null) {
+	if (!tossDecided(matchObject.value.toss_outcome)) {
 		showTossDialog.value = true;
 		return;
+	}
+	if (matchObject.value.toss_outcome !== props.match.toss_outcome) {
+		await persistMatch({ toss_outcome: matchObject.value.toss_outcome }, "toss result");
 	}
 	showTossDialog.value = false;
 	showMatchManager.value = true;
 	takeFullScreen();
 	setScorecardPlayerIds();
-	if (matchObject.value.toss_outcome !== props.match.toss_outcome) {
-		persistMatch({ toss_outcome: matchObject.value.toss_outcome }, "toss result").catch(() => undefined);
+};
+
+const confirmToss = async () => {
+	if (!tossLanded.value || savingToss.value) return;
+	savingToss.value = true;
+	try {
+		await scaleDialog();
+	} finally {
+		savingToss.value = false;
 	}
 };
 
@@ -1195,8 +1262,10 @@ const back = () => {
 };
 
 const closeTossDialog = () => {
+	stopTossSpin();
 	showTossDialog.value = false;
 	matchObject.value.toss_outcome = null;
+	tossLanded.value = false;
 };
 
 const confirmGoldenStrikeWinner = async () => {
@@ -1220,6 +1289,7 @@ const statusId = (name) => MatchStatus.find((status) => status.name === name)?.i
 const scheduledStatus = () => statusId("Scheduled");
 
 const startMatch = async () => {
+	if (!showResetTossBtn()) return;
 	pauseBgm();
 	clearMatchTimeouts();
 	lock.value = true;
@@ -1621,7 +1691,10 @@ const finishMatch = async (forcefully = false) => {
 	}
 };
 
-onUnmounted(stopClockTick);
+onUnmounted(() => {
+	stopClockTick();
+	stopTossSpin();
+});
 
 onUpdated(() => {
 	const next =
@@ -2108,5 +2181,84 @@ watch(teamDetails, () => {
 	.match-status-text {
 		font-size: 11px;
 	}
+}
+
+.toss-ceremony {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 160px minmax(0, 1fr);
+	align-items: center;
+	gap: 12px;
+	min-height: 190px;
+	padding: 8px 12px 0;
+}
+
+.toss-name {
+	font-weight: 700;
+	text-align: center;
+	overflow-wrap: anywhere;
+}
+
+.toss-name.is-winner {
+	color: #9a6709;
+}
+
+.toss-stage {
+	position: relative;
+	height: 160px;
+	display: grid;
+	place-items: center;
+	perspective: 800px;
+}
+
+.toss-shadow {
+	position: absolute;
+	bottom: 18px;
+	width: 72px;
+	height: 14px;
+	border-radius: 50%;
+	background: rgba(0, 0, 0, 0.28);
+	filter: blur(2px);
+}
+
+.toss-coin {
+	width: 120px;
+	height: 120px;
+	position: relative;
+	transform-style: preserve-3d;
+}
+
+.toss-face {
+	position: absolute;
+	inset: 0;
+	display: grid;
+	place-items: center;
+	padding: 12px;
+	border-radius: 50%;
+	border: 6px solid #e2a01a;
+	backface-visibility: hidden;
+	font-weight: 800;
+	text-align: center;
+	line-height: 1.15;
+	overflow: hidden;
+	box-shadow: inset 0 0 0 4px rgba(255, 255, 255, 0.35);
+}
+
+.toss-face-a {
+	background: radial-gradient(circle at 35% 30%, #fff6d8, #f0c14b 55%, #c48412);
+	color: #1b2740;
+	transform: translateZ(2px);
+}
+
+.toss-face-b {
+	background: radial-gradient(circle at 35% 30%, #4d628a, #1b2740 60%, #10182b);
+	color: #fff6d8;
+	transform: rotateY(180deg) translateZ(2px);
+}
+
+.toss-result {
+	grid-column: 1 / -1;
+	margin: 0;
+	text-align: center;
+	font-weight: 600;
 }
 </style>

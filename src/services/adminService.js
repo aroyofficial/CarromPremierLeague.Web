@@ -33,6 +33,7 @@ export const adminApi = {
 		teams: (seasonId) => api.get(`seasons/${seasonId}/teams`),
 		addTeam: (seasonId, teamId) => api.post(`seasons/${seasonId}/teams`, { team_id: teamId }),
 		removeTeam: (seasonId, teamId) => api.delete(`seasons/${seasonId}/teams/${teamId}`),
+		schedule: (seasonId) => api.post(`seasons/${seasonId}/schedule`),
 	},
 	teams: {
 		...crud("teams"),
