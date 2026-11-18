@@ -24,6 +24,9 @@ const exempt = {
 	"components/admin/LoginChallenge.vue": "A sign-in challenge flow.",
 	"components/admin/AuthenticatorSetupDialog.vue": "An authenticator enrolment flow; the security panel behind it is live.",
 	"components/admin/ImageUploadField.vue": "An upload control; the screen that owns it is live.",
+	"components/MatchFollow.vue": "Device alert settings; they change only on this device.",
+	"components/AddToCalendarMenu.vue": "Fetches a calendar link when asked; no notice changes it.",
+	"components/admin/AdminNotifyStatus.vue": "Calendar sync status from the worker, which sends no realtime notice; it reloads when opened and after each action.",
 };
 
 const vueFiles = (dir) =>

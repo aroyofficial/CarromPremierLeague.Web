@@ -1,5 +1,5 @@
 <template>
-	<div>
+	<div :id="`match-${match.id}`">
 		<div
 			class="row align-items-center border p-4 match-card"
 			:class="{
@@ -23,6 +23,9 @@
 				class="col-3 d-flex justify-content-center align-items-center flex-column"
 			>
 				<div class="versus-text">{{ getCategoryLabel() }} · Match {{ match.order }}</div>
+				<div class="match-calendar-slot mt-1" @click.stop @keydown.stop>
+					<AddToCalendarMenu :match-id="match.id" />
+				</div>
 				<div
 					class="toss-text"
 					v-if="match.toss_outcome !== TossOutcome.NotDecided"
@@ -533,6 +536,7 @@ import { startBlockedUntilScheduledDay } from "@/utils/scheduledStart";
 import { useSettingsStore } from "@/store/settingsStore";
 import { playerName } from "@/utils/media";
 import EntityImage from "@/components/EntityImage.vue";
+import AddToCalendarMenu from "@/components/AddToCalendarMenu.vue";
 import { COINS_PER_COLOR, coinBounds, colourOverflow, eitherTeamReachedNine, fineCoins as fineCoinCount, teamScore } from "@/utils/coinLimits";
 import { matchQueue } from "@/utils/requestQueue";
 import { tossFrameState, tossPlan } from "@/utils/tossSpin";
@@ -590,6 +594,10 @@ const extraSeconds = () => settingsStore.extra_minutes * 60;
 
 onMounted(() => {
 	if (!settingsStore.loaded) settingsStore.fetchSettings().catch(() => undefined);
+	// A match alert opens /schedule#match-<id>; cards render after the schedule loads, so each card checks for itself.
+	if (typeof window !== "undefined" && window.location.hash === `#match-${props.match.id}`) {
+		nextTick(() => document.getElementById(`match-${props.match.id}`)?.scrollIntoView({ block: "center" }));
+	}
 });
 const clockNow = ref(Date.now());
 let clockTick = null;

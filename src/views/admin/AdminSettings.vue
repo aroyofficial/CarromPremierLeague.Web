@@ -192,6 +192,7 @@
 					</el-button>
 				</div>
 			</el-form>
+			<AdminNotifyStatus />
 		</div>
 	</div>
 </template>
@@ -201,6 +202,7 @@ import { computed, onMounted, reactive, ref, watch } from "vue";
 import { notify } from "@/utils/notify";
 import { useAuthStore } from "@/store/authStore";
 import { useSettingsStore } from "@/store/settingsStore";
+import AdminNotifyStatus from "@/components/admin/AdminNotifyStatus.vue";
 import { Permission, Routes } from "@/utils/constants";
 import { areas } from "@/utils/realtimeRules";
 import { useAdminLive } from "@/utils/useLive";

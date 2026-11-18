@@ -19,6 +19,8 @@
 			</div>
 		</header>
 
+		<MatchFollow :season-id="selectedSeason" />
+
 		<div v-loading="loading" class="schedule-body">
 			<section v-for="group in groups" :key="group.date" class="day-group">
 				<h2 class="day-label">{{ groupLabel(group.date) }}</h2>
@@ -262,6 +264,7 @@ import { useSeasonStore } from "@/store/seasonStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useTeamStore } from "@/store/teamStore";
 import { seasonService } from "@/services/seasonService";
+import MatchFollow from "@/components/MatchFollow.vue";
 import { MatchCategory, MatchStatus, TossOutcome } from "@/utils/constants";
 import { playerName } from "@/utils/media";
 import { areas } from "@/utils/realtimeRules";
