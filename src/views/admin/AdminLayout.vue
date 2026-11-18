@@ -69,7 +69,6 @@ import {
 	DArrowRight,
 	DataBoard,
 	Flag,
-	Location,
 	Lock,
 	Picture,
 	Setting,
@@ -87,7 +86,7 @@ import { SIDEBAR_KEY, initialSidebarExpanded, isPhoneWidth, sidebarPreference } 
 import { useAuthStore } from "@/store/authStore";
 import { useSettingsStore } from "@/store/settingsStore";
 
-const icons = { Avatar, Calendar, Connection, DataBoard, Flag, Location, Lock, Picture, Setting, Trophy, User, UserFilled };
+const icons = { Avatar, Calendar, Connection, DataBoard, Flag, Lock, Picture, Setting, Trophy, User, UserFilled };
 
 const router = useRouter();
 const authStore = useAuthStore();

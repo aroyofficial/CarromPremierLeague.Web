@@ -15,13 +15,6 @@
 				<el-button v-if="can(Permission.MATCHES_CREATE)" type="primary" :disabled="!seasonId" @click="openCreate">
 					<el-icon class="me-1"><Plus /></el-icon>New match
 				</el-button>
-				<el-button
-					v-if="canAll([Permission.MATCHES_UPDATE, Permission.MATCHES_SCORECARD])"
-					:disabled="!seasonId"
-					@click="openMatchManager"
-				>
-					<el-icon class="me-1"><VideoPlay /></el-icon>Open match manager
-				</el-button>
 			</div>
 		</div>
 
@@ -94,6 +87,7 @@
 								</el-button>
 								<template #dropdown>
 									<el-dropdown-menu>
+										<el-dropdown-item v-if="rowCommands(row).includes('start')" command="start">Start</el-dropdown-item>
 										<el-dropdown-item v-if="rowCommands(row).includes('reset')" command="reset">Reset match</el-dropdown-item>
 										<el-dropdown-item v-if="rowCommands(row).includes('reset-toss')" command="reset-toss">
 											Reset toss
@@ -197,11 +191,13 @@
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import { ElMessageBox } from "element-plus";
 import { notify } from "@/utils/notify";
-import { MoreFilled, Plus, VideoPlay } from "@element-plus/icons-vue";
-import { useRouter } from "vue-router";
+import { MoreFilled, Plus } from "@element-plus/icons-vue";
+import dayjs from "@/plugins/dayjs";
 import { adminApi } from "@/services/adminService";
+import { useSettingsStore } from "@/store/settingsStore";
 import { confirmDelete, defaultSeasonId, runAction, unwrap } from "@/utils/adminHelpers";
-import { MatchCategory, MatchOutcome, MatchStatus, Routes, TossOutcome } from "@/utils/constants";
+import { MatchCategory, MatchOutcome, MatchStatus, TossOutcome } from "@/utils/constants";
+import { startBlockedUntilScheduledDay } from "@/utils/scheduledStart";
 import { coinBounds, colourOverflow } from "@/utils/coinLimits";
 import { useFillHeight } from "@/utils/useFillHeight";
 import { usePermissions } from "@/utils/permissions";
@@ -209,15 +205,20 @@ import { areas } from "@/utils/realtimeRules";
 import { useAdminLive } from "@/utils/useLive";
 
 const { Permission, can, canAny, canAll } = usePermissions();
+const settingsStore = useSettingsStore();
 const { box: tableBox, height: tableHeight } = useFillHeight();
 
 const playedStatusId = MatchStatus.find((status) => status.name === "Played")?.id;
+const inProgressStatusId = MatchStatus.find((status) => status.name === "In Progress")?.id;
+
+const canRunMatch = () => canAll([Permission.MATCHES_UPDATE, Permission.MATCHES_SCORECARD]);
 
 const canEditRow = (row) =>
 	row.status === playedStatusId ? can(Permission.MATCHES_SCORECARD) : can(Permission.MATCHES_UPDATE);
 
 const rowCommands = (row) => {
 	const commands = [];
+	if (row.status === 1 && canRunMatch()) commands.push("start");
 	if (row.status !== 1 && can(Permission.MATCHES_RESET)) commands.push("reset");
 	if (canResetToss(row) && can(Permission.MATCHES_UPDATE)) commands.push("reset-toss");
 	if (can(Permission.MATCHES_DELETE)) commands.push("delete");
@@ -233,7 +234,6 @@ const hasRowActions = computed(() =>
 	]),
 );
 
-const router = useRouter();
 const seasons = ref([]);
 const teams = ref([]);
 const seasonId = ref(null);
@@ -252,8 +252,6 @@ const matchFormat = (category) => {
 	if (category === 7) return "Winner selection";
 	return "15 min + 5 min if tied";
 };
-const openMatchManager = () => router.push({ path: Routes.FIXTURES, query: { season: seasonId.value } });
-
 const teamOptions = computed(() => {
 	const ids = new Set(seasonTeams.value.map((team) => team.team_id));
 	const preferred = teams.value.filter((team) => ids.has(team.id));
@@ -480,6 +478,38 @@ const save = async () => {
 	}
 };
 
+const startMatch = async (match) => {
+	if (!match.team1 || !match.team2) {
+		notify.error("Both teams must be assigned before starting a match.");
+		return;
+	}
+	if (!settingsStore.loaded) await settingsStore.fetchSettings().catch(() => undefined);
+	const today = dayjs.tz().format("YYYY-MM-DD");
+	if (
+		startBlockedUntilScheduledDay({
+			enabled: settingsStore.start_on_scheduled_day,
+			scheduledDate: match.scheduled_date,
+			today,
+		})
+	) {
+		notify.error("This match can be started only on its scheduled date.");
+		return;
+	}
+	const confirmed = await ElMessageBox.confirm(
+		`Start match #${match.order} (${teamName(match.team1)} vs ${teamName(match.team2)})? The clock starts now.`,
+		"Start match",
+		{ confirmButtonText: "Start", cancelButtonText: "Cancel", type: "warning" },
+	)
+		.then(() => true)
+		.catch(() => false);
+	if (!confirmed) return;
+	const { ok } = await runAction(
+		() => adminApi.matches.update(match.id, { status: inProgressStatusId }),
+		"Match started",
+	);
+	if (ok) await loadSeason();
+};
+
 const resetToss = async (match) => {
 	const winner = tossWinnerName(match);
 	const confirmed = await ElMessageBox.confirm(
@@ -517,7 +547,8 @@ const remove = async (match) => {
 };
 
 const runRowCommand = (command, match) => {
-	if (command === "reset") reset(match);
+	if (command === "start") startMatch(match);
+	else if (command === "reset") reset(match);
 	else if (command === "reset-toss") resetToss(match);
 	else if (command === "delete") remove(match);
 };

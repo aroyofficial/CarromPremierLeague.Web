@@ -28,7 +28,6 @@ export const areas = {
 	adminTeams: ["teams"],
 	adminSeasons: ["seasons", "teams"],
 	adminPlayers: ["players", "countries"],
-	adminCountries: ["countries"],
 	adminRosters: ["rosters", "seasons", "teams", "players"],
 	adminGallery: ["gallery", "seasons"],
 	adminSettings: ["settings"],

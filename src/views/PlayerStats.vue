@@ -84,7 +84,7 @@ const selectedSeason = ref(null);
 const seasons = ref([]);
 const players = ref([]);
 const dataAvailable = ref(false);
-const emptyMessage = ref("Data is not available for this season.");
+const emptyMessage = ref("No match scheduled for the season.");
 const loading = ref(false);
 const dropdownPopperOptions = ref({
 	placement: "bottom-start",
@@ -115,7 +115,7 @@ const fetchPlayerStats = async (options) => {
 			? result.players.length
 				? ""
 				: "No players are listed for this season."
-			: "Data is not available for this season.";
+			: "No match scheduled for the season.";
 	} catch (error) {
 		console.error("Failed to fetch player stats", error);
 		if (!quiet && requestId === statsRequest) {

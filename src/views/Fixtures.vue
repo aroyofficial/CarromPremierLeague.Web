@@ -83,7 +83,7 @@
 				'd-flex justify-content-center align-items-center': noMatchesFound,
 			}"
 		>
-			<div v-if="noMatchesFound">Data is not available for this season.</div>
+			<div v-if="noMatchesFound">{{ matches.length ? "No matches match this filter." : "No match scheduled for the season." }}</div>
 			<MatchCard
 				v-for="item in applyFilters(matches)"
 				:key="item.id"

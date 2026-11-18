@@ -59,7 +59,6 @@ const AdminSections = Object.freeze([
 	{ name: "admin-gallery", path: "gallery", label: "Gallery", icon: "Picture", permissions: areaCodes("gallery") },
 	{ name: "admin-rosters", path: "rosters", label: "Rosters", icon: "Connection", permissions: areaCodes("rosters") },
 	{ name: "admin-matches", path: "matches", label: "Matches", icon: "Trophy", permissions: areaCodes("matches") },
-	{ name: "admin-countries", path: "countries", label: "Countries", icon: "Location", permissions: areaCodes("countries") },
 	{
 		name: "admin-users",
 		path: "users",

@@ -18,7 +18,6 @@ const adminViews = {
 	"admin-gallery": () => import("@/views/admin/AdminGallery.vue"),
 	"admin-rosters": () => import("@/views/admin/AdminRosters.vue"),
 	"admin-matches": () => import("@/views/admin/AdminMatches.vue"),
-	"admin-countries": () => import("@/views/admin/AdminCountries.vue"),
 	"admin-users": () => import("@/views/admin/AdminUsers.vue"),
 	"admin-permissions": () => import("@/views/admin/AdminPermissions.vue"),
 	"admin-settings": () => import("@/views/admin/AdminSettings.vue"),

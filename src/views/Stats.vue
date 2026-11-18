@@ -36,13 +36,13 @@
 				</div>
 			</div>
 			<div v-loading="loading" id="stats-body">
-				<div class="status-row">
+				<div v-if="showBoard" class="status-row">
 					<div class="completion-pill" :class="{ done: isLeagueStageCompleted }">
 						{{ isLeagueStageCompleted ? "League Stage Completed" : "League Stage Ongoing" }}
 					</div>
 				</div>
 				<div
-					v-if="!loading && topCoinPotters.length > 0"
+					v-if="!loading && showBoard"
 					class="top-players-grid"
 				>
 					<div
@@ -95,7 +95,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from "vue";
+import { computed, ref, onMounted, watch } from "vue";
 import { useSeasonStore } from "@/store/seasonStore";
 import { useStatsStore } from "@/store/statsStore";
 import { playerName } from "@/utils/media";
@@ -104,14 +104,19 @@ import { useLive } from "@/utils/useLive";
 import EntityImage from "@/components/EntityImage.vue";
 import { InfoFilled } from "@element-plus/icons-vue";
 import StatsSwitch from "@/components/StatsSwitch.vue";
+import { NO_MATCH_SCHEDULED, showGoldenStriker, strikerEmptyMessage } from "@/utils/goldenStriker";
 
 const seasonStore = useSeasonStore();
 const statsStore = useStatsStore();
 const selectedSeason = ref(null);
 const seasons = ref([]);
 const topCoinPotters = ref([]);
-const emptyMessage = ref("No league stage coin stats available for this season.");
+const matchesPlayed = ref(0);
+const emptyMessage = ref(NO_MATCH_SCHEDULED);
 const isLeagueStageCompleted = ref(false);
+const showBoard = computed(() =>
+	showGoldenStriker({ matchesPlayed: matchesPlayed.value, players: topCoinPotters.value }),
+);
 const loading = ref(false);
 const dropdownPopperOptions = ref({
 	placement: "bottom-start",
@@ -130,6 +135,7 @@ const fetchTopCoinPotters = async (options) => {
 	if (quiet && statsRequest) return;
 	if (!selectedSeason.value) {
 		topCoinPotters.value = [];
+		matchesPlayed.value = 0;
 		isLeagueStageCompleted.value = false;
 		emptyMessage.value = "Please select a season to view stats.";
 		return;
@@ -146,13 +152,18 @@ const fetchTopCoinPotters = async (options) => {
 		);
 		if (requestId !== statsRequest) return;
 		topCoinPotters.value = result.players || [];
+		matchesPlayed.value = result.matchesPlayed ?? null;
 		isLeagueStageCompleted.value = result.isLeagueStageCompleted || false;
 		emptyMessage.value =
-			result.message || "Data is not available for this season.";
+			strikerEmptyMessage(result.message, {
+				matchesPlayed: matchesPlayed.value,
+				players: topCoinPotters.value,
+			}) || NO_MATCH_SCHEDULED;
 	} catch (error) {
 		console.error("Failed to fetch golden striker stats", error);
 		if (!quiet && requestId === statsRequest) {
 			topCoinPotters.value = [];
+			matchesPlayed.value = 0;
 			isLeagueStageCompleted.value = false;
 			emptyMessage.value = "Unable to load stats right now. Please try again.";
 		}

@@ -1,14 +1,22 @@
 <template>
 	<div
 		class="image-field"
-		:class="{ 'is-dragging': dragging, 'is-locked': locked }"
+		:class="{ 'is-dragging': dragging, 'is-locked': locked, 'is-previewless': !preview }"
 		:aria-describedby="hintId"
 		@dragenter.prevent="onDragEnter"
 		@dragover.prevent="onDragOver"
 		@dragleave="onDragLeave"
 		@drop.prevent="onDrop"
 	>
-		<EntityImage :src="previewSrc" :name="name" :kind="kind" class="image-field-preview" :class="`is-${kind}`" :alt="`${label} preview`" />
+		<EntityImage
+			v-if="preview"
+			:src="previewSrc"
+			:name="name"
+			:kind="kind"
+			class="image-field-preview"
+			:class="`is-${kind}`"
+			:alt="`${label} preview`"
+		/>
 		<div class="image-field-body">
 			<div class="image-field-actions">
 				<el-button size="small" type="primary" plain :disabled="locked || !canUpload" @click="choose">
@@ -82,6 +90,7 @@ const props = defineProps({
 	upload: { type: Function, default: null },
 	uploadLink: { type: Function, default: null },
 	remove: { type: Function, default: null },
+	preview: { type: Boolean, default: true },
 });
 
 const emit = defineEmits(["update:pendingFile", "update:pendingLink", "update:busy", "changed", "dismiss-error"]);
@@ -338,7 +347,10 @@ const clear = async () => {
 	transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
-.image-field.is-dragging {
+.image-field.is-previewless {
+	align-items: flex-start;
+	padding: 0;
+}
 	border-color: var(--el-color-primary);
 	background: var(--el-color-primary-light-9, rgba(31, 111, 235, 0.06));
 }

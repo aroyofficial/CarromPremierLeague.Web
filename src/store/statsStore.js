@@ -7,6 +7,7 @@ export const useStatsStore = defineStore("stats", {
 		topCoinPotters: new Map(),
 		topCoinPotterMessages: new Map(),
 		topCoinPotterLeagueCompletion: new Map(),
+		topCoinPotterMatchesPlayed: new Map(),
 		playerStats: new Map(),
 		loading: false,
 	}),
@@ -31,6 +32,9 @@ export const useStatsStore = defineStore("stats", {
 					players: this.topCoinPotters.get(key),
 					isLeagueStageCompleted:
 						this.topCoinPotterLeagueCompletion.get(key) || false,
+					matchesPlayed: this.topCoinPotterMatchesPlayed.has(key)
+						? this.topCoinPotterMatchesPlayed.get(key)
+						: null,
 					message:
 						this.topCoinPotterMessages.get(key) ||
 						"Top coin potters fetched successfully",
@@ -47,12 +51,14 @@ export const useStatsStore = defineStore("stats", {
 				const isLeagueStageCompleted = Boolean(
 					response?.data?.is_league_stage_completed,
 				);
+				const matchesPlayed = response?.data?.matches_played ?? null;
 				const message =
 					response?.message || "Top coin potters fetched successfully";
 				this.topCoinPotters.set(key, players);
 				this.topCoinPotterMessages.set(key, message);
 				this.topCoinPotterLeagueCompletion.set(key, isLeagueStageCompleted);
-				return { players, isLeagueStageCompleted, message };
+				this.topCoinPotterMatchesPlayed.set(key, matchesPlayed);
+				return { players, isLeagueStageCompleted, matchesPlayed, message };
 			} finally {
 				this.loading = false;
 			}

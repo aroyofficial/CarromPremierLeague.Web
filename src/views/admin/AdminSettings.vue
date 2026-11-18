@@ -348,7 +348,8 @@ onMounted(load);
 
 <style scoped lang="scss">
 .settings-page {
-	max-width: 880px;
+	width: 100%;
+	min-width: 0;
 }
 
 .settings-layout {

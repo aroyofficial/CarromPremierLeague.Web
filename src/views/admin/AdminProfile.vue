@@ -61,6 +61,7 @@
 							:name="adminName(form) || account.username"
 							kind="admin"
 							label="Profile picture"
+							:preview="false"
 							:external-error="pictureError"
 							:upload="(file, onProgress) => adminApi.admins.uploadAvatar(account.id, file, onProgress)"
 							:upload-link="(url) => adminApi.admins.setAvatarUrl(account.id, url)"
@@ -166,10 +167,10 @@
 					<section class="profile-card" aria-labelledby="signin-title">
 						<h2 id="signin-title" class="card-title"><el-icon><Key /></el-icon>Sign-in details</h2>
 						<div class="field-grid">
-							<el-form-item label="Username" class="span-2">
-								<p class="username-value">{{ account.username }}</p>
-								<p class="field-hint">Created from the name and email. It cannot be changed.</p>
-							</el-form-item>
+							<div class="span-2 username-row">
+								<span class="username-label" id="username-label">Username</span>
+								<p class="username-value" aria-labelledby="username-label">{{ account.username }}</p>
+							</div>
 							<div class="span-2 password-row">
 								<span class="password-icon" aria-hidden="true"><el-icon><Lock /></el-icon></span>
 								<div class="password-copy">
@@ -720,15 +721,28 @@ onMounted(load);
 	}
 }
 
-.username-value {
-	margin: 0;
-	font-weight: 650;
+.username-row {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 6px;
+	margin-bottom: 18px;
 }
 
-.field-hint {
-	margin: 4px 0 0;
+.username-label {
 	color: var(--cpl-ink-600);
-	font-size: 12px;
+	font-size: 14px;
+	line-height: 1.4;
+}
+
+.username-value {
+	margin: 0;
+	color: var(--cpl-ink-900);
+	font-family: var(--cpl-font-display);
+	font-size: 20px;
+	font-weight: 800;
+	line-height: 1.2;
+	letter-spacing: 0.01em;
 }
 
 .code-box {

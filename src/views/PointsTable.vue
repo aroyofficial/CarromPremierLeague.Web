@@ -59,7 +59,7 @@
 				</table>
 			</div>
 			<div v-else-if="!loading" class="empty-state">
-				{{ errorMessage || (dataAvailable ? "No standings have been recorded yet." : "Data is not available for this season.") }}
+				{{ errorMessage || (dataAvailable ? "No standings have been recorded yet." : "No match scheduled for the season.") }}
 			</div>
 
 			<div v-if="standings.length && (isSeasonEnded() || isLeagueStageCompleted())" class="legend">

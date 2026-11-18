@@ -217,8 +217,16 @@ const copy = async () => {
 	border-radius: 4px;
 }
 
-.password-item {
+.password-item,
+.confirm-item {
 	margin-bottom: 8px;
+}
+
+.password-item :deep(.el-form-item__error),
+.confirm-item :deep(.el-form-item__error) {
+	position: static;
+	padding-top: 6px;
+	line-height: 1.35;
 }
 
 .is-revealed :deep(.el-input__inner) {

@@ -306,7 +306,7 @@ const groups = computed(() => {
 	return grouped;
 });
 
-const emptyLabel = computed(() => errorMessage.value || "No matches have been scheduled for this season.");
+const emptyLabel = computed(() => errorMessage.value || "No match scheduled for the season.");
 
 const categoryName = (category) => MatchCategory.find((item) => item.id === category)?.name || "Match";
 

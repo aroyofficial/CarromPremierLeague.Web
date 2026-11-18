@@ -3,6 +3,7 @@
 	<main id="app-content">
 		<router-view />
 	</main>
+	<ChampionFireworks />
 	<Footer v-if="!isAdminRoute" />
 	<StrikerChat v-if="showPublicAssistant" mode="public" />
 	<SessionHandoff v-if="authStore.isAuthenticated" />
@@ -19,6 +20,7 @@ import { areaOf, areas } from "@/utils/realtimeRules";
 import { useSeasonStore } from "@/store/seasonStore";
 import { useTeamStore } from "@/store/teamStore";
 import Navbar from "./components/Navbar.vue";
+import ChampionFireworks from "./components/ChampionFireworks.vue";
 import Footer from "./components/Footer.vue";
 import StrikerChat from "./components/striker/StrikerChat.vue";
 import SessionHandoff from "./components/admin/SessionHandoff.vue";
