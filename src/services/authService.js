@@ -35,6 +35,10 @@ export const authService = {
 		return await api.post("auth/login-request/claim", { request_id: requestId });
 	},
 
+	async takeLogin(requestId) {
+		return await api.post("auth/login-request/take", { request_id: requestId });
+	},
+
 	async refresh() {
 		return await api.post("auth/refresh");
 	},

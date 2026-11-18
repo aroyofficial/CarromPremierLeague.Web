@@ -91,9 +91,16 @@
 							<div class="wait-foot">
 								<div>
 									<p class="wait-status" role="status" aria-live="polite">{{ waitStatus }}</p>
-									<p class="wait-note">Nothing changes on the other device until it approves.</p>
+									<p class="wait-note">
+										The other device can allow this sign-in. You can also take the session now, which signs that device out.
+									</p>
 								</div>
-								<el-button size="large" class="wait-cancel ms-0" @click="cancelWait">Cancel request</el-button>
+								<div class="wait-actions">
+									<el-button type="danger" plain size="large" class="wait-take ms-0" :loading="taking" @click="takeOver">
+										Take over this session
+									</el-button>
+									<el-button size="large" class="wait-cancel ms-0" :disabled="taking" @click="cancelWait">Cancel request</el-button>
+								</div>
 							</div>
 						</template>
 
@@ -329,9 +336,11 @@ const leaving = ref(false);
 const resetting = ref(false);
 const capsLock = ref(false);
 const waitStatus = ref("Waiting for the other device…");
+const taking = ref(false);
 const waitState = ref("waiting");
 const waitError = ref("");
 const waitStarted = ref(0);
+const waitRequestId = ref("");
 const resendAt = ref(0);
 const now = ref(Date.now());
 const thisDevice = deviceLabel();
@@ -674,6 +683,7 @@ const finishMfa = async (data) => {
 const startWait = (requestId) => {
 	waitState.value = "waiting";
 	waitError.value = "";
+	waitRequestId.value = requestId;
 	waitStarted.value = Date.now();
 	now.value = waitStarted.value;
 	waitStatus.value = "Waiting for the other device…";
@@ -718,6 +728,24 @@ const cancelWait = () => {
 	step.value = "login";
 	notice.value = "";
 	errorMessage.value = "";
+};
+
+const takeOver = async () => {
+	if (!waitRequestId.value || taking.value) return;
+	taking.value = true;
+	window.clearInterval(waitTimer);
+	try {
+		const response = await authService.takeLogin(waitRequestId.value);
+		window.clearInterval(waitTimer);
+		waitStatus.value = "Taking the session…";
+		await authStore.adopt(response.data.access_token, form.username);
+		step.value = "login";
+		await goIn();
+	} catch (error) {
+		failWait(error?.detail || error?.message || "The session could not be taken.");
+	} finally {
+		taking.value = false;
+	}
 };
 
 const retryAfterWait = () => {
@@ -1299,8 +1327,16 @@ html.dark .submit-btn.el-button--primary:not(.is-plain):not(.is-link):not(.is-te
 	}
 }
 
-.wait-cancel {
+.wait-cancel,
+.wait-take {
 	width: 100%;
+}
+
+.wait-actions {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin-top: 12px;
 }
 
 .wait-foot .wait-status {
@@ -1347,9 +1383,15 @@ html.dark .submit-btn.el-button--primary:not(.is-plain):not(.is-link):not(.is-te
 		margin-top: 16px;
 	}
 
-	.wait-cancel {
+	.wait-cancel,
+	.wait-take {
 		width: auto;
 		flex: none;
+	}
+
+	.wait-actions {
+		flex-direction: row;
+		margin-top: 0;
 	}
 }
 
