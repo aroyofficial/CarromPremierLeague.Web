@@ -351,6 +351,8 @@ const clear = async () => {
 	align-items: flex-start;
 	padding: 0;
 }
+
+.image-field.is-dragging {
 	border-color: var(--el-color-primary);
 	background: var(--el-color-primary-light-9, rgba(31, 111, 235, 0.06));
 }
