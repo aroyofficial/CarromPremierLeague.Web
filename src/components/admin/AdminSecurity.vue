@@ -91,6 +91,9 @@
 					<h3 id="passkey-add-title">Add a passkey</h3>
 				</div>
 				<p class="panel-lead">Give it a name you will recognise, then follow your browser's prompt.</p>
+				<p v-if="passkeyPhase" class="passkey-status" role="status" aria-live="polite">
+					{{ passkeyPhase === "verify" ? "Verifying your passkey…" : "Confirm with your face, fingerprint, or device PIN." }}
+				</p>
 				<form class="code-row" @submit.prevent="addPasskey">
 					<el-input v-model="passkeyLabel" maxlength="100" placeholder="For example: Work laptop" aria-label="Passkey name" />
 					<el-button type="primary" native-type="submit" :loading="pending === 'passkey-add'">Create passkey</el-button>
@@ -139,6 +142,7 @@ const errorMessage = ref("");
 const totpOpen = ref(false);
 const addingPasskey = ref(false);
 const passkeyLabel = ref("This device");
+const passkeyPhase = ref("");
 const passkeySupported = typeof window !== "undefined" && "PublicKeyCredential" in window;
 
 const busy = computed(() => Boolean(pending.value));
@@ -243,11 +247,17 @@ const addPasskey = () => {
 	return run(
 		"passkey-add",
 		async () => {
-			const options = unwrap(await authService.passkeySetupOptions());
-			const credential = await createPasskey(options.options);
-			status.value = unwrap(await authService.savePasskey({ challenge_id: options.challenge_id, credential, label }));
-			addingPasskey.value = false;
-			notify.success("Passkey saved.");
+			passkeyPhase.value = "scan";
+			try {
+				const options = unwrap(await authService.passkeySetupOptions());
+				const credential = await createPasskey(options.options);
+				passkeyPhase.value = "verify";
+				status.value = unwrap(await authService.savePasskey({ challenge_id: options.challenge_id, credential, label }));
+				addingPasskey.value = false;
+				notify.success("Passkey saved.");
+			} finally {
+				passkeyPhase.value = "";
+			}
 		},
 		"The passkey was not saved.",
 	);
@@ -460,6 +470,17 @@ onMounted(load);
 
 .note {
 	margin-top: 10px;
+}
+
+.passkey-status {
+	margin: 0 0 12px;
+	padding: 10px 12px;
+	border: 1px solid var(--cpl-gold-border);
+	border-radius: 10px;
+	background: var(--cpl-gold-wash);
+	color: var(--cpl-ink-900);
+	font-size: 14px;
+	font-weight: 700;
 }
 
 .link {
