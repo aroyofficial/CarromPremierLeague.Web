@@ -1,6 +1,7 @@
 <template>
 	<div :id="`match-${match.id}`">
 		<div
+			v-if="!headless"
 			class="row align-items-center border p-4 match-card"
 			:class="{
 				'golden-glow':
@@ -543,7 +544,10 @@ import { tossFrameState, tossPlan } from "@/utils/tossSpin";
 
 const props = defineProps({
 	match: Object,
+	// The admin Matches page shows only the dialogs; its table row stands in for the card.
+	headless: { type: Boolean, default: false },
 });
+const emit = defineEmits(["closed"]);
 
 const seasonStore = useSeasonStore();
 const teamStore = useTeamStore();
@@ -688,6 +692,7 @@ watch(showMatchManagementDialog, async (open) => {
 		pauseBgm(BackgroundMusic.Match, 300),
 		pauseBgm(BackgroundMusic.Horn, 300),
 	]);
+	emit("closed");
 });
 
 const categoryId = (name) => MatchCategory.find((category) => category.name === name)?.id;
@@ -1734,6 +1739,8 @@ onUpdated(() => {
 watch(teamDetails, () => {
 	if (showMatchManager.value) setScorecardPlayerIds();
 });
+
+defineExpose({ open: openMatchManagementDialog });
 </script>
 
 <style scoped lang="scss">

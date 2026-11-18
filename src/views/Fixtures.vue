@@ -77,7 +77,6 @@
 				Create<el-icon class="el-icon--right"><Plus /></el-icon>
 			</el-button>
 		</div>
-		<MatchFollow :season-id="fixtureFilter.season" :team-id="Number(fixtureFilter.team) > 0 ? fixtureFilter.team : null" />
 		<div
 			id="fixtures-paginated-table"
 			:class="{
@@ -256,7 +255,6 @@ import { MatchCategory, MatchOutcome, MatchStatus } from "../utils/constants";
 import { isSeasonOpen } from "@/utils/season";
 import dayjs from "@/plugins/dayjs";
 import MatchCard from "../components/MatchCard.vue";
-import MatchFollow from "@/components/MatchFollow.vue";
 import EntityImage from "@/components/EntityImage.vue";
 import { startLoader, pauseLoader } from "../utils/common";
 import { areas } from "@/utils/realtimeRules";

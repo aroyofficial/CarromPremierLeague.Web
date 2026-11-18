@@ -88,6 +88,7 @@
 								<template #dropdown>
 									<el-dropdown-menu>
 										<el-dropdown-item v-if="rowCommands(row).includes('start')" command="start">Start</el-dropdown-item>
+										<el-dropdown-item v-if="rowCommands(row).includes('live')" command="live">Open live match</el-dropdown-item>
 										<el-dropdown-item v-if="rowCommands(row).includes('reset')" command="reset">Reset match</el-dropdown-item>
 										<el-dropdown-item v-if="rowCommands(row).includes('reset-toss')" command="reset-toss">
 											Reset toss
@@ -184,20 +185,29 @@
 			</template>
 		</el-dialog>
 
+		<MatchCard
+			v-if="runningMatch"
+			ref="runner"
+			:key="runningMatch.id"
+			:match="runningMatch"
+			headless
+			@closed="closeMatchRunner"
+		/>
 	</div>
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from "vue";
+import { computed, nextTick, onMounted, reactive, ref, watch } from "vue";
 import { ElMessageBox } from "element-plus";
 import { notify } from "@/utils/notify";
 import { MoreFilled, Plus } from "@element-plus/icons-vue";
-import dayjs from "@/plugins/dayjs";
+import MatchCard from "@/components/MatchCard.vue";
 import { adminApi } from "@/services/adminService";
-import { useSettingsStore } from "@/store/settingsStore";
+import { useRosterStore } from "@/store/rosterStore";
+import { useTeamStore } from "@/store/teamStore";
 import { confirmDelete, defaultSeasonId, runAction, unwrap } from "@/utils/adminHelpers";
 import { MatchCategory, MatchOutcome, MatchStatus, TossOutcome } from "@/utils/constants";
-import { startBlockedUntilScheduledDay } from "@/utils/scheduledStart";
+import { startLoader, pauseLoader } from "@/utils/common";
 import { coinBounds, colourOverflow } from "@/utils/coinLimits";
 import { useFillHeight } from "@/utils/useFillHeight";
 import { usePermissions } from "@/utils/permissions";
@@ -205,7 +215,8 @@ import { areas } from "@/utils/realtimeRules";
 import { useAdminLive } from "@/utils/useLive";
 
 const { Permission, can, canAny, canAll } = usePermissions();
-const settingsStore = useSettingsStore();
+const teamStore = useTeamStore();
+const rosterStore = useRosterStore();
 const { box: tableBox, height: tableHeight } = useFillHeight();
 
 const playedStatusId = MatchStatus.find((status) => status.name === "Played")?.id;
@@ -219,6 +230,7 @@ const canEditRow = (row) =>
 const rowCommands = (row) => {
 	const commands = [];
 	if (row.status === 1 && canRunMatch()) commands.push("start");
+	if (row.status === inProgressStatusId && canRunMatch()) commands.push("live");
 	if (row.status !== 1 && can(Permission.MATCHES_RESET)) commands.push("reset");
 	if (canResetToss(row) && can(Permission.MATCHES_UPDATE)) commands.push("reset-toss");
 	if (can(Permission.MATCHES_DELETE)) commands.push("delete");
@@ -478,36 +490,35 @@ const save = async () => {
 	}
 };
 
-const startMatch = async (match) => {
+// Start and Open live match use the fixture card's own Match Info dialog, toss and match manager,
+// so the toss, the scheduled-day rule and the clock behave the same as on the public fixtures.
+const runningMatch = ref(null);
+const runner = ref(null);
+
+const openMatchRunner = async (match) => {
 	if (!match.team1 || !match.team2) {
 		notify.error("Both teams must be assigned before starting a match.");
 		return;
 	}
-	if (!settingsStore.loaded) await settingsStore.fetchSettings().catch(() => undefined);
-	const today = dayjs.tz().format("YYYY-MM-DD");
-	if (
-		startBlockedUntilScheduledDay({
-			enabled: settingsStore.start_on_scheduled_day,
-			scheduledDate: match.scheduled_date,
-			today,
-		})
-	) {
-		notify.error("This match can be started only on its scheduled date.");
-		return;
+	startLoader();
+	try {
+		await Promise.all([
+			teamStore.teams.length ? null : teamStore.fetchTeams(),
+			rosterStore.fetchTeamDetails(match.season_id),
+		]);
+	} catch (error) {
+		console.error("Failed to load teams for the match", error);
+	} finally {
+		pauseLoader();
 	}
-	const confirmed = await ElMessageBox.confirm(
-		`Start match #${match.order} (${teamName(match.team1)} vs ${teamName(match.team2)})? The clock starts now.`,
-		"Start match",
-		{ confirmButtonText: "Start", cancelButtonText: "Cancel", type: "warning" },
-	)
-		.then(() => true)
-		.catch(() => false);
-	if (!confirmed) return;
-	const { ok } = await runAction(
-		() => adminApi.matches.update(match.id, { status: inProgressStatusId }),
-		"Match started",
-	);
-	if (ok) await loadSeason();
+	runningMatch.value = { ...match };
+	await nextTick();
+	await runner.value?.open();
+};
+
+const closeMatchRunner = async () => {
+	runningMatch.value = null;
+	await loadSeason();
 };
 
 const resetToss = async (match) => {
@@ -547,7 +558,7 @@ const remove = async (match) => {
 };
 
 const runRowCommand = (command, match) => {
-	if (command === "start") startMatch(match);
+	if (command === "start" || command === "live") openMatchRunner(match);
 	else if (command === "reset") reset(match);
 	else if (command === "reset-toss") resetToss(match);
 	else if (command === "delete") remove(match);
