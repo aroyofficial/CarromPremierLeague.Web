@@ -146,7 +146,15 @@
 						<el-input v-model="draft.alt_text" maxlength="300" :disabled="!canUpdate" />
 					</el-form-item>
 					<el-form-item label="Taken on">
-						<el-date-picker v-model="draft.taken_on" type="date" value-format="YYYY-MM-DD" :disabled="!canUpdate" />
+						<el-date-picker
+							v-model="draft.taken_on"
+							type="datetime"
+							value-format="YYYY-MM-DDTHH:mm:ss"
+							format="D MMM YYYY HH:mm"
+							placeholder="Date and time"
+							style="width: 100%"
+							:disabled="!canUpdate"
+						/>
 					</el-form-item>
 					<el-form-item label="Seasons">
 						<el-select v-model="draft.season_ids" multiple :disabled="!canUpdate" style="width: 100%">
@@ -600,7 +608,7 @@ const openEditor = (photo) => {
 		...photo,
 		caption: photo.caption || "",
 		alt_text: photo.alt_text || "",
-		taken_on: photo.taken_on,
+		taken_on: photo.taken_on && String(photo.taken_on).length === 10 ? `${photo.taken_on}T00:00:00` : photo.taken_on,
 		season_ids: [...(photo.season_ids || [])],
 	};
 	draftError.value = "";

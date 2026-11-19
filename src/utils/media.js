@@ -65,12 +65,19 @@ export const mediaFileProblem = (file) => {
 };
 
 export const spokenDate = (value) => {
-	const text = String(value || "").slice(0, 10);
-	const match = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+	const text = String(value || "");
+	const match = text.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/);
 	if (!match) return text;
 	const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
 	if (Number.isNaN(date.getTime())) return text;
-	return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(date);
+	const spoken = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(date);
+	const hours = Number(match[4]);
+	const minutes = Number(match[5]);
+	if (!match[4] || (hours === 0 && minutes === 0)) return spoken;
+	const clock = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "UTC" }).format(
+		new Date(Date.UTC(2000, 0, 1, hours, minutes)),
+	);
+	return `${spoken}, ${clock}`;
 };
 
 export const publicImageLinkProblem = (value) => {

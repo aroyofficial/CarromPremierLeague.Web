@@ -21,7 +21,7 @@ test("an Indian number with a trunk 0 or a repeated 91 is accepted, like the API
 	assert.equal(optionalContactError("09876543210", "+91"), "");
 	assert.equal(optionalContactError("919876543210", "+91"), "");
 	assert.equal(optionalContactError("9123456789", "+91"), "");
-	assert.equal(optionalContactError("91912345678", "+91"), "Enter a 10-digit Indian mobile number that starts with 6 to 9.");
+	assert.equal(optionalContactError("91912345678", "+91"), "Enter at most 10 digits.");
 });
 
 test("outside India the country code and number must make 8 to 15 digits together", () => {
@@ -30,6 +30,6 @@ test("outside India the country code and number must make 8 to 15 digits togethe
 	assert.equal(optionalContactError("123456", "+1"), tooShort);
 	assert.equal(optionalContactError("0123456", "+1"), tooShort);
 	assert.equal(optionalContactError("1234567", "+1"), "");
-	assert.equal(optionalContactError("1234567890123", "+44"), "");
-	assert.equal(optionalContactError("12345678901234", "+44"), tooShort);
+	assert.equal(optionalContactError("1234567890", "+44"), "");
+	assert.equal(optionalContactError("12345678901", "+44"), "Enter at most 10 digits.");
 });

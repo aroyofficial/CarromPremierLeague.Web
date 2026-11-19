@@ -18,11 +18,11 @@
 			</div>
 		</div>
 
-		<el-empty v-if="!seasonId" class="admin-page-rest" description="Choose a season to manage its matches" />
+		<el-empty v-if="!loading && !seasonId" class="admin-page-rest" description="Choose a season to manage its matches" />
 
 		<div v-else class="admin-card admin-table-card">
-			<div ref="tableBox" class="admin-table-fill">
-			<el-table class="matches-table" :height="tableHeight" :data="filteredMatches" v-loading="loading" empty-text="No matches in this season yet" stripe>
+			<div class="admin-table-fill">
+			<el-table class="matches-table" height="100%" :data="filteredMatches" v-loading="loading" empty-text="No matches in this season yet" stripe>
 				<el-table-column prop="order" label="#" width="52" />
 				<el-table-column label="Date" width="112">
 					<template #default="{ row }">{{ row.scheduled_date }}</template>
@@ -188,7 +188,6 @@ import { confirmDelete, defaultSeasonId, runAction, unwrap } from "@/utils/admin
 import { MatchCategory, MatchOutcome, MatchStatus, TossOutcome } from "@/utils/constants";
 import { startLoader, pauseLoader } from "@/utils/common";
 import { coinBounds, colourOverflow } from "@/utils/coinLimits";
-import { useFillHeight } from "@/utils/useFillHeight";
 import { usePermissions } from "@/utils/permissions";
 import { areas } from "@/utils/realtimeRules";
 import { useAdminLive } from "@/utils/useLive";
@@ -196,7 +195,6 @@ import { useAdminLive } from "@/utils/useLive";
 const { Permission, can, canAny, canAll } = usePermissions();
 const teamStore = useTeamStore();
 const rosterStore = useRosterStore();
-const { box: tableBox, height: tableHeight } = useFillHeight();
 
 const playedStatusId = MatchStatus.find((status) => status.name === "Played")?.id;
 const inProgressStatusId = MatchStatus.find((status) => status.name === "In Progress")?.id;
@@ -230,7 +228,7 @@ const teams = ref([]);
 const seasonId = ref(null);
 const seasonTeams = ref([]);
 const matches = ref([]);
-const loading = ref(false);
+const loading = ref(true);
 const statusFilter = ref(null);
 
 const teamById = computed(() => new Map(teams.value.map((team) => [team.id, team.name])));
@@ -565,13 +563,18 @@ useAdminLive(
 
 onMounted(async () => {
 	const { ok, result } = await runAction(() => Promise.all([adminApi.seasons.list(), adminApi.teams.list()]));
-	if (!ok) return;
+	if (!ok) {
+		loading.value = false;
+		return;
+	}
 	seasons.value = unwrap(result[0]) || [];
 	teams.value = unwrap(result[1]) || [];
 	if (seasons.value.length) {
 		seasonId.value = defaultSeasonId(seasons.value);
 		await loadSeason();
+		return;
 	}
+	loading.value = false;
 });
 </script>
 

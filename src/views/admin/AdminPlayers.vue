@@ -102,12 +102,13 @@
 					:error="phoneServerError || undefined"
 				>
 					<el-input
-						v-model="form.phone_number"
+						:model-value="form.phone_number"
 						inputmode="numeric"
+						maxlength="10"
 						autocomplete="off"
-						placeholder="Digits only"
+						placeholder="10 digits"
 						:disabled="removePhone"
-						@input="phoneServerError = ''"
+						@update:model-value="form.phone_number = limitContactDigits($event); phoneServerError = ''"
 					/>
 				</el-form-item>
 				<el-form-item v-if="editingId" class="span-2" data-prop="remove_phone">
@@ -155,7 +156,7 @@ import { usePermissions } from "@/utils/permissions";
 import { playerName } from "@/utils/media";
 import { usePlayerStore } from "@/store/playerStore";
 import { notify } from "@/utils/notify";
-import { optionalContactError } from "@/utils/contactNumber";
+import { limitContactDigits, optionalContactError } from "@/utils/contactNumber";
 import { validateForm } from "@/utils/formValidation";
 import EntityImage from "@/components/EntityImage.vue";
 import ImageUploadField from "@/components/admin/ImageUploadField.vue";

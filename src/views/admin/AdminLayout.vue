@@ -494,6 +494,10 @@ html.dark .admin-sidebar {
 	overflow: auto;
 }
 
+.admin-main > .profile-page {
+	overflow: hidden;
+}
+
 .admin-main > .admin-page {
 	display: flex;
 	flex-direction: column;

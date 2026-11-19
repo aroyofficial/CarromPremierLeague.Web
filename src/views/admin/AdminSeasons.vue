@@ -14,8 +14,8 @@
 		</div>
 
 		<div class="admin-card admin-table-card">
-			<div ref="tableBox" class="admin-table-fill">
-			<el-table :height="tableHeight" :data="filtered" v-loading="loading" empty-text="No seasons yet" stripe>
+			<div class="admin-table-fill">
+			<el-table height="100%" :data="filtered" v-loading="loading" empty-text="No seasons yet" stripe>
 				<el-table-column prop="id" label="ID" :width="isPhone ? 48 : 70" />
 				<el-table-column prop="name" label="Name" min-width="180" />
 				<el-table-column label="Start" width="120">
@@ -120,7 +120,6 @@ import { ElMessageBox } from "element-plus";
 import { Calendar, Delete, Edit, Flag, Plus, Search } from "@element-plus/icons-vue";
 import { adminApi } from "@/services/adminService";
 import { blankToNull, confirmDelete, matchesSearch, runAction, unwrap } from "@/utils/adminHelpers";
-import { useFillHeight } from "@/utils/useFillHeight";
 import { useIsPhone } from "@/utils/viewport";
 import { usePermissions } from "@/utils/permissions";
 import EntityImage from "@/components/EntityImage.vue";
@@ -130,7 +129,6 @@ import { isSeasonUpcoming } from "@/utils/season";
 import { scheduleButton } from "@/utils/seasonSchedule";
 
 const isPhone = useIsPhone();
-const { box: tableBox, height: tableHeight } = useFillHeight();
 const { Permission, can, canAny } = usePermissions();
 import { useSeasonStore } from "@/store/seasonStore";
 

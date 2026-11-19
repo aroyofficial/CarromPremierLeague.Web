@@ -15,7 +15,7 @@
 					</li>
 					<li v-if="account.phone_number">
 						<el-icon><Phone /></el-icon><span>{{ account.phone_code }} {{ account.phone_number }}</span>
-						<span class="phone-badge" :class="{ 'is-verified': account.phone_verified }">{{ account.phone_verified ? "Verified" : "Not verified" }}</span>
+						<span v-if="account.phone_verification_enabled || account.phone_verified" class="phone-badge" :class="{ 'is-verified': account.phone_verified }">{{ account.phone_verified ? "Verified" : "Not verified" }}</span>
 					</li>
 				</ul>
 			</div>
@@ -108,7 +108,14 @@
 								</el-select>
 							</el-form-item>
 							<el-form-item label="Contact number (optional)" prop="phone_number" data-prop="phone_number">
-								<el-input v-model="form.phone_number" inputmode="numeric" autocomplete="tel" placeholder="Digits only" />
+								<el-input
+									:model-value="form.phone_number"
+									inputmode="numeric"
+									maxlength="10"
+									autocomplete="tel"
+									placeholder="10 digits"
+									@update:model-value="form.phone_number = limitContactDigits($event)"
+								/>
 							</el-form-item>
 							<p v-if="countriesError" class="span-2 field-note">{{ countriesError }}</p>
 							<el-form-item label="Email" prop="email" data-prop="email" class="span-2">
@@ -128,11 +135,11 @@
 									<el-button :loading="sendingCode" @click="sendEmailCode">Email code</el-button>
 								</div>
 							</div>
-							<div v-if="savedPhone" class="span-2 code-box phone-verify" :class="{ 'is-verified': account.phone_verified }">
+							<div v-if="savedPhone && (account.phone_verified || account.phone_verification_enabled)" class="span-2 code-box phone-verify" :class="{ 'is-verified': account.phone_verified }">
 								<p v-if="account.phone_verified" class="phone-status">
 									<el-icon aria-hidden="true"><CircleCheck /></el-icon>Phone number verified.
 								</p>
-								<template v-else>
+								<template v-else-if="account.phone_verification_enabled">
 									<p>
 										This number is not verified yet. Only a verified number is trusted.
 										<span v-if="phoneUnsaved" class="phone-note">Save your profile first, then verify the new number.</span>
@@ -217,7 +224,7 @@ import { useAuthStore } from "@/store/authStore";
 import { blankToNull, runAction, unwrap } from "@/utils/adminHelpers";
 import { Routes } from "@/utils/constants";
 import { adminName, initialsOf } from "@/utils/media";
-import { optionalContactError } from "@/utils/contactNumber";
+import { limitContactDigits, optionalContactError } from "@/utils/contactNumber";
 import { focusField, validateForm } from "@/utils/formValidation";
 import { areas } from "@/utils/realtimeRules";
 import { useAdminLive } from "@/utils/useLive";
@@ -553,11 +560,13 @@ onMounted(load);
 	display: flex;
 	flex-direction: column;
 	gap: 20px;
+	min-height: 0;
 	max-width: 1180px;
 }
 
 .profile-hero {
 	position: relative;
+	flex: 0 0 auto;
 	display: flex;
 	align-items: center;
 	gap: clamp(14px, 3vw, 24px);
@@ -650,21 +659,25 @@ onMounted(load);
 
 .profile-body {
 	display: flex;
+	flex: 1 1 auto;
 	flex-direction: column;
 	gap: 20px;
-	min-height: 120px;
+	min-height: 0;
+	overflow: hidden;
 }
 
 .profile-layout {
 	display: grid;
+	flex: 1 1 auto;
 	grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+	grid-template-rows: minmax(0, 1fr);
 	gap: 20px;
-	align-items: start;
+	min-height: 0;
 }
 
 .profile-aside {
-	position: sticky;
-	top: calc(var(--app-header-height) + 20px);
+	min-height: 0;
+	overflow: auto;
 }
 
 .profile-main {
@@ -672,6 +685,8 @@ onMounted(load);
 	flex-direction: column;
 	gap: 20px;
 	min-width: 0;
+	min-height: 0;
+	overflow: auto;
 }
 
 .profile-card {
@@ -911,10 +926,7 @@ onMounted(load);
 @media (max-width: 1199.98px) {
 	.profile-layout {
 		grid-template-columns: minmax(0, 1fr);
-	}
-
-	.profile-aside {
-		position: static;
+		grid-template-rows: auto minmax(0, 1fr);
 	}
 }
 
