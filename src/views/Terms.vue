@@ -1,7 +1,9 @@
 <template>
 	<LegalDocument title="Terms and Conditions" updated="19 November 2026">
 		<p>
-			These terms cover use of the Carrom Premier League website and its admin tools. How a match is
+			These terms cover use of the Carrom Premier League website at
+			<a href="https://cpltournament.com/">https://cpltournament.com</a> and
+			<a href="https://www.cpltournament.com/">https://www.cpltournament.com</a>, and its admin tools. How a match is
 			played is on the <router-link :to="Routes.RULES">tournament rules</router-link> page. If those two
 			disagree about a match, the tournament rules decide the match. These terms decide use of the site.
 		</p>

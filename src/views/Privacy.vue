@@ -2,8 +2,9 @@
 	<LegalDocument title="Privacy Policy" updated="19 November 2026">
 		<p>
 			This policy explains what the Carrom Premier League website and its admin tools do with information.
-			The public site shows the league. Admin accounts are only for people who run it. There is no public
-			sign-up.
+			The public site is <a href="https://cpltournament.com/">https://cpltournament.com</a>.
+			<a href="https://www.cpltournament.com/">https://www.cpltournament.com</a> opens the same site.
+			Admin accounts are only for people who run the league. There is no public sign-up.
 		</p>
 
 		<OrganizerContact
@@ -94,7 +95,12 @@
 		</p>
 
 		<h2>Who else receives information</h2>
-		<p>The site is hosted on GitHub Pages. The API runs on Render. Information is also sent to:</p>
+		<p>
+			The public site is hosted on GitHub Pages and published at
+			<a href="https://cpltournament.com/">https://cpltournament.com</a> and
+			<a href="https://www.cpltournament.com/">https://www.cpltournament.com</a>. The API runs on Render.
+			Information is also sent to:
+		</p>
 		<ul>
 			<li>Google or Microsoft, only after an admin connects that calendar</li>
 			<li>the browser's push service, only after a visitor turns alerts on</li>
