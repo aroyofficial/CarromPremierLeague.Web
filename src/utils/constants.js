@@ -94,7 +94,7 @@ const Organizer = Object.freeze({
 	name: "Arijit Roy",
 	email: "arijitr@zenoti.com",
 	place: "Hyderabad, Telangana, India",
-	website: "https://aroyofficial.github.io/CarromPremierLeague.Web/",
+	website: "https://cpltournament.com/",
 });
 
 const LEAGUE_TIMEZONE = "Asia/Kolkata";

@@ -51,7 +51,8 @@ jobs:
         env:
           VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
           VITE_WEB_ENV: production
-          VITE_BASE_PATH: /${{ github.event.repository.name }}/
+          # The site is served at the root of cpltournament.com, not under the repo name.
+          VITE_BASE_PATH: /
           # Repository variable; anything but "true" keeps the screens on polling only.
           VITE_REALTIME_ENABLED: ${{ vars.VITE_REALTIME_ENABLED }}
         run: |
@@ -79,7 +80,7 @@ jobs:
             exit 1
           fi
           if ! grep -q "${VITE_BASE_PATH}assets/" dist/index.html; then
-            echo "::error::The build was not prefixed for the GitHub Pages project path."
+            echo "::error::The build was not prefixed with the site base path."
             exit 1
           fi
 
