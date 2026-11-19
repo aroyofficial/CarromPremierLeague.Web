@@ -92,7 +92,7 @@ const NavItems = Object.freeze([
 
 const Organizer = Object.freeze({
 	name: "Arijit Roy",
-	email: "arijitr@zenoti.com",
+	email: "aroy02072000@gmail.com",
 	place: "Hyderabad, Telangana, India",
 	website: "https://cpltournament.com/",
 });

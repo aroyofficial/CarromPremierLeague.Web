@@ -744,10 +744,6 @@ onUnmounted(() => {
 		color: var(--cpl-ink-600);
 	}
 
-	&.is-favored .crest {
-		box-shadow: 0 0 0 3px var(--cpl-paper), 0 0 0 5px var(--cpl-gold-500);
-	}
-
 	&.is-favored strong {
 		color: var(--cpl-gold-text);
 	}
@@ -766,10 +762,6 @@ onUnmounted(() => {
 	object-fit: cover;
 	background: var(--cpl-surface-muted);
 	box-shadow: 0 0 0 3px var(--cpl-paper), 0 0 0 4px var(--cpl-line);
-}
-
-.is-winner .crest {
-	box-shadow: 0 0 0 3px var(--cpl-paper), 0 0 0 5px var(--cpl-gold-500);
 }
 
 .mid {
