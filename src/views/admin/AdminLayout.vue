@@ -495,6 +495,8 @@ html.dark .admin-sidebar {
 }
 
 .admin-main > .profile-page {
+	flex: 1 1 0;
+	min-height: 0;
 	overflow: hidden;
 }
 

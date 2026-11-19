@@ -14,8 +14,8 @@
 		</div>
 
 		<div class="admin-card admin-table-card">
-			<div ref="tableBox" class="admin-table-fill">
-			<el-table :height="tableHeight" :data="filtered" v-loading="loading" empty-text="No teams yet" stripe>
+			<div class="admin-table-fill">
+			<el-table height="100%" :data="filtered" v-loading="loading" empty-text="No teams yet" stripe>
 				<el-table-column prop="id" label="ID" :width="isPhone ? 48 : 70" />
 				<el-table-column label="Team" min-width="220">
 					<template #default="{ row }">
@@ -98,8 +98,8 @@
 import { computed, onMounted, reactive, ref } from "vue";
 import { Delete, Edit, Plus, Search } from "@element-plus/icons-vue";
 import { adminApi, apiErrorMessage } from "@/services/adminService";
+import { useTeamStore } from "@/store/teamStore";
 import { blankToNull, confirmDelete, matchesSearch, runAction, unwrap } from "@/utils/adminHelpers";
-import { useFillHeight } from "@/utils/useFillHeight";
 import { useIsPhone } from "@/utils/viewport";
 import { usePermissions } from "@/utils/permissions";
 import EntityImage from "@/components/EntityImage.vue";
@@ -108,13 +108,10 @@ import { areas } from "@/utils/realtimeRules";
 import { useAdminLive } from "@/utils/useLive";
 
 const isPhone = useIsPhone();
-const { box: tableBox, height: tableHeight } = useFillHeight();
 const { Permission, can, canAny } = usePermissions();
-import { useTeamStore } from "@/store/teamStore";
-
 const teamStore = useTeamStore();
 const teams = ref([]);
-const loading = ref(false);
+const loading = ref(true);
 const search = ref("");
 
 const filtered = computed(() => teams.value.filter((team) => matchesSearch(search.value, team.name, team.slogan, team.id)));

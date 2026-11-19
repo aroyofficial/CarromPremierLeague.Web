@@ -26,16 +26,45 @@
 					class="mb-3"
 				/>
 				<div class="admin-toolbar">
-					<el-select v-model="assignForm.player_id" filterable placeholder="Player" style="width: 260px">
+					<el-select v-model="assignForm.player_id" filterable placeholder="Player" style="width: 300px">
+						<template v-if="selectedPlayer" #label>
+							<span class="pick">
+								<EntityImage :src="selectedPlayer.avatar_url || ''" :name="playerName(selectedPlayer)" kind="player" class="pick-photo" />
+								<span>{{ playerLabel(selectedPlayer) }}</span>
+							</span>
+						</template>
 						<el-option
 							v-for="player in players"
 							:key="player.id"
+							class="pick-option"
 							:label="playerLabel(player)"
 							:value="player.id"
-						/>
+						>
+							<span class="pick">
+								<EntityImage :src="player.avatar_url || ''" :name="playerName(player)" kind="player" class="pick-photo" />
+								<span>{{ playerLabel(player) }}</span>
+							</span>
+						</el-option>
 					</el-select>
-					<el-select v-model="assignForm.team_id" placeholder="Team" style="width: 240px">
-						<el-option v-for="team in openTeams" :key="team.team_id" :label="team.team_name" :value="team.team_id" />
+					<el-select v-model="assignForm.team_id" placeholder="Team" style="width: 280px">
+						<template v-if="selectedTeam" #label>
+							<span class="pick">
+								<EntityImage :src="selectedTeam.logo_url || ''" :name="selectedTeam.team_name" kind="team" class="pick-photo" />
+								<span>{{ selectedTeam.team_name }}</span>
+							</span>
+						</template>
+						<el-option
+							v-for="team in openTeams"
+							:key="team.team_id"
+							class="pick-option"
+							:label="team.team_name"
+							:value="team.team_id"
+						>
+							<span class="pick">
+								<EntityImage :src="team.logo_url || ''" :name="team.team_name" kind="team" class="pick-photo" />
+								<span>{{ team.team_name }}</span>
+							</span>
+						</el-option>
 					</el-select>
 					<el-button
 						type="primary"
@@ -50,10 +79,25 @@
 
 			<div class="roster-grid" v-loading="loading">
 				<div v-for="team in rosterByTeam" :key="team.team_id" class="admin-card roster-card">
-					<h2 class="admin-card-title">{{ team.team_name }}</h2>
+					<h2 class="admin-card-title">
+						<span class="roster-team">
+							<EntityImage :src="team.logo_url || ''" :name="team.team_name" kind="team" class="roster-logo" />
+							<span>{{ team.team_name }}</span>
+						</span>
+					</h2>
 					<ul class="roster-list">
 						<li v-for="(player, index) in slotsFor(team)" :key="player ? player.player_id : `tbd-${team.team_id}-${index}`">
-							<span :class="{ 'is-open': !player }">{{ player ? `${player.first_name} ${player.last_name}` : "TBD" }}</span>
+							<span class="roster-player" :class="{ 'is-open': !player }">
+								<EntityImage
+									v-if="player"
+									:src="avatarFor(player)"
+									:name="playerName(player)"
+									kind="player"
+									class="roster-avatar"
+								/>
+								<span v-else class="roster-avatar is-open" aria-hidden="true"></span>
+								<span>{{ player ? playerName(player) : "TBD" }}</span>
+							</span>
 							<el-button v-if="player && canManage" size="small" type="danger" link @click="removePlayer(player, team)">
 								Remove
 							</el-button>
@@ -68,8 +112,10 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import { Plus } from "@element-plus/icons-vue";
+import EntityImage from "@/components/EntityImage.vue";
 import { adminApi } from "@/services/adminService";
 import { confirmDelete, defaultSeasonId, runAction, unwrap } from "@/utils/adminHelpers";
+import { playerName } from "@/utils/media";
 import { usePermissions } from "@/utils/permissions";
 import { areas } from "@/utils/realtimeRules";
 import { useAdminLive } from "@/utils/useLive";
@@ -87,6 +133,11 @@ const saving = ref(false);
 const assignForm = reactive({ player_id: null, team_id: null });
 
 const assignedTeam = computed(() => new Map(rosters.value.map((item) => [item.player_id, item.team_name])));
+const playerById = computed(() => new Map(players.value.map((player) => [player.id, player])));
+const selectedPlayer = computed(() => playerById.value.get(assignForm.player_id) || null);
+const selectedTeam = computed(() => seasonTeams.value.find((team) => team.team_id === assignForm.team_id) || null);
+
+const avatarFor = (member) => playerById.value.get(member.player_id)?.avatar_url || "";
 
 const playerLabel = (player) => {
 	const name = `${player.first_name} ${player.last_name}`;
@@ -207,6 +258,55 @@ onMounted(async () => {
 
 .roster-card {
 	margin-top: 0 !important;
+}
+
+.roster-team,
+.roster-player,
+.pick {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+}
+
+.pick {
+	display: inline-flex;
+	max-width: 100%;
+
+	span {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+}
+
+.roster-logo,
+.roster-avatar,
+.pick-photo {
+	width: 28px;
+	height: 28px;
+	border-radius: 50%;
+	flex: 0 0 auto;
+}
+
+.roster-logo {
+	width: 40px;
+	height: 40px;
+}
+
+.roster-avatar.is-open {
+	display: inline-block;
+	box-sizing: border-box;
+	border: 1px dashed var(--cpl-line);
+	background: transparent;
+}
+
+.pick-option {
+	height: auto;
+	min-height: 40px;
+	line-height: 1.2;
+	padding-top: 6px;
+	padding-bottom: 6px;
 }
 
 .roster-list {

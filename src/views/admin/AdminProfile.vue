@@ -42,15 +42,7 @@
 					</li>
 				</ul>
 			</el-alert>
-			<el-form novalidate
-				v-if="account"
-				ref="formRef"
-				:model="form"
-				:rules="rules"
-				label-position="top"
-				class="profile-layout"
-				@submit.prevent="save"
-			>
+			<div v-if="account" class="profile-layout">
 				<aside class="profile-aside">
 					<section class="profile-card photo-card" aria-labelledby="photo-title">
 						<h2 id="photo-title" class="card-title"><el-icon><Camera /></el-icon>Photo</h2>
@@ -73,6 +65,15 @@
 				</aside>
 
 				<div class="profile-main">
+					<el-form
+						novalidate
+						ref="formRef"
+						:model="form"
+						:rules="rules"
+						label-position="top"
+						class="profile-form"
+						@submit.prevent="save"
+					>
 					<section class="profile-card" aria-labelledby="personal-title">
 						<h2 id="personal-title" class="card-title"><el-icon><User /></el-icon>Personal details</h2>
 						<div class="field-grid">
@@ -194,10 +195,10 @@
 						<span>Changes apply when you save.</span>
 						<el-button type="primary" native-type="submit" :loading="saving" :disabled="saving || pictureBusy">Save profile</el-button>
 					</div>
+					</el-form>
+					<AdminSecurity class="profile-security" />
 				</div>
-			</el-form>
-
-			<AdminSecurity v-if="account" class="profile-security" />
+			</div>
 		</div>
 
 		<ChangePasswordDialog
@@ -659,7 +660,7 @@ onMounted(load);
 
 .profile-body {
 	display: flex;
-	flex: 1 1 auto;
+	flex: 1 1 0;
 	flex-direction: column;
 	gap: 20px;
 	min-height: 0;
@@ -668,14 +669,17 @@ onMounted(load);
 
 .profile-layout {
 	display: grid;
-	flex: 1 1 auto;
+	flex: 1 1 0;
 	grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
 	grid-template-rows: minmax(0, 1fr);
 	gap: 20px;
 	min-height: 0;
+	align-items: stretch;
 }
 
-.profile-aside {
+.profile-aside,
+.profile-main {
+	min-width: 0;
 	min-height: 0;
 	overflow: auto;
 }
@@ -684,9 +688,13 @@ onMounted(load);
 	display: flex;
 	flex-direction: column;
 	gap: 20px;
+}
+
+.profile-form {
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
 	min-width: 0;
-	min-height: 0;
-	overflow: auto;
 }
 
 .profile-card {
@@ -927,6 +935,10 @@ onMounted(load);
 	.profile-layout {
 		grid-template-columns: minmax(0, 1fr);
 		grid-template-rows: auto minmax(0, 1fr);
+	}
+
+	.profile-aside {
+		overflow: visible;
 	}
 }
 
