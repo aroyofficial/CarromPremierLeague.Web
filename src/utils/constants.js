@@ -12,6 +12,8 @@ const Routes = Object.freeze({
 	PLAYER_STATS: "/stats/players",
 	LOGIN: "/login",
 	ADMIN: "/admin",
+	PRIVACY: "/privacy",
+	TERMS: "/terms",
 });
 
 // Codes match CarromPremierLeague.API core/permissions.py.
@@ -88,6 +90,13 @@ const NavItems = Object.freeze([
 	{ label: "Stats", path: Routes.STATS },
 ]);
 
+const Organizer = Object.freeze({
+	name: "Arijit Roy",
+	email: "arijitr@zenoti.com",
+	place: "Hyderabad, Telangana, India",
+	website: "https://aroyofficial.github.io/CarromPremierLeague.Web/",
+});
+
 const LEAGUE_TIMEZONE = "Asia/Kolkata";
 
 const SeasonStatus = Object.freeze({
@@ -162,6 +171,7 @@ const BackgroundMusic = Object.freeze({
 
 export {
 	Routes,
+	Organizer,
 	NavItems,
 	AdminSections,
 	Permission,

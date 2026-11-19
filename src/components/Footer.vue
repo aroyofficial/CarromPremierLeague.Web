@@ -1,18 +1,23 @@
 <template>
 	<footer id="footer-wrapper">
 		<div class="footer-inner">
-			<span>&copy; {{ year }} Carrom Premier League (CPL). All Rights Reserved.</span>
+			<span>
+				&copy; {{ year }} Carrom Premier League (CPL). All Rights Reserved.
+				<a class="footer-mail" :href="`mailto:${Organizer.email}`">{{ Organizer.name }} · {{ Organizer.email }}</a>
+			</span>
 			<nav class="footer-links" aria-label="Footer navigation">
 				<router-link v-for="item in NavItems" :key="item.path" :to="item.path">
 					{{ item.label }}
 				</router-link>
+				<router-link :to="Routes.PRIVACY">Privacy</router-link>
+				<router-link :to="Routes.TERMS">Terms</router-link>
 			</nav>
 		</div>
 	</footer>
 </template>
 
 <script setup>
-import { NavItems } from "@/utils/constants";
+import { NavItems, Organizer, Routes } from "@/utils/constants";
 
 const year = new Date().getFullYear();
 </script>
@@ -51,6 +56,17 @@ const year = new Date().getFullYear();
 	}
 }
 
+.footer-mail {
+	display: inline-block;
+	margin-left: 10px;
+	color: rgba(255, 255, 255, 0.7);
+	text-decoration: none;
+
+	&:hover {
+		color: var(--cpl-gold-400);
+	}
+}
+
 @media (max-width: 575.98px) {
 	.footer-inner {
 		flex-direction: column;
@@ -58,6 +74,10 @@ const year = new Date().getFullYear();
 	}
 	.footer-links {
 		justify-content: center;
+	}
+	.footer-mail {
+		display: block;
+		margin: 6px 0 0;
 	}
 }
 </style>

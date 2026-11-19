@@ -92,6 +92,18 @@ const routes = [
 		meta: { title: "Admin Login", skipPreload: true },
 	},
 	{
+		path: Routes.PRIVACY,
+		name: "privacy",
+		component: () => import("@/views/Privacy.vue"),
+		meta: { title: "Privacy Policy", skipPreload: true },
+	},
+	{
+		path: Routes.TERMS,
+		name: "terms",
+		component: () => import("@/views/Terms.vue"),
+		meta: { title: "Terms and Conditions", skipPreload: true },
+	},
+	{
 		path: Routes.ADMIN,
 		component: () => import("@/views/admin/AdminLayout.vue"),
 		meta: { requiresAuth: true, skipPreload: true },
