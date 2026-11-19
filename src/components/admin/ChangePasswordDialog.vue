@@ -35,7 +35,7 @@
 					<template v-else>The code expires in 10 minutes.</template>
 				</p>
 				<div class="actions">
-					<button type="button" class="text-link" :disabled="busy || resendWait > 0" @click="send">
+					<button v-if="!verifying" type="button" class="text-link" :disabled="busy || resendWait > 0" @click="send">
 						{{ resendWait > 0 ? `Resend code in ${resendWait}s` : "Resend code" }}
 					</button>
 					<el-button type="primary" :loading="verifying" :disabled="busy || code.length !== 6" @click="verify">Verify code</el-button>

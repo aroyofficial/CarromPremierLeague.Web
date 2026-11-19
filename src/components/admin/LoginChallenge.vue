@@ -39,9 +39,9 @@
 		<div v-else-if="method === 'totp' || method === 'email'" class="block">
 			<p class="note">{{ method === "email" ? "Enter the 6-digit code from your email." : "Enter the 6-digit code from your authenticator app." }}</p>
 			<CodeBoxes v-model="code" :disabled="locked" @complete="verify" />
-			<p v-if="locked" class="note">Checking the code…</p>
+			<p v-if="verifying" class="note">Checking the code…</p>
 			<button
-				v-if="method === 'email'"
+				v-if="method === 'email' && !verifying"
 				type="button"
 				class="text-link"
 				:disabled="locked || resendWait > 0"
@@ -104,6 +104,7 @@ const emit = defineEmits(["done", "cancel"]);
 const code = ref("");
 const method = ref("");
 const locked = ref(false);
+const verifying = ref(false);
 const sent = ref(false);
 const errorMessage = ref("");
 const passkeyPhase = ref("");
@@ -156,6 +157,7 @@ const verify = async () => {
 	if (locked.value || !/^\d{6}$/.test(code.value)) return;
 	errorMessage.value = "";
 	locked.value = true;
+	verifying.value = true;
 	try {
 		const data = unwrap(await authService.verifyMfa({ mfa_token: props.mfaToken, method: method.value, code: code.value }));
 		emit("done", data);
@@ -163,6 +165,7 @@ const verify = async () => {
 		errorMessage.value = error?.message || "That code was not accepted.";
 		code.value = "";
 	} finally {
+		verifying.value = false;
 		locked.value = false;
 	}
 };

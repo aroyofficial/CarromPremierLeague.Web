@@ -167,7 +167,7 @@
 						<el-alert v-if="recoverError" :title="recoverError" type="error" show-icon class="mb-3" role="alert" @close="recoverError = ''" />
 						<p class="code-label">6-digit code</p>
 						<CodeBoxes v-model="forgot.code" :disabled="resetting" @complete="checkResetCode" />
-						<p class="code-hint" aria-live="polite">{{ resetting ? "Checking the code…" : "The code expires in 10 minutes." }}</p>
+						<p class="code-hint" aria-live="polite">{{ checkingCode ? "Checking the code…" : "The code expires in 10 minutes." }}</p>
 						<el-button
 							type="primary"
 							size="large"
@@ -178,7 +178,7 @@
 						>
 							{{ resetting ? "Checking…" : "Verify code" }}
 						</el-button>
-						<div class="link-row split">
+						<div v-if="!checkingCode" class="link-row split">
 							<button type="button" class="text-link" :disabled="resendWait > 0 || resetting" @click="resendCode">
 								{{ resendWait > 0 ? `Resend code in ${resendWait}s` : "Resend code" }}
 							</button>
@@ -334,6 +334,7 @@ const recoverNotice = ref("");
 const step = ref("login");
 const leaving = ref(false);
 const resetting = ref(false);
+const checkingCode = ref(false);
 const capsLock = ref(false);
 const waitStatus = ref("Waiting for the other device…");
 const taking = ref(false);
@@ -574,6 +575,7 @@ const checkResetCode = async () => {
 	if (resetting.value || forgot.code.length !== 6) return;
 	recoverError.value = "";
 	resetting.value = true;
+	checkingCode.value = true;
 	try {
 		const data = unwrap(await authService.verifyResetCode(forgot.username, forgot.code));
 		forgot.ticket = data.ticket;
@@ -584,6 +586,7 @@ const checkResetCode = async () => {
 		forgot.code = "";
 		recoverError.value = error?.message || "That code is not valid. Check the latest email or send a new code.";
 	} finally {
+		checkingCode.value = false;
 		resetting.value = false;
 	}
 };

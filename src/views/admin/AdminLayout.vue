@@ -556,13 +556,13 @@ html.dark .admin-sidebar {
 }
 
 .admin-table-fill {
-	flex: 1 1 auto;
+	flex: 1 1 0;
 	min-height: 0;
 	overflow: hidden;
 }
 
-.timing-alert {
-	flex: 0 0 auto;
+.admin-table-fill > .el-table {
+	height: 100%;
 }
 
 .admin-page-rest {

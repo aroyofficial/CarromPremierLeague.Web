@@ -21,27 +21,6 @@
 		<el-empty v-if="!seasonId" class="admin-page-rest" description="Choose a season to manage its matches" />
 
 		<div v-else class="admin-card admin-table-card">
-			<el-alert class="mb-3 timing-alert" type="info" :closable="false" show-icon title="Match timing is enforced">
-				<p class="timing-lead">Saving the last league result builds the knockout automatically.</p>
-				<ul class="timing-steps">
-					<li>
-						<span class="timing-chip">4 or fewer teams</span>
-						<span>A Final between 1st and 2nd.</span>
-					</li>
-					<li>
-						<span class="timing-chip">More than 4 teams</span>
-						<span>An Eliminator between 2nd and 3rd, then a Final between 1st and the Eliminator winner.</span>
-					</li>
-					<li>
-						<span class="timing-chip">Tied place</span>
-						<span>A Golden Strike is played first to settle it.</span>
-					</li>
-					<li>
-						<span class="timing-chip">Unknown teams</span>
-						<span>The match stays TBD vs TBD until both teams are known.</span>
-					</li>
-				</ul>
-			</el-alert>
 			<div ref="tableBox" class="admin-table-fill">
 			<el-table class="matches-table" :height="tableHeight" :data="filteredMatches" v-loading="loading" empty-text="No matches in this season yet" stripe>
 				<el-table-column prop="order" label="#" width="52" />
@@ -597,76 +576,6 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.timing-alert.el-alert--info.is-light {
-	border: 1px solid var(--cpl-line);
-	background: var(--cpl-surface-sunken);
-	color: var(--cpl-heading-soft);
-}
-
-.timing-alert :deep(.el-alert__title) {
-	font-family: var(--cpl-font-display);
-	font-size: 15px;
-	font-weight: 800;
-	color: var(--cpl-heading);
-}
-
-@media (max-width: 575.98px) {
-	.timing-alert {
-		padding: 12px;
-	}
-
-	.timing-alert :deep(.el-alert__icon) {
-		display: none;
-	}
-}
-
-.timing-lead {
-	margin: 4px 0 10px;
-	color: var(--cpl-ink-600);
-	font-size: 14px;
-	line-height: 1.45;
-}
-
-.timing-steps {
-	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 8px 16px;
-	margin: 0;
-	padding: 0;
-	list-style: none;
-}
-
-.timing-steps li {
-	display: flex;
-	flex-direction: column;
-	gap: 4px;
-	min-width: 0;
-	padding: 10px 12px;
-	border-radius: var(--cpl-radius-md);
-	background: var(--cpl-surface);
-	border: 1px solid var(--cpl-line);
-	font-size: 14px;
-	line-height: 1.4;
-	color: var(--cpl-ink-900);
-}
-
-.timing-chip {
-	align-self: flex-start;
-	padding: 2px 8px;
-	border-radius: 999px;
-	background: var(--cpl-gold-100);
-	color: var(--cpl-heading);
-	font-size: 12px;
-	font-weight: 700;
-	letter-spacing: 0.02em;
-}
-
-@media (max-width: 575.98px) {
-	.timing-steps {
-		grid-template-columns: 1fr;
-	}
-}
-
 .scorecard-editor {
 	margin-top: 8px;
 }

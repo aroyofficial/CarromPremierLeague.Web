@@ -64,10 +64,11 @@
 				{{ codeSent ? "The newest code works. Older codes stop working." : "We email a code when this page opens." }}
 			</p>
 			<el-button
+				v-if="!submitting"
 				link
 				type="primary"
 				class="resend"
-				:disabled="sending || submitting || cooldown > 0"
+				:disabled="sending || cooldown > 0"
 				:loading="sending"
 				@click="sendCode"
 			>
