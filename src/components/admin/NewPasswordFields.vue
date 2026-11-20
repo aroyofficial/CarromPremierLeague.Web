@@ -79,7 +79,7 @@
 				autocomplete="new-password"
 				placeholder="Type it again"
 				:disabled="disabled"
-				@update:model-value="$emit('update:confirm', $event)"
+				@update:model-value="setConfirm"
 			>
 				<template #suffix>
 					<el-icon v-if="matches" class="match-icon" aria-label="Passwords match"><CircleCheckFilled /></el-icon>
@@ -101,7 +101,8 @@
 </template>
 
 <script setup>
-import { computed, ref } from "vue";
+import { computed, inject, nextTick, ref } from "vue";
+import { formContextKey } from "element-plus";
 import { Check, CircleCheckFilled, DocumentCopy, Hide, MagicStick, View } from "@element-plus/icons-vue";
 import { MIN_PASSWORD_LENGTH, passwordChecks, passwordStrength } from "@/utils/passwordRules";
 import { generatePassword } from "@/utils/passwordTools";
@@ -119,6 +120,7 @@ const props = defineProps({
 const emit = defineEmits(["update:password", "update:confirm", "update:save"]);
 
 const uid = `np-${Math.random().toString(36).slice(2, 8)}`;
+const formContext = inject(formContextKey, null);
 const reveal = ref(false);
 const copied = ref(false);
 const announcement = ref("");
@@ -138,15 +140,38 @@ const tip = computed(() => {
 	return "Good to go";
 });
 
+// Leaving the field validates whatever is there at that moment. Generate blurs
+// the box first, so that check can finish on the short password and leave its
+// message up after the new one is filled in. Drop that message once the value
+// now in the box satisfies the rule.
+const settleValidation = (force) => {
+	nextTick(() => {
+		const value = props.password || "";
+		const longEnough = value.length >= MIN_PASSWORD_LENGTH;
+		const same = value.length > 0 && value === (props.confirm || "");
+		const fields = [];
+		if (force || longEnough) fields.push(props.passwordProp);
+		if (force || same) fields.push(props.confirmProp);
+		if (fields.length) formContext?.clearValidate?.(fields);
+	});
+};
+
 // A visible password needs no retyping, so the confirm field follows it.
 const setPassword = (value) => {
 	emit("update:password", value);
 	if (reveal.value) emit("update:confirm", value);
+	settleValidation(false);
+};
+
+const setConfirm = (value) => {
+	emit("update:confirm", value);
+	settleValidation(false);
 };
 
 const toggleReveal = () => {
 	reveal.value = !reveal.value;
 	if (reveal.value) emit("update:confirm", props.password);
+	settleValidation(false);
 };
 
 const generate = () => {
@@ -156,6 +181,7 @@ const generate = () => {
 	emit("update:password", value);
 	emit("update:confirm", value);
 	announcement.value = "A strong password was generated and filled in.";
+	settleValidation(true);
 };
 
 const copy = async () => {

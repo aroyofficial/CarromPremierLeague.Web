@@ -140,14 +140,19 @@ const maskedEmail = computed(() => {
 const rules = {
 	password: [
 		{
-			validator: (_rule, value, callback) =>
-				!value || value.length < MIN_PASSWORD_LENGTH ? callback(new Error(`Use at least ${MIN_PASSWORD_LENGTH} characters`)) : callback(),
+			validator: (_rule, _value, callback) => {
+				const value = form.password;
+				return !value || value.length < MIN_PASSWORD_LENGTH
+					? callback(new Error(`Use at least ${MIN_PASSWORD_LENGTH} characters`))
+					: callback();
+			},
 			trigger: "blur",
 		},
 	],
 	confirm: [
 		{
-			validator: (_rule, value, callback) => (value !== form.password ? callback(new Error("Passwords do not match")) : callback()),
+			validator: (_rule, _value, callback) =>
+				form.confirm !== form.password ? callback(new Error("Passwords do not match")) : callback(),
 			trigger: "blur",
 		},
 	],

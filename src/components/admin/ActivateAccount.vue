@@ -170,7 +170,8 @@ const rules = {
 	code: [{ pattern: /^\d{6}$/, required: true, message: "Enter the 6-digit code from the email", trigger: "blur" }],
 	password: [
 		{
-			validator: (_rule, value, callback) => {
+			validator: (_rule, _value, callback) => {
+				const value = form.password;
 				if (!value || value.length < MIN_PASSWORD_LENGTH) {
 					return callback(new Error(`Use at least ${MIN_PASSWORD_LENGTH} characters`));
 				}
@@ -181,8 +182,8 @@ const rules = {
 	],
 	confirm: [
 		{
-			validator: (_rule, value, callback) =>
-				value !== form.password ? callback(new Error("Passwords do not match")) : callback(),
+			validator: (_rule, _value, callback) =>
+				form.confirm !== form.password ? callback(new Error("Passwords do not match")) : callback(),
 			trigger: "blur",
 		},
 	],

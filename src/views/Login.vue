@@ -361,17 +361,19 @@ const forgotRules = {
 const resetRules = {
 	password: [
 		{
-			validator: (_rule, value, callback) =>
-				!value || value.length < MIN_PASSWORD_LENGTH
+			validator: (_rule, _value, callback) => {
+				const value = forgot.password;
+				return !value || value.length < MIN_PASSWORD_LENGTH
 					? callback(new Error(`Use at least ${MIN_PASSWORD_LENGTH} characters`))
-					: callback(),
+					: callback();
+			},
 			trigger: "blur",
 		},
 	],
 	confirm: [
 		{
-			validator: (_rule, value, callback) =>
-				value !== forgot.password ? callback(new Error("Passwords do not match")) : callback(),
+			validator: (_rule, _value, callback) =>
+				forgot.confirm !== forgot.password ? callback(new Error("Passwords do not match")) : callback(),
 			trigger: "blur",
 		},
 	],
