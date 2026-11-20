@@ -43,12 +43,12 @@
 						:target="countdownTarget"
 						@finished="onCountdownFinished"
 					/>
-				</template>
 
-				<div class="hero-ctas">
-					<router-link :to="Routes.TEAMS" class="cta cta-primary">Meet the Teams</router-link>
-					<router-link :to="Routes.RULES" class="cta cta-ghost">Read the Rules</router-link>
-				</div>
+					<div class="hero-ctas">
+						<router-link :to="Routes.TEAMS" class="cta cta-primary">Meet the Teams</router-link>
+						<router-link :to="Routes.RULES" class="cta cta-ghost">Read the Rules</router-link>
+					</div>
+				</template>
 			</div>
 			<div class="hero-wave" aria-hidden="true"></div>
 		</section>
@@ -64,7 +64,8 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, onUnmounted } from "vue";
+import { onBeforeRouteUpdate } from "vue-router";
 import dayjs from "@/plugins/dayjs";
 import SeasonCountdown from "@/components/SeasonCountdown.vue";
 import EntityImage from "@/components/EntityImage.vue";
@@ -76,6 +77,7 @@ import { Routes, LEAGUE_TIMEZONE, SeasonStatus } from "@/utils/constants";
 import { championFromTable, countdownSeason, currentShownSeason } from "@/utils/champion";
 import { areas } from "@/utils/realtimeRules";
 import { useLive } from "@/utils/useLive";
+import { releaseHomeLoader } from "@/router";
 const seasonStore = useSeasonStore();
 const teamStore = useTeamStore();
 const champion = ref(null);
@@ -85,36 +87,40 @@ let championRequest = 0;
 
 const loadChampion = async () => {
 	const token = ++championRequest;
-	const season = currentShownSeason(seasonStore.seasons);
-	if (!season) {
-		if (token !== championRequest) return;
-		champion.value = null;
-		currentFinished.value = false;
-		resolvedSeasonId.value = null;
-		return;
-	}
 	try {
-		const response = await seasonService.getLeagueTable(season.id);
-		if (token !== championRequest) return;
-		const found = championFromTable(response.data);
-		currentFinished.value = response.data?.season_status === SeasonStatus.FINISHED;
-		if (!found) {
+		const season = currentShownSeason(seasonStore.seasons);
+		if (!season) {
+			if (token !== championRequest) return;
 			champion.value = null;
-		} else {
-			const team = (teamStore.teams || []).find((item) => item.id === found.teamId);
-			champion.value = {
-				...found,
-				seasonName: season.name,
-				logo: team?.logo_url || "",
-			};
+			currentFinished.value = false;
+			resolvedSeasonId.value = null;
+			return;
 		}
-	} catch (error) {
-		if (token !== championRequest) return;
-		console.error("Failed to load the season champion", error);
-		champion.value = null;
-		currentFinished.value = false;
+		try {
+			const response = await seasonService.getLeagueTable(season.id);
+			if (token !== championRequest) return;
+			const found = championFromTable(response.data);
+			currentFinished.value = response.data?.season_status === SeasonStatus.FINISHED;
+			if (!found) {
+				champion.value = null;
+			} else {
+				const team = (teamStore.teams || []).find((item) => item.id === found.teamId);
+				champion.value = {
+					...found,
+					seasonName: season.name,
+					logo: team?.logo_url || "",
+				};
+			}
+		} catch (error) {
+			if (token !== championRequest) return;
+			console.error("Failed to load the season champion", error);
+			champion.value = null;
+			currentFinished.value = false;
+		}
+		resolvedSeasonId.value = season.id;
+	} finally {
+		if (token === championRequest) releaseHomeLoader();
 	}
-	resolvedSeasonId.value = season.id;
 };
 
 const heroKnown = computed(() => {
@@ -122,8 +128,13 @@ const heroKnown = computed(() => {
 	return resolvedSeasonId.value === (season?.id ?? null);
 });
 
-watch(() => [seasonStore.seasons, teamStore.teams], loadChampion, { immediate: true });
+watch(() => [seasonStore.seasons, teamStore.teams], loadChampion);
 useLive(loadChampion, { areas: areas.points });
+loadChampion();
+onBeforeRouteUpdate(() => {
+	loadChampion();
+});
+onUnmounted(() => releaseHomeLoader());
 
 const seasonStarted = ref(false);
 

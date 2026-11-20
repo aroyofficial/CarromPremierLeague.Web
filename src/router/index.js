@@ -146,6 +146,14 @@ const router = createRouter({
 });
 
 let navigationStartedAt = 0;
+let homeLoaderHolds = 0;
+
+export function releaseHomeLoader() {
+	while (homeLoaderHolds > 0) {
+		homeLoaderHolds -= 1;
+		pauseLoader();
+	}
+}
 
 router.beforeEach(async (to) => {
 	navigationStartedAt = Date.now();
@@ -192,7 +200,8 @@ router.beforeEach(async (to) => {
 		console.error("Failed to preload route data", error);
 		notify.error("Some league data could not be loaded. Please try again shortly.");
 	} finally {
-		pauseLoader();
+		if (to.path === Routes.HOME) homeLoaderHolds += 1;
+		else pauseLoader();
 	}
 	return true;
 });
