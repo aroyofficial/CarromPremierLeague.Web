@@ -1,5 +1,6 @@
 <template>
 	<div class="page-container">
+		<PageFireworks :active="showFireworks" />
 		<header class="page-heading">
 			<div>
 				<span class="page-eyebrow">Standings</span>
@@ -84,6 +85,7 @@ import { pauseBgm, playBgm } from "@/utils/common";
 import { areas } from "@/utils/realtimeRules";
 import { useLive } from "@/utils/useLive";
 import EntityImage from "@/components/EntityImage.vue";
+import PageFireworks from "@/components/PageFireworks.vue";
 
 const seasonStore = useSeasonStore();
 const teamStore = useTeamStore();
@@ -148,6 +150,8 @@ watch(
 );
 
 const isSeasonEnded = () => leagueTable.value?.season_status === SeasonStatus.FINISHED;
+
+const showFireworks = computed(() => isSeasonEnded() && Boolean(leagueTable.value?.winner_id));
 
 const isWinnerRow = (row) => isSeasonEnded() && row.team_id === leagueTable.value?.winner_id;
 

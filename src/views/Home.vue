@@ -1,5 +1,6 @@
 <template>
 	<div class="home">
+		<PageFireworks :active="Boolean(champion)" />
 		<section class="hero" aria-labelledby="hero-title">
 			<div class="hero-bg" aria-hidden="true">
 				<div class="board">
@@ -19,6 +20,14 @@
 			</div>
 
 			<div class="hero-content">
+				<EntityImage
+					v-if="champion"
+					:src="champion.logo"
+					:name="champion.teamName"
+					kind="team"
+					class="champion-crest"
+					:alt="`${champion.teamName} logo`"
+				/>
 				<span class="hero-eyebrow">
 					<span class="eyebrow-dot"></span>
 					{{ heroEyebrow }}
@@ -29,7 +38,7 @@
 				<p class="hero-subtitle">{{ heroSubtitle }}</p>
 
 				<SeasonCountdown
-					v-if="countdownTarget"
+					v-if="countdownTarget && !champion"
 					:target="countdownTarget"
 					@finished="onCountdownFinished"
 				/>
@@ -53,14 +62,50 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import dayjs from "@/plugins/dayjs";
 import SeasonCountdown from "@/components/SeasonCountdown.vue";
+import EntityImage from "@/components/EntityImage.vue";
+import PageFireworks from "@/components/PageFireworks.vue";
 import { useSeasonStore } from "@/store/seasonStore";
+import { useTeamStore } from "@/store/teamStore";
+import { seasonService } from "@/services/seasonService";
 import { Routes, LEAGUE_TIMEZONE } from "@/utils/constants";
+import { championFromTable, currentShownSeason } from "@/utils/champion";
+import { areas } from "@/utils/realtimeRules";
+import { useLive } from "@/utils/useLive";
 import { isSeasonUpcoming, seasonStartValue } from "@/utils/season";
 
 const seasonStore = useSeasonStore();
+const teamStore = useTeamStore();
+const champion = ref(null);
+
+const loadChampion = async () => {
+	const season = currentShownSeason(seasonStore.seasons);
+	if (!season) {
+		champion.value = null;
+		return;
+	}
+	try {
+		const response = await seasonService.getLeagueTable(season.id);
+		const found = championFromTable(response.data);
+		if (!found) {
+			champion.value = null;
+			return;
+		}
+		const team = (teamStore.teams || []).find((item) => item.id === found.teamId);
+		champion.value = {
+			...found,
+			seasonName: season.name,
+			logo: team?.logo_url || "",
+		};
+	} catch (error) {
+		console.error("Failed to load the season champion", error);
+	}
+};
+
+watch(() => [seasonStore.seasons, teamStore.teams], loadChampion, { immediate: true });
+useLive(loadChampion, { areas: areas.points });
 
 const seasonStarted = ref(false);
 
@@ -96,17 +141,20 @@ const countdownTarget = computed(() =>
 );
 
 const heroEyebrow = computed(() => {
+	if (champion.value) return "Champions";
 	if (!upcomingSeason.value) return "Carrom Premier League";
 	return seasonStarted.value || dayjs().valueOf() >= countdownTarget.value
 		? "Now Playing"
 		: "Upcoming Season";
 });
 
-const heroTitle = computed(() =>
-	upcomingSeason.value ? `${upcomingSeason.value.name} is coming` : "The board is being set",
-);
+const heroTitle = computed(() => {
+	if (champion.value) return champion.value.teamName;
+	return upcomingSeason.value ? `${upcomingSeason.value.name} is coming` : "The board is being set";
+});
 
 const heroSubtitle = computed(() => {
+	if (champion.value) return `${champion.value.seasonName} champions`;
 	if (!upcomingSeason.value) {
 		return "Dates for the next season will be announced soon. Stay tuned!";
 	}
@@ -261,6 +309,22 @@ const onCountdownFinished = () => {
 	font-size: clamp(14px, 2vw, 17px);
 	color: rgba(255, 255, 255, 0.75);
 	animation: fade-up 0.7s 0.2s ease both;
+}
+
+.champion-crest {
+	display: block;
+	width: 92px;
+	height: 92px;
+	border-radius: 50%;
+	overflow: hidden;
+	box-shadow: 0 0 0 3px var(--cpl-gold-500), 0 0 28px rgba(245, 184, 46, 0.45);
+	animation: fade-up 0.6s ease both;
+
+	:deep(img) {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
 }
 
 .hero-content > :deep(.countdown) {
