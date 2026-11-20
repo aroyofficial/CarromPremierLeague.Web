@@ -8,7 +8,7 @@ import { useAuthStore } from "@/store/authStore";
 import { useTeamStore } from "@/store/teamStore";
 import { useMatchStore } from "@/store/matchStore";
 import { useRosterStore } from "@/store/rosterStore";
-import { startLoader, pauseLoader } from "../utils/common";
+import { dismissPageLoader, openPageLoader, pauseLoader, startLoader } from "../utils/common";
 
 const adminViews = {
 	"admin-dashboard": () => import("@/views/admin/AdminDashboard.vue"),
@@ -146,31 +146,41 @@ const router = createRouter({
 });
 
 let navigationStartedAt = 0;
-let homeLoaderHolds = 0;
 
-export function releaseHomeLoader() {
-	while (homeLoaderHolds > 0) {
-		homeLoaderHolds -= 1;
-		pauseLoader();
-	}
-}
+const isAdminRoute = (to) => to.path === Routes.ADMIN || to.path.startsWith(`${Routes.ADMIN}/`);
 
-router.beforeEach(async (to) => {
+const pageLoadsItself = (to) =>
+	isAdminRoute(to) || to.path === Routes.TEAMS || to.path === Routes.HOME;
+
+const loginRedirect = (to) => {
+	dismissPageLoader();
+	return { path: Routes.LOGIN, query: { redirect: to.fullPath } };
+};
+
+const dashboardRedirect = (from) => {
+	if (from.name === "admin-dashboard") dismissPageLoader();
+	return { name: "admin-dashboard" };
+};
+
+router.beforeEach(async (to, from) => {
 	navigationStartedAt = Date.now();
 	if (to.matched.some((record) => record.meta.requiresAuth) && !authToken.get()) {
-		return { path: Routes.LOGIN, query: { redirect: to.fullPath } };
+		return loginRedirect(to);
 	}
+	const samePage = pageLoadsItself(to) && to.name === from.name && to.path === from.path;
+	if (pageLoadsItself(to) && !samePage) openPageLoader();
+	else if (!pageLoadsItself(to)) dismissPageLoader();
 	const required = to.meta.permissions || [];
 	if (required.length) {
 		const authStore = useAuthStore();
 		try {
 			await authStore.loadProfile();
 		} catch {
-			return authToken.get() ? { name: "admin-dashboard" } : { path: Routes.LOGIN, query: { redirect: to.fullPath } };
+			return authToken.get() ? dashboardRedirect(from) : loginRedirect(to);
 		}
 		if (!authStore.canAny(required)) {
 			notify.warning("You do not have permission to open that section.");
-			return { name: "admin-dashboard" };
+			return dashboardRedirect(from);
 		}
 	}
 	if (to.meta.skipPreload) return true;
@@ -200,10 +210,13 @@ router.beforeEach(async (to) => {
 		console.error("Failed to preload route data", error);
 		notify.error("Some league data could not be loaded. Please try again shortly.");
 	} finally {
-		if (to.path === Routes.HOME) homeLoaderHolds += 1;
-		else pauseLoader();
+		pauseLoader();
 	}
 	return true;
+});
+
+router.onError(() => {
+	dismissPageLoader();
 });
 
 router.afterEach((to, from, failure) => {

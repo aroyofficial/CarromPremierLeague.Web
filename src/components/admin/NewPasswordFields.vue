@@ -71,7 +71,7 @@
 			<li v-for="check in checks" :key="check.id">{{ check.label }}: {{ check.met ? "done" : "not yet" }}</li>
 		</ul>
 
-		<el-form-item v-if="!reveal" label="Confirm password" :prop="confirmProp" class="confirm-item">
+		<el-form-item label="Confirm password" :prop="confirmProp" class="confirm-item">
 			<el-input
 				:model-value="confirm"
 				type="password"
@@ -122,6 +122,7 @@ const emit = defineEmits(["update:password", "update:confirm", "update:save"]);
 const uid = `np-${Math.random().toString(36).slice(2, 8)}`;
 const formContext = inject(formContextKey, null);
 const reveal = ref(false);
+const generatedValue = ref("");
 const copied = ref(false);
 const announcement = ref("");
 const strength = computed(() => passwordStrength(props.password));
@@ -156,10 +157,12 @@ const settleValidation = (force) => {
 	});
 };
 
-// A visible password needs no retyping, so the confirm field follows it.
 const setPassword = (value) => {
 	emit("update:password", value);
-	if (reveal.value) emit("update:confirm", value);
+	if (generatedValue.value && value !== generatedValue.value) {
+		generatedValue.value = "";
+		emit("update:confirm", "");
+	}
 	settleValidation(false);
 };
 
@@ -170,14 +173,13 @@ const setConfirm = (value) => {
 
 const toggleReveal = () => {
 	reveal.value = !reveal.value;
-	if (reveal.value) emit("update:confirm", props.password);
-	settleValidation(false);
 };
 
 const generate = () => {
 	const value = generatePassword();
 	reveal.value = true;
 	copied.value = false;
+	generatedValue.value = value;
 	emit("update:password", value);
 	emit("update:confirm", value);
 	announcement.value = "A strong password was generated and filled in.";

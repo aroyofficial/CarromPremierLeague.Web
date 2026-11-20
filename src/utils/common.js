@@ -1,10 +1,14 @@
-import { createApp, h } from "vue";
+import { createApp, h, nextTick, onUnmounted } from "vue";
 import { BackgroundMusic } from "./constants";
 import CarromLoader from "@/components/CarromLoader.vue";
 
 let loaderApp = null;
 let loaderHost = null;
 let loaderDepth = 0;
+let pageLoaderGen = 0;
+let pageLoaderOn = false;
+const pageHolds = new Map();
+const pageHoldWaiters = new Map();
 
 export async function playBgm(
 	type = BackgroundMusic.Match,
@@ -122,6 +126,70 @@ export function pauseLoader() {
 	loaderHost.remove();
 	loaderApp = null;
 	loaderHost = null;
+}
+
+export function openPageLoader() {
+	pageLoaderGen += 1;
+	if (!pageLoaderOn) {
+		pageLoaderOn = true;
+		startLoader();
+	}
+	return pageLoaderGen;
+}
+
+export function closePageLoader(gen) {
+	if (!pageLoaderOn || gen !== pageLoaderGen) return;
+	pageLoaderOn = false;
+	pauseLoader();
+}
+
+export function dismissPageLoader() {
+	if (!pageLoaderOn) return;
+	pageLoaderGen += 1;
+	pageLoaderOn = false;
+	pauseLoader();
+}
+
+export function holdPageData() {
+	const gen = pageLoaderGen;
+	pageHolds.set(gen, (pageHolds.get(gen) || 0) + 1);
+	let released = false;
+	const release = () => {
+		if (released) return;
+		released = true;
+		const left = (pageHolds.get(gen) || 1) - 1;
+		if (left > 0) {
+			pageHolds.set(gen, left);
+			return;
+		}
+		pageHolds.delete(gen);
+		const waiting = pageHoldWaiters.get(gen) || [];
+		pageHoldWaiters.delete(gen);
+		waiting.forEach((resolve) => resolve());
+	};
+	onUnmounted(release);
+	return release;
+}
+
+function pageDataSettled(gen) {
+	if (!pageHolds.get(gen)) return Promise.resolve();
+	return new Promise((resolve) => {
+		const waiting = pageHoldWaiters.get(gen) || [];
+		waiting.push(resolve);
+		pageHoldWaiters.set(gen, waiting);
+	});
+}
+
+export async function settlePageLoader(work) {
+	const gen = pageLoaderGen;
+	try {
+		if (work) await work();
+		await nextTick();
+		await pageDataSettled(gen);
+	} finally {
+		await nextTick();
+		closePageLoader(gen);
+	}
 }
 
 export function takeFullScreen() {

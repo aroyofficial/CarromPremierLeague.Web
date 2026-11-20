@@ -59,7 +59,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import {
 	Avatar,
@@ -83,6 +83,7 @@ import { initial } from "@/utils/adminNames";
 import { adminAssistantIsVisible } from "@/utils/assistantVisibility";
 import { AdminSections, Routes } from "@/utils/constants";
 import { SIDEBAR_KEY, initialSidebarExpanded, isPhoneWidth, sidebarPreference } from "@/utils/sidebarState";
+import { dismissPageLoader } from "@/utils/common";
 import { useAuthStore } from "@/store/authStore";
 import { useSettingsStore } from "@/store/settingsStore";
 
@@ -90,6 +91,14 @@ const icons = { Avatar, Calendar, Connection, DataBoard, Flag, Lock, Picture, Se
 
 const router = useRouter();
 const authStore = useAuthStore();
+
+watch(
+	() => authStore.mustChangePassword,
+	(must) => {
+		if (must) dismissPageLoader();
+	},
+	{ immediate: true },
+);
 const settingsStore = useSettingsStore();
 const refreshKey = ref(0);
 const userInitial = computed(() => initial(authStore));

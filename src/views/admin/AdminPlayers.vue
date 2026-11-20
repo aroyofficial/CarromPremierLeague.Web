@@ -161,6 +161,7 @@ import { validateForm } from "@/utils/formValidation";
 import EntityImage from "@/components/EntityImage.vue";
 import ImageUploadField from "@/components/admin/ImageUploadField.vue";
 import { areas } from "@/utils/realtimeRules";
+import { settlePageLoader } from "@/utils/common";
 import { useFillHeight } from "@/utils/useFillHeight";
 import { useAdminLive } from "@/utils/useLive";
 
@@ -379,5 +380,5 @@ const remove = async (player) => {
 	if (ok) await load();
 };
 
-onMounted(load);
+onMounted(() => settlePageLoader(load));
 </script>

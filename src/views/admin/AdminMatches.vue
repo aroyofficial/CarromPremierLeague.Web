@@ -186,7 +186,7 @@ import { useRosterStore } from "@/store/rosterStore";
 import { useTeamStore } from "@/store/teamStore";
 import { confirmDelete, defaultSeasonId, runAction, unwrap } from "@/utils/adminHelpers";
 import { MatchCategory, MatchOutcome, MatchStatus, TossOutcome } from "@/utils/constants";
-import { startLoader, pauseLoader } from "@/utils/common";
+import { pauseLoader, settlePageLoader, startLoader } from "@/utils/common";
 import { coinBounds, colourOverflow } from "@/utils/coinLimits";
 import { usePermissions } from "@/utils/permissions";
 import { areas } from "@/utils/realtimeRules";
@@ -563,21 +563,23 @@ useAdminLive(
 	{ areas: areas.adminMatches },
 );
 
-onMounted(async () => {
-	const { ok, result } = await runAction(() => Promise.all([adminApi.seasons.list(), adminApi.teams.list()]));
-	if (!ok) {
+onMounted(() =>
+	settlePageLoader(async () => {
+		const { ok, result } = await runAction(() => Promise.all([adminApi.seasons.list(), adminApi.teams.list()]));
+		if (!ok) {
+			loading.value = false;
+			return;
+		}
+		seasons.value = unwrap(result[0]) || [];
+		teams.value = unwrap(result[1]) || [];
+		if (seasons.value.length) {
+			seasonId.value = defaultSeasonId(seasons.value);
+			await loadSeason();
+			return;
+		}
 		loading.value = false;
-		return;
-	}
-	seasons.value = unwrap(result[0]) || [];
-	teams.value = unwrap(result[1]) || [];
-	if (seasons.value.length) {
-		seasonId.value = defaultSeasonId(seasons.value);
-		await loadSeason();
-		return;
-	}
-	loading.value = false;
-});
+	}),
+);
 </script>
 
 <style scoped>

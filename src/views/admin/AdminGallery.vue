@@ -196,6 +196,7 @@ import { embedUrl, isVideoItem, isVideoUrl, tilePoster, videoPoster } from "@/ut
 import { IMAGE_ACCEPT, VIDEO_ACCEPT, mediaFileProblem, publicImageLinkProblem } from "@/utils/media";
 import { useUploadLeaveGuard } from "@/utils/uploadGuard";
 import { areas } from "@/utils/realtimeRules";
+import { settlePageLoader } from "@/utils/common";
 import { useAdminLive } from "@/utils/useLive";
 
 const MEDIA_ACCEPT = `${IMAGE_ACCEPT},${VIDEO_ACCEPT}`;
@@ -698,15 +699,17 @@ const removeOne = async () => {
 	}
 };
 
-onMounted(async () => {
-	try {
-		const result = await adminApi.seasons.list();
-		seasons.value = result.data || [];
-	} catch (err) {
-		pageError.value = apiErrorMessage(err, "Seasons could not be loaded.");
-	}
-	await load(true);
-});
+onMounted(() =>
+	settlePageLoader(async () => {
+		try {
+			const result = await adminApi.seasons.list();
+			seasons.value = result.data || [];
+		} catch (err) {
+			pageError.value = apiErrorMessage(err, "Seasons could not be loaded.");
+		}
+		await load(true);
+	}),
+);
 </script>
 
 <style scoped>

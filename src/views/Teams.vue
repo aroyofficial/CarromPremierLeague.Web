@@ -87,6 +87,7 @@ import { useTeamStore } from "@/store/teamStore";
 import { useRosterStore } from "@/store/rosterStore";
 import { seasonService } from "@/services/seasonService";
 import { isSeasonFinished } from "@/utils/season";
+import { settlePageLoader } from "@/utils/common";
 import { areas } from "@/utils/realtimeRules";
 import { useLive } from "@/utils/useLive";
 
@@ -190,11 +191,13 @@ watch(
 	},
 );
 
-onMounted(async () => {
-	seasons.value = seasonStore.visibleSeasons;
-	selectedSeason.value = seasonStore.selectedSeason;
-	await Promise.all([fetchRosterForSeason(), fetchChampionCounts()]);
-});
+onMounted(() =>
+	settlePageLoader(async () => {
+		seasons.value = seasonStore.visibleSeasons;
+		selectedSeason.value = seasonStore.selectedSeason;
+		await Promise.all([fetchRosterForSeason(), fetchChampionCounts()]);
+	}),
+);
 </script>
 
 <style scoped lang="scss">
