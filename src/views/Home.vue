@@ -20,28 +20,30 @@
 			</div>
 
 			<div class="hero-content">
-				<EntityImage
-					v-if="champion"
-					:src="champion.logo"
-					:name="champion.teamName"
-					kind="team"
-					class="champion-crest"
-					:alt="`${champion.teamName} logo`"
-				/>
-				<span class="hero-eyebrow">
-					<span class="eyebrow-dot"></span>
-					{{ heroEyebrow }}
-				</span>
-				<h1 id="hero-title" class="hero-title">
-					<span class="shimmer">{{ heroTitle }}</span>
-				</h1>
-				<p class="hero-subtitle">{{ heroSubtitle }}</p>
+				<template v-if="heroKnown">
+					<EntityImage
+						v-if="champion"
+						:src="champion.logo"
+						:name="champion.teamName"
+						kind="team"
+						class="champion-crest"
+						:alt="`${champion.teamName} logo`"
+					/>
+					<span class="hero-eyebrow">
+						<span class="eyebrow-dot"></span>
+						{{ heroEyebrow }}
+					</span>
+					<h1 id="hero-title" class="hero-title">
+						<span class="shimmer">{{ heroTitle }}</span>
+					</h1>
+					<p class="hero-subtitle">{{ heroSubtitle }}</p>
 
-				<SeasonCountdown
-					v-if="countdownTarget && !champion"
-					:target="countdownTarget"
-					@finished="onCountdownFinished"
-				/>
+					<SeasonCountdown
+						v-if="countdownTarget && !champion"
+						:target="countdownTarget"
+						@finished="onCountdownFinished"
+					/>
+				</template>
 
 				<div class="hero-ctas">
 					<router-link :to="Routes.TEAMS" class="cta cta-primary">Meet the Teams</router-link>
@@ -70,39 +72,55 @@ import PageFireworks from "@/components/PageFireworks.vue";
 import { useSeasonStore } from "@/store/seasonStore";
 import { useTeamStore } from "@/store/teamStore";
 import { seasonService } from "@/services/seasonService";
-import { Routes, LEAGUE_TIMEZONE } from "@/utils/constants";
-import { championFromTable, currentShownSeason } from "@/utils/champion";
+import { Routes, LEAGUE_TIMEZONE, SeasonStatus } from "@/utils/constants";
+import { championFromTable, countdownSeason, currentShownSeason } from "@/utils/champion";
 import { areas } from "@/utils/realtimeRules";
 import { useLive } from "@/utils/useLive";
-import { isSeasonUpcoming, seasonStartValue } from "@/utils/season";
-
 const seasonStore = useSeasonStore();
 const teamStore = useTeamStore();
 const champion = ref(null);
+const currentFinished = ref(false);
+const resolvedSeasonId = ref(undefined);
+let championRequest = 0;
 
 const loadChampion = async () => {
+	const token = ++championRequest;
 	const season = currentShownSeason(seasonStore.seasons);
 	if (!season) {
+		if (token !== championRequest) return;
 		champion.value = null;
+		currentFinished.value = false;
+		resolvedSeasonId.value = null;
 		return;
 	}
 	try {
 		const response = await seasonService.getLeagueTable(season.id);
+		if (token !== championRequest) return;
 		const found = championFromTable(response.data);
+		currentFinished.value = response.data?.season_status === SeasonStatus.FINISHED;
 		if (!found) {
 			champion.value = null;
-			return;
+		} else {
+			const team = (teamStore.teams || []).find((item) => item.id === found.teamId);
+			champion.value = {
+				...found,
+				seasonName: season.name,
+				logo: team?.logo_url || "",
+			};
 		}
-		const team = (teamStore.teams || []).find((item) => item.id === found.teamId);
-		champion.value = {
-			...found,
-			seasonName: season.name,
-			logo: team?.logo_url || "",
-		};
 	} catch (error) {
+		if (token !== championRequest) return;
 		console.error("Failed to load the season champion", error);
+		champion.value = null;
+		currentFinished.value = false;
 	}
+	resolvedSeasonId.value = season.id;
 };
+
+const heroKnown = computed(() => {
+	const season = currentShownSeason(seasonStore.seasons);
+	return resolvedSeasonId.value === (season?.id ?? null);
+});
 
 watch(() => [seasonStore.seasons, teamStore.teams], loadChampion, { immediate: true });
 useLive(loadChampion, { areas: areas.points });
@@ -130,11 +148,9 @@ const quickLinks = [
 
 const seasonStart = (season) => dayjs.tz(`${season.start_date} 00:00`, LEAGUE_TIMEZONE);
 
-const upcomingSeason = computed(() => {
-	return (seasonStore.seasons || [])
-		.filter(isSeasonUpcoming)
-		.sort((a, b) => seasonStartValue(a) - seasonStartValue(b))[0] || null;
-});
+const upcomingSeason = computed(() =>
+	heroKnown.value ? countdownSeason(seasonStore.seasons, currentFinished.value) : null,
+);
 
 const countdownTarget = computed(() =>
 	upcomingSeason.value ? seasonStart(upcomingSeason.value).valueOf() : null,

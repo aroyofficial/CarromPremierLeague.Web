@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { championFromTable, championSeenKey, currentShownSeason } from "./champion.js";
+import { championFromTable, championSeenKey, countdownSeason, currentShownSeason } from "./champion.js";
 
 const standing = (team_id, team_name) => ({ team_id, team_name });
 
@@ -22,6 +22,20 @@ test("a champion exists only when the season is finished and the Final has a win
 		teamId: 8,
 		teamName: "Strikers",
 	});
+});
+
+test("a finished season does not count down when no other visible season is coming", () => {
+	const finished = { id: 3, name: "Season 3", show: true, start_date: "2099-01-01" };
+	const hidden = { id: 4, name: "Season 4", show: false, start_date: "2099-06-01" };
+	assert.equal(countdownSeason([finished], true), null);
+	assert.equal(countdownSeason([hidden, finished], true), null);
+	assert.equal(countdownSeason([finished], false).id, 3);
+});
+
+test("another visible season still counts down when the current one is finished", () => {
+	const finished = { id: 4, name: "Season 4", show: true, start_date: "2099-01-01" };
+	const coming = { id: 3, name: "Season 3", show: true, start_date: "2099-06-01" };
+	assert.equal(countdownSeason([finished, coming], true).id, 3);
 });
 
 test("the dismissal is remembered per season and champion", () => {
