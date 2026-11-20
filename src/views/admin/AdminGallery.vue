@@ -840,7 +840,6 @@ onMounted(async () => {
 	outline-offset: -3px;
 }
 
-.gallery-tile img,
 .gallery-tile :deep(.framed:not(.has-frame) img),
 .thumb-fallback {
 	width: 100%;
@@ -848,6 +847,14 @@ onMounted(async () => {
 	object-fit: cover;
 	display: grid;
 	place-items: center;
+	transition: transform 0.25s ease;
+}
+
+.gallery-tile img {
+	width: calc(100% - 12px);
+	height: calc(100% - 12px);
+	margin: 6px;
+	object-fit: cover;
 	transition: transform 0.25s ease;
 }
 
@@ -928,13 +935,22 @@ onMounted(async () => {
 .thumb-fallback {
 	position: absolute;
 	inset: 0;
-	padding: 6px;
 	overflow: hidden;
 	color: var(--cpl-ink-600);
 	font-size: 12px;
 	line-height: 1.3;
 	text-align: center;
 	overflow-wrap: anywhere;
+}
+
+.thumb-fallback {
+	padding: 6px;
+}
+
+.gallery-tile :deep(.framed) {
+	width: auto;
+	height: auto;
+	margin: 6px;
 }
 
 .link-box :deep(.el-textarea) {

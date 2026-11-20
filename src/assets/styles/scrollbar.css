@@ -1,0 +1,147 @@
+/* OverlayScrollbars theme. Native and Element Plus bars use the same size and colour. */
+.os-theme-cpl {
+	--os-size: 6px;
+	--os-padding-perpendicular: 0px;
+	--os-padding-axis: 2px;
+	--os-track-border-radius: 999px;
+	--os-track-bg: transparent;
+	--os-track-bg-hover: transparent;
+	--os-track-bg-active: transparent;
+	--os-handle-border-radius: 999px;
+	--os-handle-min-size: 24px;
+	--os-handle-interactive-area-offset: 6px;
+	--os-handle-bg: rgba(100, 116, 139, 0.55);
+	--os-handle-bg-hover: var(--cpl-gold-500);
+	--os-handle-bg-active: #c48a12;
+	z-index: 5;
+}
+
+.os-theme-cpl .os-scrollbar-handle {
+	transition: background-color 0.15s ease, width 0.15s ease, height 0.15s ease;
+}
+
+html.dark .os-theme-cpl {
+	--os-handle-bg: rgba(226, 232, 240, 0.45);
+	--os-handle-bg-hover: var(--cpl-gold-400);
+	--os-handle-bg-active: #fff6dc;
+}
+
+.admin-sidebar .os-theme-cpl,
+html.dark .admin-sidebar .os-theme-cpl {
+	--os-handle-bg: rgba(255, 255, 255, 0.4);
+	--os-handle-bg-hover: var(--cpl-gold-400);
+	--os-handle-bg-active: #fff6dc;
+}
+
+/* The scroller stays the viewport, so the library must not replace its layout. */
+[data-overlayscrollbars-viewport] {
+	display: var(--cpl-os-display) !important;
+	flex-direction: var(--cpl-os-flex-direction) !important;
+	flex-wrap: var(--cpl-os-flex-wrap) !important;
+	align-items: var(--cpl-os-align) !important;
+	overflow-x: var(--cpl-os-overflow-x) !important;
+	overflow-y: var(--cpl-os-overflow-y) !important;
+	scroll-behavior: var(--cpl-os-scroll-behavior) !important;
+	scrollbar-width: none !important;
+}
+
+[data-overlayscrollbars-viewport][data-cpl-os-position] {
+	position: var(--cpl-os-position) !important;
+}
+
+[data-overlayscrollbars-viewport]::-webkit-scrollbar,
+[data-overlayscrollbars-viewport]::-webkit-scrollbar-corner {
+	appearance: none;
+	display: none;
+	width: 0;
+	height: 0;
+}
+
+html,
+html.dark {
+	scrollbar-width: thin;
+	scrollbar-color: rgba(100, 116, 139, 0.65) transparent;
+}
+
+html.dark {
+	scrollbar-color: rgba(226, 232, 240, 0.5) transparent;
+}
+
+*::-webkit-scrollbar {
+	width: 6px;
+	height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+	background: rgba(100, 116, 139, 0.55);
+	border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+	background: var(--cpl-gold-500);
+}
+
+html.dark *::-webkit-scrollbar-thumb {
+	background: rgba(226, 232, 240, 0.45);
+}
+
+html.dark *::-webkit-scrollbar-thumb:hover {
+	background: var(--cpl-gold-400);
+}
+
+.admin-sidebar *::-webkit-scrollbar-thumb,
+html.dark .admin-sidebar *::-webkit-scrollbar-thumb {
+	background: rgba(255, 255, 255, 0.4);
+}
+
+.admin-sidebar *::-webkit-scrollbar-thumb:hover,
+html.dark .admin-sidebar *::-webkit-scrollbar-thumb:hover {
+	background: var(--cpl-gold-400);
+}
+
+.el-scrollbar__bar {
+	border-radius: 999px;
+	opacity: 1;
+}
+
+.el-scrollbar__bar.is-vertical {
+	width: 6px;
+	right: 1px;
+}
+
+.el-scrollbar__bar.is-horizontal {
+	height: 6px;
+	bottom: 1px;
+}
+
+.el-scrollbar__thumb {
+	background-color: rgba(100, 116, 139, 0.55);
+	border-radius: 999px;
+	opacity: 1;
+}
+
+.el-scrollbar__thumb:hover {
+	background-color: var(--cpl-gold-500);
+}
+
+html.dark .el-scrollbar__thumb {
+	background-color: rgba(226, 232, 240, 0.45);
+}
+
+html.dark .el-scrollbar__thumb:hover {
+	background-color: var(--cpl-gold-400);
+}
+
+.admin-sidebar .el-scrollbar__thumb,
+html.dark .admin-sidebar .el-scrollbar__thumb {
+	background-color: rgba(255, 255, 255, 0.4);
+}
+
+.admin-sidebar .el-scrollbar__thumb:hover,
+html.dark .admin-sidebar .el-scrollbar__thumb:hover {
+	background-color: var(--cpl-gold-400);
+}

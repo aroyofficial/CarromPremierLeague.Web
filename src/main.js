@@ -10,8 +10,11 @@ import "element-plus/theme-chalk/dark/css-vars.css";
 
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap/dist/js/bootstrap.bundle.min.js";
+import "overlayscrollbars/overlayscrollbars.css";
 import "@/assets/styles/global.css";
+import "@/assets/styles/scrollbar.css";
 import { initTheme } from "@/utils/theme";
+import { installScrollbars } from "@/utils/scrollbar";
 import { carromLoading } from "@/directives/carromLoading";
 
 initTheme();
@@ -30,4 +33,7 @@ app.config.globalProperties.$dayjs = dayjs;
 // Mounting before the first navigation resolves leaves the router view empty
 // on pages whose guard returns immediately, so a fresh /login?redirect= link
 // never shows the form.
-router.isReady().then(() => app.mount("#app"));
+router.isReady().then(() => {
+	app.mount("#app");
+	installScrollbars();
+});

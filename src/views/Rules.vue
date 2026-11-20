@@ -584,11 +584,6 @@ html.dark .points-tile {
 		padding: 8px var(--page-gutter);
 		background: var(--cpl-surface-muted);
 		box-shadow: 0 6px 12px -10px rgba(15, 23, 42, 0.35);
-		scrollbar-width: none;
-
-		&::-webkit-scrollbar {
-			display: none;
-		}
 
 		a {
 			flex: 0 0 auto;

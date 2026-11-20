@@ -7,7 +7,31 @@ export function useFillHeight() {
 	let observer;
 
 	const measure = () => {
-		const next = Math.floor(box.value?.clientHeight || 0);
+		const element = box.value;
+		if (!element) return;
+		const main = element.closest(".admin-main");
+		const page = element.closest(".admin-page");
+		const head = page?.querySelector(":scope > .admin-page-head");
+		let next = Math.floor(element.clientHeight);
+		if (main && head) {
+			const mainStyle = getComputedStyle(main);
+			const headStyle = getComputedStyle(head);
+			const card = element.closest(".admin-card");
+			const cardStyle = card ? getComputedStyle(card) : null;
+			const cardChrome = cardStyle
+				? parseFloat(cardStyle.paddingTop) + parseFloat(cardStyle.paddingBottom)
+					+ parseFloat(cardStyle.borderTopWidth) + parseFloat(cardStyle.borderBottomWidth)
+				: 0;
+			next = Math.floor(
+				main.clientHeight
+				- parseFloat(mainStyle.paddingTop)
+				- parseFloat(mainStyle.paddingBottom)
+				- head.offsetHeight
+				- parseFloat(headStyle.marginTop)
+				- parseFloat(headStyle.marginBottom)
+				- cardChrome,
+			);
+		}
 		if (next > 0 && next !== height.value) height.value = next;
 	};
 
@@ -17,6 +41,8 @@ export function useFillHeight() {
 		if (!element) return;
 		observer = new ResizeObserver(measure);
 		observer.observe(element);
+		const main = element.closest(".admin-main");
+		if (main && main !== element) observer.observe(main);
 		measure();
 	};
 

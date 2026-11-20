@@ -113,9 +113,11 @@
 					</div>
 					<button type="button" class="viewer-icon" aria-label="Close" @click="closeViewer">×</button>
 				</header>
-				<div ref="stageEl" class="viewer-stage" :class="{ 'is-zoomed': zoom > 1 }" @touchstart.passive="onTouchStart" @touchend.passive="onTouchEnd">
+				<div class="viewer-frame">
 					<button type="button" class="viewer-icon is-nav is-prev" aria-label="Previous" :disabled="!canStepBack" @click="step(-1)">‹</button>
-					<div v-if="shown" class="viewer-fit" :style="{ width: `${shown.width}px`, height: `${shown.height}px` }">
+					<div ref="stageEl" class="viewer-stage" @touchstart.passive="onTouchStart" @touchend.passive="onTouchEnd">
+						<div class="viewer-canvas">
+							<div v-if="shown" ref="fitEl" class="viewer-fit" :style="{ width: `${shown.width}px`, height: `${shown.height}px` }">
 						<iframe
 							v-if="isVideoItem(viewer) && embedUrl(viewer.url)"
 							:key="`embed-${viewer.id}`"
@@ -143,7 +145,9 @@
 							:alt="viewer.alt_text || viewer.caption || 'Season photo'"
 							@error="markBroken(viewer.id)"
 						/>
-						<p v-else class="photo-missing">Image unavailable</p>
+								<p v-else class="photo-missing">Image unavailable</p>
+							</div>
+						</div>
 					</div>
 					<button type="button" class="viewer-icon is-nav is-next" aria-label="Next" :disabled="!canStepForward" @click="step(1)">›</button>
 				</div>
@@ -233,6 +237,7 @@ const frameWidth = ref(0);
 const videoEl = ref(null);
 const stripEl = ref(null);
 const stageEl = ref(null);
+const fitEl = ref(null);
 const stageBox = ref({ width: 0, height: 0 });
 const zoom = ref(1);
 const downloading = ref(false);
@@ -279,9 +284,36 @@ const shown = computed(() => {
 		height: Math.max(1, Math.round(fitted.value.height * zoom.value)),
 	};
 });
-const zoomBy = (delta) => {
+const zoomBy = async (delta) => {
+	const stage = stageEl.value;
+	const fit = fitEl.value;
+	let anchorX = 0.5;
+	let anchorY = 0.5;
+	if (stage && fit) {
+		const stageRect = stage.getBoundingClientRect();
+		const fitRect = fit.getBoundingClientRect();
+		if (fitRect.width > 0 && fitRect.height > 0) {
+			anchorX = (stageRect.left + stageRect.width / 2 - fitRect.left) / fitRect.width;
+			anchorY = (stageRect.top + stageRect.height / 2 - fitRect.top) / fitRect.height;
+		}
+	}
 	const next = Math.round((zoom.value + delta) * 100) / 100;
-	zoom.value = Math.min(4, Math.max(1, next));
+	const clamped = Math.min(4, Math.max(1, next));
+	if (clamped === zoom.value) return;
+	zoom.value = clamped;
+	await nextTick();
+	const stageNow = stageEl.value;
+	const fitNow = fitEl.value;
+	if (!stageNow || !fitNow) return;
+	if (zoom.value <= 1) {
+		stageNow.scrollLeft = 0;
+		stageNow.scrollTop = 0;
+		return;
+	}
+	const stageRect = stageNow.getBoundingClientRect();
+	const fitRect = fitNow.getBoundingClientRect();
+	stageNow.scrollLeft += fitRect.left + anchorX * fitRect.width - (stageRect.left + stageRect.width / 2);
+	stageNow.scrollTop += fitRect.top + anchorY * fitRect.height - (stageRect.top + stageRect.height / 2);
 };
 const fileExtension = (type, item) => {
 	const known = {
@@ -551,6 +583,7 @@ const onTouchStart = (event) => {
 };
 
 const onTouchEnd = (event) => {
+	if (zoom.value > 1) return;
 	const next = event.changedTouches[0]?.clientX || 0;
 	if (next - touchX > 50) step(-1);
 	if (touchX - next > 50) step(1);
@@ -765,17 +798,37 @@ html.dark .season-chip.is-selected .season-count {
 	cursor: pointer;
 }
 
-.photo-tile img,
-.photo-tile :deep(.framed),
 .photo-blur,
 .photo-tile .photo-missing {
 	position: absolute;
 	inset: 0;
 	width: 100%;
 	height: 100%;
+	padding: 0;
+	overflow: hidden;
 }
 
-.photo-tile img,
+.photo-tile :deep(.framed) {
+	position: absolute;
+	inset: 0;
+	width: auto;
+	height: auto;
+	margin: 6px;
+	overflow: hidden;
+}
+
+.photo-tile img {
+	position: absolute;
+	inset: 0;
+	width: calc(100% - 12px);
+	height: calc(100% - 12px);
+	margin: 6px;
+	padding: 0;
+	overflow: hidden;
+	object-fit: cover;
+	transition: transform 0.25s ease;
+}
+
 .photo-tile :deep(.framed:not(.has-frame) img) {
 	object-fit: cover;
 	transition: transform 0.25s ease;
@@ -911,20 +964,32 @@ html.dark .season-chip.is-selected .season-count {
 	white-space: nowrap;
 }
 
-.viewer-stage {
+.viewer-frame {
 	position: relative;
 	flex: 1 1 auto;
 	min-height: 0;
 	display: flex;
-	align-items: center;
-	justify-content: center;
+	overflow: hidden;
+}
+
+.viewer-stage {
+	flex: 1 1 auto;
+	height: 100%;
+	min-height: 0;
+	min-width: 0;
 	padding: 0 72px;
 	overflow: auto;
 }
 
-.viewer-stage.is-zoomed {
-	align-items: flex-start;
-	justify-content: flex-start;
+.viewer-canvas {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-sizing: border-box;
+	width: max-content;
+	height: max-content;
+	min-width: 100%;
+	min-height: 100%;
 }
 
 .viewer-fit {
@@ -945,9 +1010,9 @@ html.dark .season-chip.is-selected .season-count {
 }
 
 .viewer-icon.is-nav {
-	position: absolute;
+	position: fixed;
 	top: 50%;
-	z-index: 2;
+	z-index: 4002;
 	transform: translateY(-50%);
 }
 

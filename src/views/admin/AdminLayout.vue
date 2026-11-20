@@ -256,6 +256,7 @@ html.dark body:has(.admin-shell) .el-popper {
 	--panel-width: 256px;
 	display: grid;
 	grid-template-columns: var(--rail-width) minmax(0, 1fr);
+	grid-template-rows: minmax(0, 1fr);
 	height: calc(100dvh - var(--app-header-height));
 	max-height: calc(100dvh - var(--app-header-height));
 	min-height: 0;
@@ -408,32 +409,6 @@ html.dark .admin-sidebar {
 	overflow-x: hidden;
 	overflow-y: auto;
 	overscroll-behavior: contain;
-	scrollbar-width: thin;
-	scrollbar-color: rgba(255, 255, 255, 0.45) transparent;
-
-	&::-webkit-scrollbar {
-		width: 6px;
-		height: 0;
-	}
-
-	&::-webkit-scrollbar-button {
-		display: none;
-		width: 0;
-		height: 0;
-	}
-
-	&::-webkit-scrollbar-track {
-		background: transparent;
-	}
-
-	&::-webkit-scrollbar-thumb {
-		border-radius: 999px;
-		background: rgba(255, 255, 255, 0.28);
-	}
-
-	&::-webkit-scrollbar-thumb:hover {
-		background: rgba(255, 209, 102, 0.85);
-	}
 }
 
 .sidebar-link {
@@ -480,6 +455,7 @@ html.dark .admin-sidebar {
 
 .admin-main {
 	grid-column: 2;
+	height: 100%;
 	min-width: 0;
 	min-height: 0;
 	overflow: hidden;
@@ -502,6 +478,9 @@ html.dark .admin-sidebar {
 
 .admin-main > .admin-page,
 .admin-main > .users-page {
+	flex: 1 1 0;
+	height: 100%;
+	min-height: 0;
 	display: flex;
 	flex-direction: column;
 	overflow: hidden;
@@ -555,7 +534,7 @@ html.dark .admin-sidebar {
 }
 
 .admin-table-card {
-	flex: 1 1 auto;
+	flex: 1 1 0;
 	min-height: 0;
 	display: flex;
 	flex-direction: column;
