@@ -9,6 +9,7 @@
 				<router-link v-for="item in NavItems" :key="item.path" :to="item.path">
 					{{ item.label }}
 				</router-link>
+				<router-link :to="Routes.ABOUT">About</router-link>
 				<router-link :to="Routes.PRIVACY">Privacy</router-link>
 				<router-link :to="Routes.TERMS">Terms</router-link>
 			</nav>

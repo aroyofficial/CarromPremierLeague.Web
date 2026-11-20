@@ -486,6 +486,7 @@ onMounted(load);
 	position: sticky;
 	bottom: 12px;
 	z-index: 5;
+	margin-top: 12px;
 	display: flex;
 	align-items: center;
 	justify-content: space-between;

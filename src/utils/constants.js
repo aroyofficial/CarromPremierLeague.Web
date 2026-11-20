@@ -14,6 +14,7 @@ const Routes = Object.freeze({
 	ADMIN: "/admin",
 	PRIVACY: "/privacy",
 	TERMS: "/terms",
+	ABOUT: "/about",
 });
 
 // Codes match CarromPremierLeague.API core/permissions.py.

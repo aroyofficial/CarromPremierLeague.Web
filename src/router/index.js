@@ -92,6 +92,12 @@ const routes = [
 		meta: { title: "Admin Login", skipPreload: true },
 	},
 	{
+		path: Routes.ABOUT,
+		name: "about",
+		component: () => import("@/views/About.vue"),
+		meta: { title: "About", skipPreload: true },
+	},
+	{
 		path: Routes.PRIVACY,
 		name: "privacy",
 		component: () => import("@/views/Privacy.vue"),
