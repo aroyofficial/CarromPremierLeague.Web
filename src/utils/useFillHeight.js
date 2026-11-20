@@ -1,14 +1,14 @@
-import { onMounted, onUnmounted, ref, watch } from "vue";
+import { onUnmounted, ref, watch } from "vue";
 
-// Keeps a pixel height equal to the box, so a table can scroll inside it.
+// Pixel height of the box, so Element Plus can scroll the table body inside it.
 export function useFillHeight() {
 	const box = ref(null);
-	const height = ref(240);
+	const height = ref(320);
 	let observer;
 
 	const measure = () => {
-		const next = box.value?.clientHeight || 0;
-		if (next > 0) height.value = next;
+		const next = Math.floor(box.value?.clientHeight || 0);
+		if (next > 0 && next !== height.value) height.value = next;
 	};
 
 	const attach = (element) => {
@@ -20,8 +20,7 @@ export function useFillHeight() {
 		measure();
 	};
 
-	watch(box, attach);
-	onMounted(() => attach(box.value));
+	watch(box, attach, { flush: "post" });
 	onUnmounted(() => observer?.disconnect());
 
 	return { box, height };

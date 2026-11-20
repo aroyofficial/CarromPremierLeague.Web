@@ -500,7 +500,8 @@ html.dark .admin-sidebar {
 	overflow: hidden;
 }
 
-.admin-main > .admin-page {
+.admin-main > .admin-page,
+.admin-main > .users-page {
 	display: flex;
 	flex-direction: column;
 	overflow: hidden;

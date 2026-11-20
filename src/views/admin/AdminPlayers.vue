@@ -14,8 +14,8 @@
 		</div>
 
 		<div class="admin-card admin-table-card">
-			<div class="admin-table-fill">
-			<el-table height="100%" :data="filtered" v-loading="loading" empty-text="No players yet" stripe>
+			<div ref="tableBox" class="admin-table-fill">
+			<el-table :height="tableHeight" :data="filtered" v-loading="loading" empty-text="No players yet" stripe>
 				<el-table-column prop="id" label="ID" :width="isPhone ? 48 : 70" />
 				<el-table-column label="Player" min-width="220">
 					<template #default="{ row }">
@@ -161,7 +161,10 @@ import { validateForm } from "@/utils/formValidation";
 import EntityImage from "@/components/EntityImage.vue";
 import ImageUploadField from "@/components/admin/ImageUploadField.vue";
 import { areas } from "@/utils/realtimeRules";
+import { useFillHeight } from "@/utils/useFillHeight";
 import { useAdminLive } from "@/utils/useLive";
+
+const { box: tableBox, height: tableHeight } = useFillHeight();
 
 const isPhone = useIsPhone();
 const { Permission, can, canAny } = usePermissions();

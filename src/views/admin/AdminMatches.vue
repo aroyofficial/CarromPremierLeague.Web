@@ -21,8 +21,8 @@
 		<el-empty v-if="!loading && !seasonId" class="admin-page-rest" description="Choose a season to manage its matches" />
 
 		<div v-else class="admin-card admin-table-card">
-			<div class="admin-table-fill">
-			<el-table class="matches-table" height="100%" :data="filteredMatches" v-loading="loading" empty-text="No matches in this season yet" stripe>
+			<div ref="tableBox" class="admin-table-fill">
+			<el-table class="matches-table" :height="tableHeight" :data="filteredMatches" v-loading="loading" empty-text="No matches in this season yet" stripe>
 				<el-table-column prop="order" label="#" width="52" />
 				<el-table-column label="Date" width="112">
 					<template #default="{ row }">{{ row.scheduled_date }}</template>
@@ -190,9 +190,11 @@ import { startLoader, pauseLoader } from "@/utils/common";
 import { coinBounds, colourOverflow } from "@/utils/coinLimits";
 import { usePermissions } from "@/utils/permissions";
 import { areas } from "@/utils/realtimeRules";
+import { useFillHeight } from "@/utils/useFillHeight";
 import { useAdminLive } from "@/utils/useLive";
 
 const { Permission, can, canAny, canAll } = usePermissions();
+const { box: tableBox, height: tableHeight } = useFillHeight();
 const teamStore = useTeamStore();
 const rosterStore = useRosterStore();
 
