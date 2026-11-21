@@ -20,6 +20,8 @@ const adminViews = {
 	"admin-matches": () => import("@/views/admin/AdminMatches.vue"),
 	"admin-users": () => import("@/views/admin/AdminUsers.vue"),
 	"admin-permissions": () => import("@/views/admin/AdminPermissions.vue"),
+	"admin-webhooks": () => import("@/views/admin/AdminWebhooks.vue"),
+	"admin-apps": () => import("@/views/admin/AdminApps.vue"),
 	"admin-settings": () => import("@/views/admin/AdminSettings.vue"),
 	"admin-profile": () => import("@/views/admin/AdminProfile.vue"),
 };

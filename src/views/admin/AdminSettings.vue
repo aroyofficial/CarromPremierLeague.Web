@@ -3,7 +3,7 @@
 		<div class="admin-page-head">
 			<div>
 				<h1>Settings</h1>
-				<p>Match clock, Queen rules, Striker, outbound webhooks, and external app API keys.</p>
+				<p>Match clock, Queen rules, and Striker. Webhooks and Apps have their own pages.</p>
 			</div>
 		</div>
 
@@ -41,7 +41,7 @@
 				</article>
 			</section>
 
-			<el-form v-if="canUpdateSettings" novalidate class="settings-form" label-position="top" @submit.prevent="save">
+			<el-form novalidate class="settings-form" label-position="top" @submit.prevent="save">
 				<section class="admin-card setting-group">
 					<header class="group-head">
 						<h2>Match clock</h2>
@@ -192,12 +192,6 @@
 					</el-button>
 				</div>
 			</el-form>
-			<div v-else class="admin-card settings-readonly" role="note">
-				<strong>Competition settings are read-only</strong>
-				<p>You need the <strong>Change competition settings</strong> permission to edit the match clock, Queen rules, or Striker visibility.</p>
-			</div>
-			<AdminWebhooksCard />
-			<AdminAppsCard />
 			<AdminNotifyStatus />
 		</div>
 	</div>
@@ -208,19 +202,15 @@ import { computed, onMounted, reactive, ref, watch } from "vue";
 import { notify } from "@/utils/notify";
 import { useAuthStore } from "@/store/authStore";
 import { useSettingsStore } from "@/store/settingsStore";
-import AdminAppsCard from "@/components/admin/AdminAppsCard.vue";
 import AdminNotifyStatus from "@/components/admin/AdminNotifyStatus.vue";
-import AdminWebhooksCard from "@/components/admin/AdminWebhooksCard.vue";
 import { Permission, Routes } from "@/utils/constants";
-import { settingsAccess } from "@/utils/integrations";
 import { areas } from "@/utils/realtimeRules";
 import { settlePageLoader } from "@/utils/common";
 import { useAdminLive } from "@/utils/useLive";
 
 const settingsStore = useSettingsStore();
 const authStore = useAuthStore();
-const access = computed(() => settingsAccess(authStore.permissions));
-const canUpdateSettings = computed(() => access.value.canUpdateSettings);
+const canUpdateSettings = computed(() => authStore.can(Permission.SETTINGS_UPDATE));
 const canManagePermissions = computed(() => authStore.can(Permission.PERMISSIONS_MANAGE));
 const permissionsPath = `${Routes.ADMIN}/permissions`;
 const loading = ref(false);
@@ -534,24 +524,6 @@ onMounted(() => settlePageLoader(load));
 	}
 }
 
-.settings-readonly {
-	display: flex;
-	flex-direction: column;
-	gap: 4px;
-	border-left: 3px solid var(--cpl-gold-400);
-
-	strong {
-		font-size: 15px;
-		color: var(--cpl-ink-900);
-	}
-
-	p {
-		margin: 0;
-		font-size: 13.5px;
-		color: var(--cpl-ink-600);
-		line-height: 1.45;
-	}
-}
 
 @media (max-width: 720px) {
 	.preview {

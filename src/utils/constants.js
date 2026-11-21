@@ -79,11 +79,25 @@ const AdminSections = Object.freeze([
 		permissions: [Permission.PERMISSIONS_MANAGE],
 	},
 	{
+		name: "admin-webhooks",
+		path: "webhooks",
+		label: "Webhooks",
+		icon: "Link",
+		permissions: [Permission.WEBHOOKS_MANAGE],
+	},
+	{
+		name: "admin-apps",
+		path: "apps",
+		label: "Apps",
+		icon: "Key",
+		permissions: [Permission.APPS_MANAGE],
+	},
+	{
 		name: "admin-settings",
 		path: "settings",
 		label: "Settings",
 		icon: "Setting",
-		permissions: [Permission.SETTINGS_UPDATE, Permission.WEBHOOKS_MANAGE, Permission.APPS_MANAGE],
+		permissions: [Permission.SETTINGS_UPDATE],
 	},
 	{ name: "admin-profile", path: "profile", label: "Profile", icon: "Avatar", permissions: [] },
 ]);

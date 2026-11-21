@@ -98,6 +98,8 @@ import {
 	CircleCheckFilled,
 	Connection,
 	Flag,
+	Key,
+	Link,
 	Lock,
 	Picture,
 	Refresh,
@@ -117,7 +119,7 @@ import { settlePageLoader } from "@/utils/common";
 import { useAdminLive } from "@/utils/useLive";
 
 const authStore = useAuthStore();
-const icons = { Calendar, Connection, Flag, Lock, Picture, Setting, Trophy, User, UserFilled };
+const icons = { Calendar, Connection, Flag, Key, Link, Lock, Picture, Setting, Trophy, User, UserFilled };
 
 const toolHints = {
 	"admin-seasons": "Dates, teams and schedule",
@@ -128,7 +130,9 @@ const toolHints = {
 	"admin-matches": "Results and scorecards",
 	"admin-users": "Who can sign in",
 	"admin-permissions": "What each admin can do",
-	"admin-settings": "Rules, webhooks and API keys",
+	"admin-webhooks": "Send live updates to other tools",
+	"admin-apps": "API keys for outside tools",
+	"admin-settings": "Match clock, Queen and Striker",
 };
 
 const loading = ref(false);
