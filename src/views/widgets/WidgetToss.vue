@@ -1,107 +1,165 @@
 <template>
-	<section class="toss-panel">
-		<span class="toss-label">{{ matchLabel(match) }} · Toss</span>
-		<div class="toss-teams">
-			<div class="toss-team" :class="{ 'is-winner': winner === 'team1' }">
-				<img v-if="match.team1?.logo_url" class="toss-logo" :src="match.team1.logo_url" alt="" />
-				<h2>{{ match.team1?.name || "TBD" }}</h2>
+	<section class="bc-lower-third toss-panel">
+		<header class="toss-head">
+			<div class="bc-eyebrow">
+				<span class="bc-league-pill">CPL</span>
+				<span v-if="seasonName">{{ seasonName }}</span>
+				<span v-if="seasonName" class="bc-dot"></span>
+				<span class="toss-label">{{ matchLabel(match) }} · Coin Toss</span>
 			</div>
-			<span class="toss-vs">vs</span>
-			<div class="toss-team" :class="{ 'is-winner': winner === 'team2' }">
-				<img v-if="match.team2?.logo_url" class="toss-logo" :src="match.team2.logo_url" alt="" />
-				<h2>{{ match.team2?.name || "TBD" }}</h2>
+			<span class="bc-badge is-gold">{{ winner ? "Toss Official" : "Awaiting Toss" }}</span>
+		</header>
+
+		<div class="toss-teams">
+			<div class="toss-team" :class="{ 'is-winner': winner === 'team1', 'is-dimmed': winner === 'team2' }">
+				<div class="bc-crest">
+					<img v-if="match.team1?.logo_url" :src="match.team1.logo_url" alt="" />
+					<span v-else class="bc-crest-initials">{{ teamInitials(match.team1?.name) }}</span>
+				</div>
+				<div class="toss-team-copy">
+					<h2>{{ match.team1?.name || "TBD" }}</h2>
+					<span v-if="winner === 'team1'" class="toss-role">Breaking First</span>
+				</div>
+			</div>
+
+			<div class="toss-coin-emblem" aria-hidden="true">
+				<div class="toss-coin-inner">TOSS</div>
+			</div>
+
+			<div class="toss-team is-away" :class="{ 'is-winner': winner === 'team2', 'is-dimmed': winner === 'team1' }">
+				<div class="toss-team-copy">
+					<h2>{{ match.team2?.name || "TBD" }}</h2>
+					<span v-if="winner === 'team2'" class="toss-role">Breaking First</span>
+				</div>
+				<div class="bc-crest">
+					<img v-if="match.team2?.logo_url" :src="match.team2.logo_url" alt="" />
+					<span v-else class="bc-crest-initials">{{ teamInitials(match.team2?.name) }}</span>
+				</div>
 			</div>
 		</div>
+
 		<p class="toss-line">{{ tossLine(match) }}</p>
+
+		<div v-if="progress != null" class="bc-timer-track">
+			<div class="bc-timer-fill" :style="{ width: `${Math.round((1 - progress) * 100)}%` }"></div>
+		</div>
 	</section>
 </template>
 
 <script setup>
 import { computed } from "vue";
-import { TossOutcome } from "@/utils/constants";
-import { matchLabel, tossLine } from "@/utils/widgetScore";
+import { matchLabel, teamInitials, tossLine, tossWinnerSide } from "@/utils/widgetScore";
 
 const props = defineProps({
-	snapshot: { type: Object, required: true },
+	snapshot: { type: Object, default: null },
+	bundle: { type: Object, default: null },
+	seasonName: { type: String, default: "" },
+	progress: { type: Number, default: null },
 });
 
-const match = computed(() => props.snapshot.match || {});
-const winner = computed(() => {
-	if (match.value.toss_outcome === TossOutcome.Team1Won) return "team1";
-	if (match.value.toss_outcome === TossOutcome.Team2Won) return "team2";
-	return null;
-});
+const match = computed(() => props.bundle?.match || props.snapshot?.match || {});
+const winner = computed(() => tossWinnerSide(match.value));
 </script>
 
 <style scoped>
 .toss-panel {
-	position: absolute;
-	left: 50%;
-	top: 50%;
-	transform: translate(-50%, -50%);
-	width: 1400px;
-	padding: 56px 64px;
-	border-radius: 24px;
-	text-align: center;
-	background: rgba(8, 14, 28, 0.86);
-	box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+	width: 1440px;
 }
 
-.toss-label {
-	font-size: 28px;
-	font-weight: 600;
-	letter-spacing: 0.08em;
-	text-transform: uppercase;
-	color: #cbd5e1;
+.toss-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 13px 32px;
+	background: rgba(255, 255, 255, 0.035);
+	border-bottom: 1px solid var(--bc-rim-soft);
 }
 
 .toss-teams {
 	display: grid;
-	grid-template-columns: 1fr auto 1fr;
+	grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
 	align-items: center;
-	gap: 32px;
-	margin: 40px 0;
+	gap: 28px;
+	padding: 20px 32px 14px;
 }
 
 .toss-team {
 	display: flex;
-	flex-direction: column;
 	align-items: center;
-	gap: 16px;
-	padding: 24px;
+	gap: 18px;
+	padding: 14px 20px;
 	border-radius: 18px;
-	opacity: 0.6;
-	transition: opacity 0.3s ease;
+	border: 1px solid transparent;
+	transition: opacity 0.3s ease, background-color 0.3s ease;
+}
+
+.toss-team.is-away {
+	justify-content: flex-end;
+	text-align: right;
+}
+
+.toss-team.is-dimmed {
+	opacity: 0.55;
 }
 
 .toss-team.is-winner {
-	opacity: 1;
-	background: rgba(250, 204, 21, 0.14);
-	box-shadow: inset 0 0 0 3px #facc15;
+	background: linear-gradient(135deg, rgba(245, 184, 46, 0.18) 0%, rgba(245, 184, 46, 0.05) 100%);
+	border-color: var(--bc-accent-line);
+	box-shadow: 0 0 28px rgba(245, 184, 46, 0.16);
+}
+
+.toss-team-copy {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	min-width: 0;
 }
 
 .toss-team h2 {
 	margin: 0;
-	font-size: 56px;
+	font-size: 36px;
 	font-weight: 800;
+	line-height: 1.1;
 }
 
-.toss-logo {
-	width: 120px;
-	height: 120px;
-	object-fit: contain;
+.toss-role {
+	font-size: 15px;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--bc-accent-soft);
 }
 
-.toss-vs {
-	font-size: 34px;
-	font-weight: 600;
-	color: #94a3b8;
+.toss-coin-emblem {
+	display: grid;
+	place-items: center;
+	width: 74px;
+	height: 74px;
+	border-radius: 50%;
+	background: radial-gradient(circle at 35% 30%, #ffe699 0%, #f5b82e 55%, #b7791f 100%);
+	box-shadow: 0 0 26px var(--bc-accent-glow), inset 0 2px 4px rgba(255, 255, 255, 0.65);
+}
+
+.toss-coin-inner {
+	display: grid;
+	place-items: center;
+	width: 58px;
+	height: 58px;
+	border-radius: 50%;
+	border: 2px dashed rgba(9, 16, 32, 0.55);
+	font-size: 14px;
+	font-weight: 900;
+	letter-spacing: 0.08em;
+	color: #091020;
 }
 
 .toss-line {
 	margin: 0;
-	font-size: 40px;
-	font-weight: 700;
-	color: #facc15;
+	padding: 0 32px 18px;
+	text-align: center;
+	font-size: 26px;
+	font-weight: 800;
+	letter-spacing: 0.02em;
+	color: var(--bc-accent-soft);
 }
 </style>

@@ -903,6 +903,8 @@ const syncMatchCardFromApi = (updatedMatch) => {
 	props.match.extra = updatedMatch.extra;
 	props.match.started_at = updatedMatch.started_at;
 	props.match.extra_started_at = updatedMatch.extra_started_at;
+	props.match.ready_at = updatedMatch.ready_at;
+	props.match.completed_at = updatedMatch.completed_at;
 };
 
 const apiMessage = (error, fallback) => error?.message || error?.detail || fallback;
@@ -1210,7 +1212,16 @@ const startToss = () => {
 		}
 		tossSpinning.value = false;
 		tossLanded.value = true;
-		matchObject.value.toss_outcome = plan.winner === 1 ? TossOutcome.Team1Won : TossOutcome.Team2Won;
+		const nextToss = plan.winner === 1 ? TossOutcome.Team1Won : TossOutcome.Team2Won;
+		matchObject.value.toss_outcome = nextToss;
+		if (props.match.status === scheduledStatus()) {
+			savingToss.value = true;
+			persistMatch({ toss_outcome: nextToss }, "toss result")
+				.catch(() => undefined)
+				.finally(() => {
+					savingToss.value = false;
+				});
+		}
 	};
 	tossFrame = requestAnimationFrame(frame);
 };
@@ -1254,7 +1265,7 @@ const emptyHeadToHead = () => ({
 	team2_net_points: 0,
 });
 
-const openMatchManagementDialog = async () => {
+const openMatchManagementDialog = async (options = {}) => {
 	startLoader();
 	try {
 		await statsStore.fetchHeadToHead(props.match.team1, props.match.team2);
@@ -1271,6 +1282,13 @@ const openMatchManagementDialog = async () => {
 		pauseLoader();
 	}
 	await playBgm(BackgroundMusic.Match, 8000);
+	if (options?.directStage) {
+		if (showResumeBtn()) {
+			await resumeLiveMatch();
+		} else if (showStartBtn() && !blockMatchManagement()) {
+			await scaleDialog();
+		}
+	}
 };
 
 const hideMatchManagementDialog = () => {
@@ -1279,11 +1297,7 @@ const hideMatchManagementDialog = () => {
 
 const back = () => {
 	showMatchManager.value = false;
-	matchObject.value.toss_outcome = null;
 	exitFullScreen();
-	if (props.match.status === scheduledStatus() && tossDecided(props.match.toss_outcome)) {
-		persistMatch({ toss_outcome: TossOutcome.NotDecided }, "toss reset").catch(() => undefined);
-	}
 };
 
 const closeTossDialog = () => {

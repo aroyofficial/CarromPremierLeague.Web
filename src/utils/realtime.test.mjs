@@ -80,13 +80,16 @@ test("admin notices reach only the screens that show that data", () => {
 
 test("every area a screen watches is one the server can name", () => {
 	const known = new Set([
-		"matches", "seasons", "teams", "players", "countries", "rosters", "settings", "gallery",
+		"matches", "seasons", "teams", "players", "countries", "rosters", "settings", "gallery", "widgets",
 		"admins", "me", "loginRequest", "integrations",
 	]);
 	for (const [screen, watched] of Object.entries(areas)) {
 		assert.ok(watched.length, `${screen} watches nothing`);
 		for (const area of watched) assert.ok(known.has(area), `${screen} watches unknown area ${area}`);
 	}
+	const widgetNotice = { eventVersion: 1, eventType: "league.invalidated", payload: { area: "widgets" } };
+	assert.equal(areaMatches(widgetNotice, areas.widget), true);
+	assert.equal(areaMatches(widgetNotice, areas.schedule), false);
 });
 
 test("a refetch waits while the screen has unsaved edits", () => {

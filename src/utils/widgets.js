@@ -1,10 +1,45 @@
 import { Routes } from "./constants.js";
 import { parseServerTime } from "./integrations.js";
+import { defaultFlowConfig } from "./widgetFlow.js";
 
 export const WIDGET_TYPES = Object.freeze([
-	{ value: "scorecard", label: "Live scorecard", target: "match", hint: "Team scores, each player's coins and fines, and the result." },
-	{ value: "toss", label: "Toss", target: "match", hint: "Who won the toss, with both teams shown." },
-	{ value: "fixtures", label: "Fixtures", target: "season", hint: "The season's fixtures, centred on the next match to play." },
+	{
+		value: "season_flow",
+		label: "Season broadcast flow",
+		target: "season",
+		badge: "Recommended",
+		hint: "One smart overlay for the whole season: auto-follows Ready -> Toss -> Live lower-third -> Post-match result -> drag-and-drop Points Table, Stats & Fixtures.",
+	},
+	{
+		value: "scorecard",
+		label: "Match scorecard",
+		target: "match",
+		hint: "Pin a full broadcast scorecard for one specific match.",
+	},
+	{
+		value: "toss",
+		label: "Match toss",
+		target: "match",
+		hint: "Pin the toss ceremony banner for one specific match.",
+	},
+	{
+		value: "points_table",
+		label: "Points table",
+		target: "season",
+		hint: "Pin the live season league standings card.",
+	},
+	{
+		value: "stats",
+		label: "Golden Striker & stats",
+		target: "season",
+		hint: "Pin the top coin potters leaderboard for a season.",
+	},
+	{
+		value: "fixtures",
+		label: "Season fixtures",
+		target: "season",
+		hint: "Pin the season schedule and results slate.",
+	},
 ]);
 
 export const WIDGET_STATUS_LABEL = Object.freeze({
@@ -25,6 +60,7 @@ export const summarizeWidgets = (widgets) => {
 	return {
 		total: list.length,
 		active: list.filter((widget) => widgetState(widget) === "active").length,
+		flows: list.filter((widget) => widget.widget_type === "season_flow" && widgetState(widget) === "active").length,
 		off: list.filter((widget) => widgetState(widget) !== "active").length,
 	};
 };
@@ -40,8 +76,11 @@ export const filterWidgets = (widgets, search, status) => {
 	});
 };
 
-export const widgetTargetText = (widget) => {
-	if (widget?.widget_type === "fixtures") return `Season #${widget.season_id}`;
+export const widgetTargetText = (widget, seasonsById = null) => {
+	if (widgetTargetKind(widget?.widget_type) === "season") {
+		const seasonName = seasonsById?.get?.(widget?.season_id);
+		return seasonName || `Season #${widget?.season_id}`;
+	}
 	return `Match #${widget?.match_id}`;
 };
 
@@ -50,13 +89,23 @@ export const widgetUrl = (token, origin = globalThis.location?.origin || "") =>
 	`${origin}${Routes.WIDGET}/${encodeURIComponent(token)}`;
 
 /** Returns an error message, or "" when the form can be saved. */
-export const widgetFormError = ({ name, widgetType, matchId, seasonId, expiresAt, editing = false }, now = Date.now()) => {
+export const widgetFormError = ({ name, widgetType, matchId, seasonId, expiresAt, flowConfig, editing = false }, now = Date.now()) => {
 	if (!String(name || "").trim()) return "Enter a name for this widget.";
-	// A widget's target is fixed once it exists, so editing checks only the name and expiry.
+	// A widget's target is fixed once it exists, so editing checks only the name, flow, and expiry.
 	if (!editing) {
 		if (!widgetType) return "Choose what the widget shows.";
 		if (widgetTargetKind(widgetType) === "season" && !seasonId) return "Choose a season.";
 		if (widgetTargetKind(widgetType) === "match" && !matchId) return "Choose a match.";
+	}
+	if (widgetType === "season_flow" && flowConfig) {
+		const steps = Array.isArray(flowConfig.rotation) ? flowConfig.rotation : [];
+		if (steps.length > 20) return "A season flow can have at most 20 rotation cards.";
+		for (const step of steps) {
+			const dur = Number(step.duration_sec);
+			if (!Number.isFinite(dur) || dur < 5 || dur > 180) {
+				return "Each rotation card duration must be between 5 and 180 seconds.";
+			}
+		}
 	}
 	if (expiresAt) {
 		const when = parseServerTime(expiresAt) || new Date(expiresAt);
@@ -65,13 +114,17 @@ export const widgetFormError = ({ name, widgetType, matchId, seasonId, expiresAt
 	return "";
 };
 
-export const widgetCreatePayload = ({ name, widgetType, matchId, seasonId, expiresAt }) => {
-	const fixtures = widgetTargetKind(widgetType) === "season";
-	return {
+export const widgetCreatePayload = ({ name, widgetType, matchId, seasonId, expiresAt, flowConfig }) => {
+	const isSeason = widgetTargetKind(widgetType) === "season";
+	const payload = {
 		name: String(name).trim(),
 		widget_type: widgetType,
-		match_id: fixtures ? null : Number(matchId),
-		season_id: fixtures ? Number(seasonId) : null,
+		match_id: isSeason ? null : Number(matchId),
+		season_id: isSeason ? Number(seasonId) : null,
 		expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
 	};
+	if (widgetType === "season_flow") {
+		payload.flow_config = flowConfig || defaultFlowConfig();
+	}
+	return payload;
 };

@@ -121,6 +121,8 @@ export const adminApi = {
 		create: (payload) => api.post("widgets", payload),
 		update: (id, payload) => api.patch(`widgets/${id}`, payload),
 		rotate: (id) => api.post(`widgets/${id}/rotate`),
+		preview: (id) => api.get(`widgets/${id}/preview`),
+		seasonPreview: (seasonId) => api.get(`widgets/season-preview/${seasonId}`),
 	},
 };
 

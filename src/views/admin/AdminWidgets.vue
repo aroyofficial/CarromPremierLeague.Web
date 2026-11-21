@@ -3,10 +3,13 @@
 		<div class="admin-page-head">
 			<div>
 				<h1>Widgets</h1>
-				<p>Make private overlay links for the live stream. Each link shows one match, its toss, or a season's fixtures. It is read-only and can be turned off at any time.</p>
+				<p>
+					Build 16:9 broadcast TV overlays for Facebook Live &amp; Prism Live Studio. Create one
+					<strong>Season broadcast flow</strong> to run an entire tournament automatically, or pin individual cards.
+				</p>
 			</div>
 			<el-button v-if="canManage" type="primary" @click="openCreate">
-				<el-icon class="me-1"><Plus /></el-icon>Create widget
+				<el-icon class="me-1"><Plus /></el-icon>Create overlay
 			</el-button>
 		</div>
 
@@ -33,7 +36,12 @@
 				<div class="ip-stat">
 					<span>Live</span>
 					<strong>{{ summary.active }}</strong>
-					<small>Showing on a stream now</small>
+					<small>Active stream links</small>
+				</div>
+				<div class="ip-stat">
+					<span>Season flows</span>
+					<strong>{{ summary.flows }}</strong>
+					<small>Auto broadcast pipelines</small>
 				</div>
 				<div class="ip-stat">
 					<span>Off</span>
@@ -50,10 +58,10 @@
 
 				<div v-else-if="loaded && !widgets.length" class="ip-empty">
 					<div class="ip-empty-icon"><el-icon><VideoCamera /></el-icon></div>
-					<h2>No widgets yet</h2>
-					<p>Create a widget, then paste its link into Prism Live Studio as a Browser Capture or Web widget source.</p>
+					<h2>No overlays yet</h2>
+					<p>Create a Season Broadcast Flow, then paste its single link into Prism Live Studio as a 1920×1080 Browser Capture source.</p>
 					<el-button type="primary" @click="openCreate">
-						<el-icon class="me-1"><Plus /></el-icon>Create your first widget
+						<el-icon class="me-1"><Plus /></el-icon>Create your first overlay
 					</el-button>
 				</div>
 
@@ -67,7 +75,7 @@
 					</div>
 
 					<div class="ip-head ip-cols" aria-hidden="true">
-						<span>Widget</span>
+						<span>Overlay</span>
 						<span>Shows</span>
 						<span>Link</span>
 						<span>Status</span>
@@ -88,19 +96,19 @@
 					>
 						<div class="ip-cell">
 							<span class="ip-name">{{ widget.name }}</span>
-							<span class="ip-sub">{{ WIDGET_TYPE_LABEL[widget.widget_type] }}</span>
+							<span class="ip-sub">{{ WIDGET_TYPE_LABEL[widget.widget_type] || widget.widget_type }}</span>
 						</div>
 
 						<div class="ip-cell">
 							<span class="ip-cell-label">Shows</span>
-							<span class="ip-name" style="font-weight: 600">{{ widgetTargetText(widget) }}</span>
-							<span class="ip-sub">{{ widget.widget_type === "fixtures" ? "All fixtures in the season" : "One match" }}</span>
+							<span class="ip-name" style="font-weight: 600">{{ widgetTargetText(widget, seasonsById) }}</span>
+							<span class="ip-sub">{{ describeScope(widget) }}</span>
 						</div>
 
 						<div class="ip-cell">
 							<span class="ip-cell-label">Link</span>
 							<span class="ip-mono"><code>{{ widget.token_prefix }}...</code></span>
-							<span class="ip-sub">The full link is shown once. Rotate it to get a new one.</span>
+							<span class="ip-sub">Shown once on create. Rotate to issue a fresh URL.</span>
 						</div>
 
 						<div class="ip-cell">
@@ -126,7 +134,18 @@
 									:aria-label="`${widget.is_active ? 'Turn off' : 'Turn on'} ${widget.name}`"
 									@change="(value) => setActive(widget, value)"
 								/>
-								<el-button size="small" @click="openEdit(widget)">Edit</el-button>
+								<el-button
+									v-if="widget.widget_type === 'season_flow'"
+									size="small"
+									type="primary"
+									plain
+									@click="openDirector(widget)"
+								>
+									Director
+								</el-button>
+								<el-button size="small" @click="openEdit(widget)">
+									{{ widget.widget_type === "season_flow" ? "Studio" : "Edit" }}
+								</el-button>
 								<el-dropdown trigger="click" @command="(command) => onCommand(command, widget)">
 									<el-button size="small" :loading="busyId === widget.id" :aria-label="`More actions for ${widget.name}`">
 										<el-icon><MoreFilled /></el-icon>
@@ -152,6 +171,12 @@
 			@submit="submit"
 		/>
 
+		<BroadcastDirectorDrawer
+			v-model="directorOpen"
+			:widget="directing"
+			@updated="load"
+		/>
+
 		<SecretRevealDialog
 			v-model="linkOpen"
 			:title="linkTitle"
@@ -159,8 +184,8 @@
 			:secret="widgetLink"
 			copied-message="Widget link copied."
 		>
-			In Prism Live Studio, add a <strong>Browser Capture</strong> source set to 1920 by 1080 and paste the link, or add a
-			<strong>Web widget</strong> on mobile. Turning the widget off here stops the link working straight away.
+			In Prism Live Studio, add a <strong>Browser Capture</strong> source set to <strong>1920 × 1080</strong> and paste this link, or add a
+			<strong>Web widget</strong> on mobile. Turning the overlay off here stops the link immediately.
 		</SecretRevealDialog>
 	</div>
 </template>
@@ -169,6 +194,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { ElMessageBox } from "element-plus";
 import { Lock, MoreFilled, Plus, Search, VideoCamera } from "@element-plus/icons-vue";
+import BroadcastDirectorDrawer from "@/components/admin/integrations/BroadcastDirectorDrawer.vue";
 import WidgetDrawer from "@/components/admin/integrations/WidgetDrawer.vue";
 import SecretRevealDialog from "@/components/admin/integrations/SecretRevealDialog.vue";
 import { adminApi, apiErrorMessage } from "@/services/adminService";
@@ -218,12 +244,31 @@ const editing = ref(null);
 const saving = ref(false);
 const busyId = ref(null);
 
+const directorOpen = ref(false);
+const directing = ref(null);
+
 const linkOpen = ref(false);
 const widgetLink = ref("");
 const linkTitle = ref("Copy the widget link");
 
+const seasonsById = computed(() => new Map((seasonStore.seasons || []).map((s) => [s.id, s.name])));
 const summary = computed(() => summarizeWidgets(widgets.value));
 const rows = computed(() => filterWidgets(widgets.value, search.value, status.value));
+
+const describeScope = (widget) => {
+	if (widget.widget_type === "season_flow") {
+		const count = (widget.flow_config?.rotation || []).filter((s) => s.enabled !== false).length;
+		const dirMode = widget.flow_config?.director?.mode;
+		if (dirMode && dirMode !== "auto") {
+			return `Director override (${dirMode}) · ${count} break cards`;
+		}
+		return `Auto flow · ${count} break card${count === 1 ? "" : "s"}`;
+	}
+	if (widget.widget_type === "points_table") return "League standings";
+	if (widget.widget_type === "stats") return "Top coin potters";
+	if (widget.widget_type === "fixtures") return "All fixtures in the season";
+	return "One match";
+};
 
 const tone = (widget) => {
 	const current = widgetState(widget);
@@ -255,6 +300,10 @@ const load = async () => {
 		const data = unwrap(await adminApi.widgets.list()) || {};
 		widgets.value = data.widgets || [];
 		now.value = Date.now();
+		if (directing.value) {
+			const refreshed = widgets.value.find((w) => w.id === directing.value.id);
+			if (refreshed) directing.value = refreshed;
+		}
 	} catch (error) {
 		loadError.value = apiErrorMessage(error, "Widgets could not be loaded.");
 	} finally {
@@ -290,20 +339,26 @@ const openEdit = (widget) => {
 	formOpen.value = true;
 };
 
+const openDirector = (widget) => {
+	if (!canManage.value) return;
+	directing.value = widget;
+	directorOpen.value = true;
+};
+
 const submit = async (payload) => {
 	if (!canManage.value) return;
 	saving.value = true;
 	try {
 		if (editing.value) {
 			await adminApi.widgets.update(editing.value.id, payload);
-			notify.success("Widget updated.");
+			notify.success("Overlay updated.");
 			formOpen.value = false;
 			await load();
 		} else {
 			const created = unwrap(await adminApi.widgets.create(payload));
 			formOpen.value = false;
 			await load();
-			if (created?.token) showLink(created.token, "Copy the widget link");
+			if (created?.token) showLink(created.token, "Copy the overlay link");
 		}
 	} catch (error) {
 		notify.error(apiErrorMessage(error, "The widget could not be saved."));
@@ -337,7 +392,7 @@ const rotateLink = async (widget) => {
 	try {
 		const rotated = unwrap(await adminApi.widgets.rotate(widget.id));
 		await load();
-		if (rotated?.token) showLink(rotated.token, "Copy the new widget link");
+		if (rotated?.token) showLink(rotated.token, "Copy the new overlay link");
 	} catch (error) {
 		notify.error(apiErrorMessage(error, "The widget link could not be rotated."));
 	} finally {
@@ -364,6 +419,6 @@ onMounted(() => {
 
 <style scoped lang="scss">
 .ip-cols {
-	grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.2fr) minmax(0, 1.3fr) minmax(0, 1.2fr) auto;
+	grid-template-columns: minmax(0, 1.45fr) minmax(0, 1.3fr) minmax(0, 1.2fr) minmax(0, 1.15fr) auto;
 }
 </style>

@@ -37,7 +37,7 @@ export const areas = {
 	adminProfile: ["me", "countries"],
 	adminSecurity: ["me"],
 	loginRequest: ["loginRequest"],
-	widget: ["matches", "seasons", "teams", "players", "rosters"],
+	widget: ["matches", "seasons", "teams", "players", "rosters", "settings", "widgets"],
 	stores: ["seasons", "teams", "settings", "me"],
 };
 

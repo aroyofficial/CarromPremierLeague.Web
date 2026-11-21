@@ -44,18 +44,27 @@
 						</span>
 					</template>
 				</el-table-column>
-				<el-table-column label="Status" width="108">
+				<el-table-column label="Stage" width="124">
 					<template #default="{ row }">
-						<el-tag :type="statusTag(row.status)" size="small">{{ statusName(row.status) }}</el-tag>
+						<el-tag :type="stageMeta(row).tag" size="small">{{ stageMeta(row).label }}</el-tag>
 					</template>
 				</el-table-column>
-				<el-table-column label="Result" min-width="160">
+				<el-table-column label="Result" min-width="156">
 					<template #default="{ row }">{{ resultText(row) }}</template>
 				</el-table-column>
-				<el-table-column v-if="hasRowActions" label="" width="118" align="right">
+				<el-table-column v-if="hasRowActions" label="" width="224" align="right">
 					<template #default="{ row }">
 						<div class="row-actions">
-							<el-button v-if="canEditRow(row)" size="small" type="primary" plain @click="openEdit(row)">Edit</el-button>
+							<el-button
+								v-if="primaryStageAction(row)"
+								size="small"
+								:type="primaryStageAction(row).type"
+								:loading="readyBusyId === row.id"
+								@click="runStageAction(row)"
+							>
+								{{ primaryStageAction(row).label }}
+							</el-button>
+							<el-button v-if="canEditRow(row)" size="small" plain @click="openEdit(row)">Edit</el-button>
 							<el-dropdown
 								v-if="rowCommands(row).length"
 								trigger="click"
@@ -66,7 +75,11 @@
 								</el-button>
 								<template #dropdown>
 									<el-dropdown-menu>
-										<el-dropdown-item v-if="rowCommands(row).includes('start')" command="start">Start</el-dropdown-item>
+										<el-dropdown-item v-if="rowCommands(row).includes('ready')" command="ready">Mark ready</el-dropdown-item>
+										<el-dropdown-item v-if="rowCommands(row).includes('clear-ready')" command="clear-ready">
+											Clear ready
+										</el-dropdown-item>
+										<el-dropdown-item v-if="rowCommands(row).includes('start')" command="start">Start / Toss</el-dropdown-item>
 										<el-dropdown-item v-if="rowCommands(row).includes('live')" command="live">Open live match</el-dropdown-item>
 										<el-dropdown-item v-if="rowCommands(row).includes('reset')" command="reset">Reset match</el-dropdown-item>
 										<el-dropdown-item v-if="rowCommands(row).includes('reset-toss')" command="reset-toss">
@@ -192,6 +205,7 @@ import { usePermissions } from "@/utils/permissions";
 import { areas } from "@/utils/realtimeRules";
 import { useFillHeight } from "@/utils/useFillHeight";
 import { useAdminLive } from "@/utils/useLive";
+import { isReady, MATCH_STAGE_META, matchStage } from "@/utils/widgetScore";
 
 const { Permission, can, canAny, canAll } = usePermissions();
 const { box: tableBox, height: tableHeight } = useFillHeight();
@@ -200,14 +214,40 @@ const rosterStore = useRosterStore();
 
 const playedStatusId = MatchStatus.find((status) => status.name === "Played")?.id;
 const inProgressStatusId = MatchStatus.find((status) => status.name === "In Progress")?.id;
+const readyBusyId = ref(null);
 
 const canRunMatch = () => canAll([Permission.MATCHES_UPDATE, Permission.MATCHES_SCORECARD]);
+const hasBothTeams = (row) => Boolean(row?.team1 && row?.team2);
+const stageMeta = (row) => MATCH_STAGE_META[matchStage(row)] || MATCH_STAGE_META.scheduled;
+
+const primaryStageAction = (row) => {
+	const stage = matchStage(row);
+	if (stage === "scheduled" && hasBothTeams(row) && can(Permission.MATCHES_UPDATE)) {
+		return { kind: "ready", label: "Mark ready", type: "primary" };
+	}
+	if (stage === "ready" && canRunMatch()) {
+		return { kind: "toss", label: "Toss", type: "warning" };
+	}
+	if (stage === "toss_done" && canRunMatch()) {
+		return { kind: "go_live", label: "Go live", type: "success" };
+	}
+	if (stage === "live" && canRunMatch()) {
+		return { kind: "live", label: "Live score", type: "danger" };
+	}
+	return null;
+};
 
 const canEditRow = (row) =>
 	row.status === playedStatusId ? can(Permission.MATCHES_SCORECARD) : can(Permission.MATCHES_UPDATE);
 
 const rowCommands = (row) => {
 	const commands = [];
+	if (row.status === 1 && hasBothTeams(row) && !isReady(row) && !canResetToss(row) && can(Permission.MATCHES_UPDATE)) {
+		commands.push("ready");
+	}
+	if (row.status === 1 && isReady(row) && can(Permission.MATCHES_UPDATE)) {
+		commands.push("clear-ready");
+	}
 	if (row.status === 1 && canRunMatch()) commands.push("start");
 	if (row.status === inProgressStatusId && canRunMatch()) commands.push("live");
 	if (row.status !== 1 && can(Permission.MATCHES_RESET)) commands.push("reset");
@@ -474,7 +514,7 @@ const save = async () => {
 const runningMatch = ref(null);
 const runner = ref(null);
 
-const openMatchRunner = async (match) => {
+const openMatchRunner = async (match, { directStage = false } = {}) => {
 	if (!match.team1 || !match.team2) {
 		notify.error("Both teams must be assigned before starting a match.");
 		return;
@@ -492,7 +532,31 @@ const openMatchRunner = async (match) => {
 	}
 	runningMatch.value = { ...match };
 	await nextTick();
-	await runner.value?.open();
+	await runner.value?.open({ directStage });
+};
+
+const setReadyState = async (match, ready) => {
+	if (!hasBothTeams(match)) {
+		notify.error("Both teams must be assigned before marking a match ready.");
+		return;
+	}
+	readyBusyId.value = match.id;
+	const { ok } = await runAction(
+		() => adminApi.matches.update(match.id, { is_ready: ready }),
+		ready ? `Match #${match.order} is now Ready on stream` : `Cleared Ready on match #${match.order}`,
+	);
+	readyBusyId.value = null;
+	if (ok) await loadSeason();
+};
+
+const runStageAction = (match) => {
+	const action = primaryStageAction(match);
+	if (!action) return;
+	if (action.kind === "ready") {
+		setReadyState(match, true);
+		return;
+	}
+	openMatchRunner(match, { directStage: true });
 };
 
 const closeMatchRunner = async () => {
@@ -537,7 +601,10 @@ const remove = async (match) => {
 };
 
 const runRowCommand = (command, match) => {
-	if (command === "start" || command === "live") openMatchRunner(match);
+	if (command === "ready") setReadyState(match, true);
+	else if (command === "clear-ready") setReadyState(match, false);
+	else if (command === "start") openMatchRunner(match);
+	else if (command === "live") openMatchRunner(match, { directStage: true });
 	else if (command === "reset") reset(match);
 	else if (command === "reset-toss") resetToss(match);
 	else if (command === "delete") remove(match);

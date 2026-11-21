@@ -3,9 +3,7 @@
 		<div class="widget-frame" :style="{ transform: `translate(-50%, -50%) scale(${scale})` }">
 			<p v-if="status === 'inactive'" class="widget-notice">{{ INACTIVE_MESSAGE }}</p>
 			<p v-else-if="!snapshot" class="widget-notice">Connecting to the league…</p>
-			<WidgetScorecard v-else-if="snapshot.type === 'scorecard'" :snapshot="snapshot" />
-			<WidgetToss v-else-if="snapshot.type === 'toss'" :snapshot="snapshot" />
-			<WidgetFixtures v-else-if="snapshot.type === 'fixtures'" :snapshot="snapshot" />
+			<BroadcastStageScene v-else :snapshot="snapshot" :now-ms="syncedNowMs" />
 		</div>
 	</div>
 </template>
@@ -16,9 +14,8 @@ import { useRoute } from "vue-router";
 import { widgetService } from "@/services/widgetService";
 import { areas } from "@/utils/realtimeRules";
 import { useLive } from "@/utils/useLive";
-import WidgetScorecard from "./WidgetScorecard.vue";
-import WidgetToss from "./WidgetToss.vue";
-import WidgetFixtures from "./WidgetFixtures.vue";
+import { computeClockOffset } from "@/utils/widgetFlow";
+import BroadcastStageScene from "./BroadcastStageScene.vue";
 
 // The overlay is designed for a 1920x1080 browser source and scales down for smaller screens.
 const DESIGN_WIDTH = 1920;
@@ -29,7 +26,13 @@ const route = useRoute();
 const snapshot = ref(null);
 const status = ref("loading");
 const scale = ref(1);
+const clockOffsetMs = ref(0);
+const clientNowMs = ref(Date.now());
 const token = computed(() => String(route.params.token || ""));
+const syncedNowMs = computed(() => clientNowMs.value + clockOffsetMs.value);
+
+let tickHandle = null;
+let previousHtmlBg = "";
 
 const load = async () => {
 	const current = token.value;
@@ -40,7 +43,12 @@ const load = async () => {
 	try {
 		const response = await widgetService.snapshot(current);
 		if (current !== token.value) return;
-		snapshot.value = response?.data || null;
+		const data = response?.data || null;
+		snapshot.value = data;
+		if (data?.server_now) {
+			clockOffsetMs.value = computeClockOffset(data.server_now, Date.now());
+		}
+		clientNowMs.value = Date.now();
 		status.value = "ready";
 	} catch (error) {
 		if (current !== token.value) return;
@@ -67,14 +75,24 @@ watch(token, () => {
 });
 
 onMounted(() => {
+	previousHtmlBg = document.documentElement.style.backgroundColor || "";
+	document.documentElement.style.backgroundColor = "transparent";
 	document.documentElement.classList.add("widget-stage-root");
 	fit();
 	window.addEventListener("resize", fit);
+	tickHandle = window.setInterval(() => {
+		clientNowMs.value = Date.now();
+	}, 1000);
 	load();
 });
 
 onUnmounted(() => {
+	if (tickHandle) {
+		window.clearInterval(tickHandle);
+		tickHandle = null;
+	}
 	document.documentElement.classList.remove("widget-stage-root");
+	document.documentElement.style.backgroundColor = previousHtmlBg;
 	window.removeEventListener("resize", fit);
 });
 </script>
@@ -107,7 +125,6 @@ html.widget-stage-root #app-content {
 	height: 1080px;
 	transform-origin: center center;
 	color: #fff;
-	font-family: "Segoe UI", system-ui, sans-serif;
 }
 
 .widget-notice {

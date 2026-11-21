@@ -1,23 +1,50 @@
 <template>
-	<section class="sc-panel">
-		<header class="sc-head">
-			<span class="sc-label">{{ matchLabel(match) }}</span>
-			<span class="sc-status" :class="`is-${statusLabel(match).toLowerCase()}`">{{ statusLabel(match) }}</span>
+	<section class="bc-card sc-panel">
+		<header class="bc-topbar">
+			<div class="bc-eyebrow">
+				<span class="bc-league-pill">CPL</span>
+				<span class="sc-label">{{ matchLabel(match) }}</span>
+			</div>
+			<div class="sc-head-right">
+				<span v-if="clockState.active && clockState.timer" class="sc-clock">{{ clockState.timer }}</span>
+				<span class="bc-badge" :class="badgeClass">
+					<span v-if="isLive(match)" class="bc-live-dot"></span>
+					{{ statusLabel(match) }}
+				</span>
+			</div>
 		</header>
 
 		<div class="sc-teams">
 			<div class="sc-team">
-				<img v-if="match.team1?.logo_url" class="sc-logo" :src="match.team1.logo_url" alt="" />
-				<h2>{{ match.team1?.name || "TBD" }}</h2>
+				<div class="bc-crest is-lg">
+					<img v-if="match.team1?.logo_url" :src="match.team1.logo_url" alt="" />
+					<span v-else class="bc-crest-initials">{{ teamInitials(match.team1?.name) }}</span>
+				</div>
+				<div class="sc-team-meta">
+					<h2>{{ match.team1?.name || "TBD" }}</h2>
+					<div class="bc-pips" aria-hidden="true">
+						<span v-for="(lit, idx) in coinPips(totals.team1)" :key="idx" class="bc-pip" :class="{ 'is-lit': lit }"></span>
+					</div>
+				</div>
 			</div>
+
 			<div class="sc-score">
 				<span>{{ totals.team1 }}</span>
 				<span class="sc-dash">–</span>
 				<span>{{ totals.team2 }}</span>
 			</div>
+
 			<div class="sc-team is-away">
-				<img v-if="match.team2?.logo_url" class="sc-logo" :src="match.team2.logo_url" alt="" />
-				<h2>{{ match.team2?.name || "TBD" }}</h2>
+				<div class="sc-team-meta">
+					<h2>{{ match.team2?.name || "TBD" }}</h2>
+					<div class="bc-pips" aria-hidden="true">
+						<span v-for="(lit, idx) in coinPips(totals.team2)" :key="idx" class="bc-pip" :class="{ 'is-lit': lit }"></span>
+					</div>
+				</div>
+				<div class="bc-crest is-lg">
+					<img v-if="match.team2?.logo_url" :src="match.team2.logo_url" alt="" />
+					<span v-else class="bc-crest-initials">{{ teamInitials(match.team2?.name) }}</span>
+				</div>
 			</div>
 		</div>
 
@@ -45,7 +72,7 @@
 							<td>{{ player.strikers_pocketed }}</td>
 						</tr>
 						<tr v-if="!side.players.length">
-							<td colspan="5" class="sc-empty">No stats yet</td>
+							<td colspan="5" class="sc-empty">Lineup awaiting confirmation</td>
 						</tr>
 					</tbody>
 				</table>
@@ -53,169 +80,198 @@
 		</div>
 
 		<p v-if="resultLine(match)" class="sc-result">{{ resultLine(match) }}</p>
+
+		<div v-if="progress != null" class="bc-timer-track">
+			<div class="bc-timer-fill" :style="{ width: `${Math.round((1 - progress) * 100)}%` }"></div>
+		</div>
 	</section>
 </template>
 
 <script setup>
 import { computed } from "vue";
-import { fineCoins, matchLabel, resultLine, scorecardTotals, statusLabel, tossLine } from "@/utils/widgetScore";
+import { formatMatchClock } from "@/utils/widgetFlow";
+import {
+	coinPips,
+	fineCoins,
+	isLive,
+	isPlayed,
+	matchLabel,
+	resultLine,
+	scorecardTotals,
+	statusLabel,
+	teamInitials,
+	tossLine,
+} from "@/utils/widgetScore";
 
 const props = defineProps({
-	snapshot: { type: Object, required: true },
+	snapshot: { type: Object, default: null },
+	bundle: { type: Object, default: null },
+	clock: { type: Object, default: () => ({}) },
+	nowMs: { type: Number, default: () => Date.now() },
+	progress: { type: Number, default: null },
 });
 
-const match = computed(() => props.snapshot.match || {});
-const totals = computed(() => scorecardTotals(props.snapshot.players));
+const match = computed(() => props.bundle?.match || props.snapshot?.match || {});
+const playersSource = computed(() => props.bundle?.players || props.snapshot?.players || { team1: [], team2: [] });
+const totals = computed(() => scorecardTotals(playersSource.value));
+const clockState = computed(() => formatMatchClock(match.value, props.clock || props.snapshot?.clock || {}, props.nowMs));
+const badgeClass = computed(() => {
+	if (isLive(match.value)) return "is-live";
+	if (isPlayed(match.value)) return "is-final";
+	return "is-gold";
+});
 const sides = computed(() => [
-	{ key: "team1", team: match.value.team1, players: props.snapshot.players?.team1 || [] },
-	{ key: "team2", team: match.value.team2, players: props.snapshot.players?.team2 || [] },
+	{ key: "team1", team: match.value.team1, players: playersSource.value?.team1 || [] },
+	{ key: "team2", team: match.value.team2, players: playersSource.value?.team2 || [] },
 ]);
 </script>
 
 <style scoped>
-.sc-panel {
-	position: absolute;
-	left: 80px;
-	top: 60px;
-	width: 1760px;
-	padding: 36px 44px;
-	border-radius: 20px;
-	background: rgba(8, 14, 28, 0.86);
-	box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
-}
-
-.sc-head {
+.sc-head-right {
 	display: flex;
 	align-items: center;
-	justify-content: space-between;
-	margin-bottom: 18px;
+	gap: 14px;
 }
 
-.sc-label {
-	font-size: 26px;
-	font-weight: 600;
-	letter-spacing: 0.08em;
-	text-transform: uppercase;
-	color: #cbd5e1;
-}
-
-.sc-status {
-	padding: 6px 18px;
-	border-radius: 999px;
-	font-size: 22px;
-	font-weight: 700;
-	background: #334155;
-}
-
-.sc-status.is-live {
-	background: #dc2626;
-}
-
-.sc-status.is-final {
-	background: #16a34a;
+.sc-clock {
+	padding: 5px 14px;
+	border-radius: 10px;
+	background: rgba(15, 23, 42, 0.85);
+	border: 1px solid var(--bc-accent-line);
+	font-size: 24px;
+	font-weight: 800;
+	color: var(--bc-accent-soft);
 }
 
 .sc-teams {
 	display: grid;
-	grid-template-columns: 1fr auto 1fr;
+	grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
 	align-items: center;
-	gap: 24px;
+	gap: 28px;
+	padding: 28px 44px 12px;
 }
 
 .sc-team {
 	display: flex;
 	align-items: center;
-	gap: 18px;
+	gap: 20px;
 }
 
 .sc-team.is-away {
-	flex-direction: row-reverse;
+	justify-content: flex-end;
 	text-align: right;
+}
+
+.sc-team-meta {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.sc-team.is-away .sc-team-meta {
+	align-items: flex-end;
 }
 
 .sc-team h2 {
 	margin: 0;
-	font-size: 50px;
+	font-size: 40px;
 	font-weight: 800;
 	line-height: 1.1;
-}
-
-.sc-logo {
-	width: 96px;
-	height: 96px;
-	object-fit: contain;
-	flex: none;
 }
 
 .sc-score {
 	display: flex;
 	align-items: center;
 	gap: 18px;
-	font-size: 120px;
-	font-weight: 800;
-	font-variant-numeric: tabular-nums;
+	padding: 12px 32px;
+	border-radius: 20px;
+	background: linear-gradient(180deg, rgba(245, 184, 46, 0.18) 0%, rgba(15, 23, 42, 0.92) 100%);
+	border: 2px solid var(--bc-accent-line);
+	font-size: 76px;
+	font-weight: 900;
 	line-height: 1;
 }
 
 .sc-dash {
-	color: #94a3b8;
+	color: var(--bc-accent);
 }
 
 .sc-toss {
-	margin: 14px 0 22px;
+	margin: 8px 0 20px;
 	text-align: center;
-	font-size: 26px;
-	color: #e2e8f0;
+	font-size: 21px;
+	font-weight: 600;
+	color: var(--bc-accent-soft);
 }
 
 .sc-tables {
 	display: grid;
 	grid-template-columns: 1fr 1fr;
-	gap: 32px;
+	gap: 28px;
+	padding: 0 44px 32px;
+}
+
+.sc-table {
+	padding: 18px 20px;
+	border-radius: 16px;
+	background: rgba(255, 255, 255, 0.035);
+	border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .sc-table h3 {
 	margin: 0 0 10px;
-	font-size: 28px;
+	font-size: 20px;
 	font-weight: 700;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--bc-accent-soft);
 }
 
 .sc-table table {
 	width: 100%;
 	border-collapse: collapse;
-	font-size: 24px;
-	font-variant-numeric: tabular-nums;
+	font-size: 21px;
 }
 
 .sc-table th,
 .sc-table td {
-	padding: 8px 10px;
+	padding: 9px 8px;
 	text-align: center;
-	border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+	border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.sc-table tr:last-child td {
+	border-bottom: none;
 }
 
 .sc-table th {
-	font-size: 19px;
-	font-weight: 600;
+	font-size: 14px;
+	font-weight: 700;
+	letter-spacing: 0.08em;
 	text-transform: uppercase;
-	color: #94a3b8;
+	color: var(--bc-muted);
 }
 
 .sc-name {
 	text-align: left !important;
-	font-weight: 600;
+	font-weight: 700;
+	color: #f8fafc;
 }
 
 .sc-empty {
-	color: #94a3b8;
+	color: var(--bc-muted);
 	font-style: italic;
 }
 
 .sc-result {
-	margin: 22px 0 0;
+	margin: 0 44px 30px;
+	padding: 12px 20px;
+	border-radius: 12px;
+	background: rgba(245, 184, 46, 0.16);
+	border: 1px solid var(--bc-accent-line);
 	text-align: center;
-	font-size: 30px;
-	font-weight: 700;
-	color: #facc15;
+	font-size: 24px;
+	font-weight: 800;
+	color: var(--bc-accent-soft);
 }
 </style>

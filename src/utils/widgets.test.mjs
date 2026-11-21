@@ -14,19 +14,20 @@ const sample = [
 	{ id: 1, name: "Main scoreboard", widget_type: "scorecard", match_id: 4, token_prefix: "cpl_widget_Ab12", status: "active" },
 	{ id: 2, name: "Season fixtures", widget_type: "fixtures", season_id: 2, token_prefix: "cpl_widget_Zz99", status: "expired" },
 	{ id: 3, name: "Toss card", widget_type: "toss", match_id: 5, token_prefix: "cpl_widget_Qq77", status: "revoked" },
+	{ id: 4, name: "Season 3 Broadcast", widget_type: "season_flow", season_id: 3, token_prefix: "cpl_widget_Fl01", status: "active" },
 ];
 
-test("summary counts live links and the ones that are off", () => {
-	assert.deepEqual(summarizeWidgets(sample), { total: 3, active: 1, off: 2 });
-	assert.deepEqual(summarizeWidgets(null), { total: 0, active: 0, off: 0 });
+test("summary counts live links, active flows, and the ones that are off", () => {
+	assert.deepEqual(summarizeWidgets(sample), { total: 4, active: 2, flows: 1, off: 2 });
+	assert.deepEqual(summarizeWidgets(null), { total: 0, active: 0, flows: 0, off: 0 });
 });
 
 test("filter matches status, name, prefix, and type", () => {
-	assert.equal(filterWidgets(sample, "", "all").length, 3);
+	assert.equal(filterWidgets(sample, "", "all").length, 4);
 	assert.deepEqual(filterWidgets(sample, "", "expired").map((w) => w.id), [2]);
 	assert.deepEqual(filterWidgets(sample, "scoreboard", "all").map((w) => w.id), [1]);
 	assert.deepEqual(filterWidgets(sample, "zz99", "all").map((w) => w.id), [2]);
-	assert.deepEqual(filterWidgets(sample, "toss", "all").map((w) => w.id), [3]);
+	assert.deepEqual(filterWidgets(sample, "broadcast", "all").map((w) => w.id), [4]);
 });
 
 test("unknown status falls back to turned off", () => {
@@ -36,6 +37,7 @@ test("unknown status falls back to turned off", () => {
 test("target text names the match or season", () => {
 	assert.equal(widgetTargetText(sample[0]), "Match #4");
 	assert.equal(widgetTargetText(sample[1]), "Season #2");
+	assert.equal(widgetTargetText(sample[3], new Map([[3, "Season 3"]])), "Season 3");
 });
 
 test("the link points at the public widget route and encodes the token", () => {
@@ -47,7 +49,16 @@ test("form errors name the first missing piece", () => {
 	assert.equal(widgetFormError({ name: " ", widgetType: "toss", matchId: 1 }), "Enter a name for this widget.");
 	assert.equal(widgetFormError({ name: "x", widgetType: "scorecard", matchId: null }), "Choose a match.");
 	assert.equal(widgetFormError({ name: "x", widgetType: "fixtures", seasonId: null }), "Choose a season.");
-	assert.equal(widgetFormError({ name: "x", widgetType: "fixtures", seasonId: 2 }), "");
+	assert.equal(widgetFormError({ name: "x", widgetType: "season_flow", seasonId: 3 }), "");
+	assert.equal(
+		widgetFormError({
+			name: "x",
+			widgetType: "season_flow",
+			seasonId: 3,
+			flowConfig: { rotation: [{ id: "r1", kind: "points_table", duration_sec: 2 }] },
+		}),
+		"Each rotation card duration must be between 5 and 180 seconds.",
+	);
 });
 
 test("an expiry in the past is refused", () => {
@@ -58,10 +69,13 @@ test("an expiry in the past is refused", () => {
 	assert.equal(widgetFormError({ name: "x", widgetType: "toss", matchId: 1, expiresAt: future }, now), "");
 });
 
-test("payload sends only the target that matches the widget type", () => {
+test("payload sends only the target that matches the widget type and attaches flow_config for season_flow", () => {
 	const scorecard = widgetCreatePayload({ name: " Board ", widgetType: "scorecard", matchId: "7", seasonId: 3, expiresAt: null });
 	assert.deepEqual(scorecard, { name: "Board", widget_type: "scorecard", match_id: 7, season_id: null, expires_at: null });
 
-	const fixtures = widgetCreatePayload({ name: "Fx", widgetType: "fixtures", matchId: 7, seasonId: "3", expiresAt: null });
-	assert.deepEqual(fixtures, { name: "Fx", widget_type: "fixtures", match_id: null, season_id: 3, expires_at: null });
+	const flow = widgetCreatePayload({ name: "Season TV", widgetType: "season_flow", matchId: 7, seasonId: "3", expiresAt: null });
+	assert.equal(flow.widget_type, "season_flow");
+	assert.equal(flow.match_id, null);
+	assert.equal(flow.season_id, 3);
+	assert.equal(flow.flow_config.rotation.length, 3);
 });
