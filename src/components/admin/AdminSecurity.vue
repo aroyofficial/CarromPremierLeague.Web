@@ -130,6 +130,7 @@ import { notify } from "@/utils/notify";
 import { Iphone, Key, Lock, Message } from "@element-plus/icons-vue";
 import { authService } from "@/services/authService";
 import { unwrap } from "@/utils/adminHelpers";
+import { holdPageData } from "@/utils/common";
 import { createPasskey } from "@/utils/webauthn";
 import AuthenticatorSetupDialog from "@/components/admin/AuthenticatorSetupDialog.vue";
 import { areas } from "@/utils/realtimeRules";
@@ -137,6 +138,7 @@ import { useAdminLive } from "@/utils/useLive";
 
 const status = ref(null);
 const loading = ref(true);
+const releasePageData = holdPageData();
 const pending = ref("");
 const errorMessage = ref("");
 const totpOpen = ref(false);
@@ -192,6 +194,7 @@ const load = async () => {
 		errorMessage.value = error?.message || "Sign-in security could not be loaded.";
 	} finally {
 		loading.value = false;
+		releasePageData();
 	}
 };
 

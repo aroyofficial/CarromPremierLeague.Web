@@ -834,8 +834,6 @@ html.dark .striker {
 	background:
 		radial-gradient(circle at 100% 0%, rgba(245, 184, 46, 0.08), transparent 40%),
 		var(--cpl-surface-muted, #f6f8fc);
-	scrollbar-width: thin;
-	scrollbar-color: rgba(15, 23, 42, 0.2) transparent;
 }
 
 .welcome,

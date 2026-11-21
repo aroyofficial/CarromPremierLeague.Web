@@ -118,6 +118,7 @@ import { confirmDelete, defaultSeasonId, runAction, unwrap } from "@/utils/admin
 import { playerName } from "@/utils/media";
 import { usePermissions } from "@/utils/permissions";
 import { areas } from "@/utils/realtimeRules";
+import { settlePageLoader } from "@/utils/common";
 import { useAdminLive } from "@/utils/useLive";
 
 const { Permission, can } = usePermissions();
@@ -236,16 +237,18 @@ useAdminLive(
 	{ areas: areas.adminRosters },
 );
 
-onMounted(async () => {
-	const { ok, result } = await runAction(() => Promise.all([adminApi.seasons.list(), adminApi.players.list()]));
-	if (!ok) return;
-	seasons.value = unwrap(result[0]) || [];
-	players.value = unwrap(result[1]) || [];
-	if (seasons.value.length) {
-		seasonId.value = defaultSeasonId(seasons.value);
-		await loadSeason();
-	}
-});
+onMounted(() =>
+	settlePageLoader(async () => {
+		const { ok, result } = await runAction(() => Promise.all([adminApi.seasons.list(), adminApi.players.list()]));
+		if (!ok) return;
+		seasons.value = unwrap(result[0]) || [];
+		players.value = unwrap(result[1]) || [];
+		if (seasons.value.length) {
+			seasonId.value = defaultSeasonId(seasons.value);
+			await loadSeason();
+		}
+	}),
+);
 </script>
 
 <style scoped lang="scss">

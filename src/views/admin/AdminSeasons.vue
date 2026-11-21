@@ -124,6 +124,7 @@ import { useIsPhone } from "@/utils/viewport";
 import { usePermissions } from "@/utils/permissions";
 import EntityImage from "@/components/EntityImage.vue";
 import { areas } from "@/utils/realtimeRules";
+import { settlePageLoader } from "@/utils/common";
 import { useAdminLive } from "@/utils/useLive";
 import { isSeasonUpcoming } from "@/utils/season";
 import { scheduleButton } from "@/utils/seasonSchedule";
@@ -347,5 +348,5 @@ useAdminLive(
 	{ areas: areas.adminSeasons },
 );
 
-onMounted(load);
+onMounted(() => settlePageLoader(load));
 </script>

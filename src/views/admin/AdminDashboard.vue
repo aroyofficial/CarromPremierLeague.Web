@@ -113,6 +113,7 @@ import { AdminSections, Permission } from "@/utils/constants";
 import { matchSummary, overviewTasks, seasonPhase } from "@/utils/overview";
 import { useAuthStore } from "@/store/authStore";
 import { areas } from "@/utils/realtimeRules";
+import { settlePageLoader } from "@/utils/common";
 import { useAdminLive } from "@/utils/useLive";
 
 const authStore = useAuthStore();
@@ -127,7 +128,7 @@ const toolHints = {
 	"admin-matches": "Results and scorecards",
 	"admin-users": "Who can sign in",
 	"admin-permissions": "What each admin can do",
-	"admin-settings": "Match clock and rules",
+	"admin-settings": "Rules, webhooks and API keys",
 };
 
 const loading = ref(false);
@@ -228,10 +229,12 @@ const load = async (options) => {
 
 useAdminLive(() => load({ quiet: true }), { areas: areas.adminDashboard });
 
-onMounted(async () => {
-	await authStore.loadProfile().catch(() => undefined);
-	load();
-});
+onMounted(() =>
+	settlePageLoader(async () => {
+		await authStore.loadProfile().catch(() => undefined);
+		await load();
+	}),
+);
 </script>
 
 <style scoped lang="scss">

@@ -154,6 +154,7 @@ import { accessLabel, buildIndex, emptyTree, inOrder, sameSet } from "@/utils/pe
 import { Permission } from "@/utils/constants";
 import { useAuthStore } from "@/store/authStore";
 import { areas } from "@/utils/realtimeRules";
+import { settlePageLoader } from "@/utils/common";
 import { useAdminLive } from "@/utils/useLive";
 
 const route = useRoute();
@@ -331,7 +332,7 @@ useAdminLive(
 
 onBeforeRouteLeave(confirmDiscard);
 
-onMounted(load);
+onMounted(() => settlePageLoader(load));
 </script>
 
 <style scoped lang="scss">

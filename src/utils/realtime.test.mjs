@@ -81,7 +81,7 @@ test("admin notices reach only the screens that show that data", () => {
 test("every area a screen watches is one the server can name", () => {
 	const known = new Set([
 		"matches", "seasons", "teams", "players", "countries", "rosters", "settings", "gallery",
-		"admins", "me", "loginRequest",
+		"admins", "me", "loginRequest", "integrations",
 	]);
 	for (const [screen, watched] of Object.entries(areas)) {
 		assert.ok(watched.length, `${screen} watches nothing`);

@@ -49,6 +49,8 @@ const Permission = Object.freeze({
 	GALLERY_UPDATE: "gallery.update",
 	GALLERY_PUBLISH: "gallery.publish",
 	GALLERY_DELETE: "gallery.delete",
+	WEBHOOKS_MANAGE: "webhooks.manage",
+	APPS_MANAGE: "apps.manage",
 });
 
 const areaCodes = (area) => Object.values(Permission).filter((code) => code.startsWith(`${area}.`));
@@ -76,7 +78,13 @@ const AdminSections = Object.freeze([
 		icon: "Lock",
 		permissions: [Permission.PERMISSIONS_MANAGE],
 	},
-	{ name: "admin-settings", path: "settings", label: "Settings", icon: "Setting", permissions: [Permission.SETTINGS_UPDATE] },
+	{
+		name: "admin-settings",
+		path: "settings",
+		label: "Settings",
+		icon: "Setting",
+		permissions: [Permission.SETTINGS_UPDATE, Permission.WEBHOOKS_MANAGE, Permission.APPS_MANAGE],
+	},
 	{ name: "admin-profile", path: "profile", label: "Profile", icon: "Avatar", permissions: [] },
 ]);
 

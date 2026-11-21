@@ -51,6 +51,7 @@
 import { onMounted, ref } from "vue";
 
 import { notifyService } from "@/services/notifyService";
+import { holdPageData } from "@/utils/common";
 import { syncStateLabel } from "@/utils/matchFollow";
 
 const rows = ref([]);
@@ -59,6 +60,7 @@ const capabilities = ref({});
 const error = ref("");
 const actionMessage = ref("");
 const busy = ref(false);
+const releasePageData = holdPageData();
 
 const PROVIDER_NAMES = { google: "Google Calendar", microsoft: "Outlook" };
 function providerName(provider) {
@@ -111,8 +113,8 @@ async function disconnect(item) {
 }
 
 onMounted(async () => {
-	await loadConnections();
 	try {
+		await loadConnections();
 		const body = await notifyService.capabilities();
 		const data = body.data || {};
 		capabilities.value = data;
@@ -128,6 +130,8 @@ onMounted(async () => {
 		}));
 	} catch {
 		error.value = "The alert status could not be loaded.";
+	} finally {
+		releasePageData();
 	}
 });
 </script>

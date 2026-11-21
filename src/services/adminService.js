@@ -100,6 +100,22 @@ export const adminApi = {
 		bulk: (payload) => api.post("gallery/bulk", payload),
 		remove: (id) => api.delete(`gallery/${id}`),
 	},
+	webhooks: {
+		list: () => api.get("webhooks"),
+		create: (payload) => api.post("webhooks", payload),
+		update: (id, payload) => api.patch(`webhooks/${id}`, payload),
+		rotateSecret: (id) => api.post(`webhooks/${id}/rotate-secret`),
+		test: (id) => api.post(`webhooks/${id}/test`),
+		deliveries: (id, limit = 25) => api.get(`webhooks/${id}/deliveries`, { params: { limit } }),
+		remove: (id) => api.delete(`webhooks/${id}`),
+	},
+	apps: {
+		list: () => api.get("apps"),
+		create: (payload) => api.post("apps", payload),
+		update: (id, payload) => api.patch(`apps/${id}`, payload),
+		rotate: (id) => api.post(`apps/${id}/rotate`),
+		remove: (id) => api.delete(`apps/${id}`),
+	},
 };
 
 export const apiErrorMessage = (error, fallback = "Something went wrong. Please try again.") => {

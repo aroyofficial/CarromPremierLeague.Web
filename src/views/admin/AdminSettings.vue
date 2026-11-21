@@ -3,7 +3,7 @@
 		<div class="admin-page-head">
 			<div>
 				<h1>Settings</h1>
-				<p>Match clock, Queen rules, when a match may start, and the Striker chatbot. The public site and match completion both use these values.</p>
+				<p>Match clock, Queen rules, Striker, outbound webhooks, and external app API keys.</p>
 			</div>
 		</div>
 
@@ -41,7 +41,7 @@
 				</article>
 			</section>
 
-			<el-form novalidate class="settings-form" label-position="top" @submit.prevent="save">
+			<el-form v-if="canUpdateSettings" novalidate class="settings-form" label-position="top" @submit.prevent="save">
 				<section class="admin-card setting-group">
 					<header class="group-head">
 						<h2>Match clock</h2>
@@ -192,6 +192,12 @@
 					</el-button>
 				</div>
 			</el-form>
+			<div v-else class="admin-card settings-readonly" role="note">
+				<strong>Competition settings are read-only</strong>
+				<p>You need the <strong>Change competition settings</strong> permission to edit the match clock, Queen rules, or Striker visibility.</p>
+			</div>
+			<AdminWebhooksCard />
+			<AdminAppsCard />
 			<AdminNotifyStatus />
 		</div>
 	</div>
@@ -202,13 +208,19 @@ import { computed, onMounted, reactive, ref, watch } from "vue";
 import { notify } from "@/utils/notify";
 import { useAuthStore } from "@/store/authStore";
 import { useSettingsStore } from "@/store/settingsStore";
+import AdminAppsCard from "@/components/admin/AdminAppsCard.vue";
 import AdminNotifyStatus from "@/components/admin/AdminNotifyStatus.vue";
+import AdminWebhooksCard from "@/components/admin/AdminWebhooksCard.vue";
 import { Permission, Routes } from "@/utils/constants";
+import { settingsAccess } from "@/utils/integrations";
 import { areas } from "@/utils/realtimeRules";
+import { settlePageLoader } from "@/utils/common";
 import { useAdminLive } from "@/utils/useLive";
 
 const settingsStore = useSettingsStore();
 const authStore = useAuthStore();
+const access = computed(() => settingsAccess(authStore.permissions));
+const canUpdateSettings = computed(() => access.value.canUpdateSettings);
 const canManagePermissions = computed(() => authStore.can(Permission.PERMISSIONS_MANAGE));
 const permissionsPath = `${Routes.ADMIN}/permissions`;
 const loading = ref(false);
@@ -324,7 +336,7 @@ const load = async () => {
 };
 
 const save = async () => {
-	if (!canSave.value) return;
+	if (!canUpdateSettings.value || !canSave.value) return;
 	saving.value = true;
 	try {
 		await settingsStore.saveSettings({
@@ -345,7 +357,7 @@ const save = async () => {
 	}
 };
 
-onMounted(load);
+onMounted(() => settlePageLoader(load));
 </script>
 
 <style scoped lang="scss">
@@ -519,6 +531,25 @@ onMounted(load);
 	p {
 		margin: 0;
 		color: var(--cpl-ink-900);
+	}
+}
+
+.settings-readonly {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	border-left: 3px solid var(--cpl-gold-400);
+
+	strong {
+		font-size: 15px;
+		color: var(--cpl-ink-900);
+	}
+
+	p {
+		margin: 0;
+		font-size: 13.5px;
+		color: var(--cpl-ink-600);
+		line-height: 1.45;
 	}
 }
 

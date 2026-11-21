@@ -228,6 +228,7 @@ import { adminName, initialsOf } from "@/utils/media";
 import { limitContactDigits, optionalContactError } from "@/utils/contactNumber";
 import { focusField, validateForm } from "@/utils/formValidation";
 import { areas } from "@/utils/realtimeRules";
+import { settlePageLoader } from "@/utils/common";
 import { useAdminLive } from "@/utils/useLive";
 
 const router = useRouter();
@@ -410,16 +411,14 @@ const load = async () => {
 		return;
 	}
 	applyAccount(admin);
+	try {
+		const response = await adminApi.countries.list();
+		countries.value = unwrap(response) || [];
+		countriesError.value = "";
+	} catch {
+		countriesError.value = "Country codes could not be loaded. Your saved number is unchanged.";
+	}
 	loading.value = false;
-	adminApi.countries
-		.list()
-		.then((response) => {
-			countries.value = unwrap(response) || [];
-			countriesError.value = "";
-		})
-		.catch(() => {
-			countriesError.value = "Country codes could not be loaded. Your saved number is unchanged.";
-		});
 };
 
 const pictureChanged = (admin) => {
@@ -553,7 +552,7 @@ const save = async () => {
 	await authStore.loadProfile({ force: true }).catch(() => undefined);
 };
 
-onMounted(load);
+onMounted(() => settlePageLoader(load));
 </script>
 
 <style scoped lang="scss">

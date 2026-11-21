@@ -118,6 +118,7 @@ import { accessLabel as describeAccess, buildIndex, emptyTree } from "@/utils/pe
 import { useAuthStore } from "@/store/authStore";
 import { Permission } from "@/utils/constants";
 import { areas } from "@/utils/realtimeRules";
+import { settlePageLoader } from "@/utils/common";
 import { useAdminLive } from "@/utils/useLive";
 
 const router = useRouter();
@@ -168,12 +169,12 @@ const load = async () => {
 		tree.value = unwrap(result[0]) || emptyTree();
 		admins.value = canView.value ? unwrap(result[1]) || [] : [];
 	}
-	adminApi.countries
-		.list()
-		.then((result) => {
-			countries.value = unwrap(result) || [];
-		})
-		.catch(() => {});
+	try {
+		const countryResult = await adminApi.countries.list();
+		countries.value = unwrap(countryResult) || [];
+	} catch {
+		countries.value = [];
+	}
 	loading.value = false;
 };
 
@@ -213,7 +214,7 @@ const remove = async (admin) => {
 	if (ok) await load();
 };
 
-onMounted(load);
+onMounted(() => settlePageLoader(load));
 </script>
 
 <style scoped lang="scss">
