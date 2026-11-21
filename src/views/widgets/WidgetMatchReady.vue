@@ -14,16 +14,19 @@
 
 		<div class="mr-showcase">
 			<div class="mr-club">
-				<div class="bc-crest is-lg">
-					<img v-if="match.team1?.logo_url" :src="match.team1.logo_url" alt="" />
-					<span v-else class="bc-crest-initials">{{ teamInitials(match.team1?.name) }}</span>
+				<div class="bc-crest is-lg bc-pop" style="--i: 0">
+					<BroadcastPicture :src="match.team1?.logo_url" :name="match.team1?.name" />
 				</div>
-				<h2>{{ match.team1?.name || "TBD" }}</h2>
+				<h2 class="bc-rise" style="--i: 1">{{ match.team1?.name || "TBD" }}</h2>
 				<div v-if="homeRoster.length" class="mr-roster">
-					<div v-for="player in homeRoster" :key="player.player_id" class="mr-player">
+					<div
+						v-for="(player, idx) in homeRoster"
+						:key="player.player_id"
+						class="mr-player bc-rise"
+						:style="{ '--i': idx + 2 }"
+					>
 						<span class="bc-avatar">
-							<img v-if="player.avatar_url" :src="player.avatar_url" alt="" />
-							<span v-else>{{ teamInitials(player.name) }}</span>
+							<BroadcastPicture :src="player.avatar_url" :name="player.name" shape="avatar" />
 						</span>
 						<span>{{ player.name }}</span>
 					</div>
@@ -31,21 +34,24 @@
 			</div>
 
 			<div class="mr-center">
-				<div class="mr-vs-ring">VS</div>
-				<span class="mr-format">{{ matchFormatLabel(match.category, clock) }}</span>
+				<div class="mr-vs-ring bc-pop" style="--i: 2">VS</div>
+				<span class="mr-format bc-rise" style="--i: 3">{{ matchFormatLabel(match.category, clock) }}</span>
 			</div>
 
 			<div class="mr-club">
-				<div class="bc-crest is-lg">
-					<img v-if="match.team2?.logo_url" :src="match.team2.logo_url" alt="" />
-					<span v-else class="bc-crest-initials">{{ teamInitials(match.team2?.name) }}</span>
+				<div class="bc-crest is-lg bc-pop" style="--i: 0">
+					<BroadcastPicture :src="match.team2?.logo_url" :name="match.team2?.name" />
 				</div>
-				<h2>{{ match.team2?.name || "TBD" }}</h2>
+				<h2 class="bc-rise" style="--i: 1">{{ match.team2?.name || "TBD" }}</h2>
 				<div v-if="awayRoster.length" class="mr-roster">
-					<div v-for="player in awayRoster" :key="player.player_id" class="mr-player">
+					<div
+						v-for="(player, idx) in awayRoster"
+						:key="player.player_id"
+						class="mr-player bc-rise"
+						:style="{ '--i': idx + 2 }"
+					>
 						<span class="bc-avatar">
-							<img v-if="player.avatar_url" :src="player.avatar_url" alt="" />
-							<span v-else>{{ teamInitials(player.name) }}</span>
+							<BroadcastPicture :src="player.avatar_url" :name="player.name" shape="avatar" />
 						</span>
 						<span>{{ player.name }}</span>
 					</div>
@@ -69,23 +75,19 @@
 				<span>{{ match.team2?.name }} Wins</span>
 			</div>
 		</footer>
-
-		<div v-if="progress != null" class="bc-timer-track">
-			<div class="bc-timer-fill" :style="{ width: `${Math.round((1 - progress) * 100)}%` }"></div>
-		</div>
 	</section>
 </template>
 
 <script setup>
 import { computed } from "vue";
-import { matchFormatLabel, matchLabel, teamInitials } from "@/utils/widgetScore";
+import { matchFormatLabel, matchLabel } from "@/utils/widgetScore";
+import BroadcastPicture from "./BroadcastPicture.vue";
 
 const props = defineProps({
 	bundle: { type: Object, required: true },
 	seasonName: { type: String, default: "" },
 	clock: { type: Object, default: () => ({}) },
 	mode: { type: String, default: "ready" },
-	progress: { type: Number, default: null },
 });
 
 const match = computed(() => props.bundle?.match || {});

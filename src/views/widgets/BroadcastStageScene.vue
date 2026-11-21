@@ -1,9 +1,10 @@
 <template>
-	<div class="bc-root" :class="`bc-theme-${resolved.themeAccent || 'gold'}`">
-		<Transition :name="resolved.layout === 'lower_third' ? 'bc-lower' : 'bc-card'" mode="out-in">
+	<div class="bc-root" :data-bc-accent="resolved.themeAccent || 'gold'">
+		<Transition :name="transitionName" mode="out-in" appear>
 			<div
 				v-if="resolved.scene !== 'clean'"
 				:key="sceneKey"
+				class="bc-stage"
 				:class="resolved.layout === 'lower_third' ? 'bc-stage-lower' : 'bc-stage-card'"
 			>
 				<WidgetLiveBar
@@ -14,14 +15,12 @@
 					:now-ms="nowMs"
 					:show-clock="showClock"
 					:show-player-strip="showPlayerStrip"
-					:progress="resolved.progress"
 				/>
 				<WidgetToss
 					v-else-if="resolved.scene === 'toss'"
 					:snapshot="snapshot"
 					:bundle="resolved.bundle"
 					:season-name="seasonName"
-					:progress="resolved.progress"
 				/>
 				<WidgetMatchReady
 					v-else-if="resolved.scene === 'match_ready' && resolved.bundle"
@@ -29,13 +28,11 @@
 					:season-name="seasonName"
 					:clock="clock"
 					:mode="resolved.subMode || 'ready'"
-					:progress="resolved.progress"
 				/>
 				<WidgetMatchResult
 					v-else-if="resolved.scene === 'match_result' && resolved.bundle"
 					:bundle="resolved.bundle"
 					:season-name="seasonName"
-					:progress="resolved.progress"
 				/>
 				<WidgetScorecard
 					v-else-if="resolved.scene === 'scorecard'"
@@ -43,31 +40,20 @@
 					:bundle="resolved.bundle"
 					:clock="clock"
 					:now-ms="nowMs"
-					:progress="resolved.progress"
 				/>
-				<WidgetPointsTable
-					v-else-if="resolved.scene === 'points_table'"
-					:snapshot="snapshot"
-					:progress="resolved.progress"
-				/>
-				<WidgetStats
-					v-else-if="resolved.scene === 'stats'"
-					:snapshot="snapshot"
-					:progress="resolved.progress"
-				/>
-				<WidgetFixtures
-					v-else-if="resolved.scene === 'fixtures'"
-					:snapshot="snapshot"
-					:progress="resolved.progress"
-				/>
+				<WidgetPointsTable v-else-if="resolved.scene === 'points_table'" :snapshot="snapshot" />
+				<WidgetStats v-else-if="resolved.scene === 'stats'" :snapshot="snapshot" />
+				<WidgetFixtures v-else-if="resolved.scene === 'fixtures'" :snapshot="snapshot" />
 			</div>
 		</Transition>
 	</div>
 </template>
 
 <script setup>
-import { computed } from "vue";
+import { computed, onBeforeUnmount, watch } from "vue";
 import "@/assets/styles/broadcast.css";
+import { pauseBgm, playBgm } from "@/utils/common";
+import { BackgroundMusic } from "@/utils/constants";
 import { resolveActiveScene } from "@/utils/widgetFlow";
 import WidgetFixtures from "./WidgetFixtures.vue";
 import WidgetLiveBar from "./WidgetLiveBar.vue";
@@ -83,6 +69,8 @@ const props = defineProps({
 	flowOverride: { type: Object, default: null },
 	previewScene: { type: String, default: null },
 	nowMs: { type: Number, default: () => Date.now() },
+	// Only the live widget page plays sound. Admin previews stay silent.
+	audio: { type: Boolean, default: false },
 });
 
 const effectiveSnapshot = computed(() => {
@@ -218,4 +206,49 @@ const clock = computed(() => effectiveSnapshot.value?.clock || {});
 const showClock = computed(() => effectiveSnapshot.value?.flow?.match_stages?.show_clock !== false);
 const showPlayerStrip = computed(() => effectiveSnapshot.value?.flow?.match_stages?.show_player_strip !== false);
 const sceneKey = computed(() => `${resolved.value.scene}:${resolved.value.subMode || ""}:${resolved.value.bundle?.match?.id || ""}`);
+const transitionName = computed(() => (effectiveSnapshot.value?.flow?.transition_style === "flip" ? "bc-flip" : "bc-reveal"));
+
+// The standings card plays the same looping background music as the Points Table page.
+const wantsMusic = computed(() => props.audio && resolved.value.scene === "points_table");
+
+const retryOnGesture = () => {
+	window.removeEventListener("pointerdown", retryOnGesture);
+	window.removeEventListener("keydown", retryOnGesture);
+	if (wantsMusic.value) startMusic();
+};
+
+const disarmGesture = () => {
+	window.removeEventListener("pointerdown", retryOnGesture);
+	window.removeEventListener("keydown", retryOnGesture);
+};
+
+async function startMusic() {
+	await playBgm(BackgroundMusic.Match, 1800);
+	const element = document.getElementById(BackgroundMusic.Match);
+	// A plain browser tab blocks sound until the page is touched; a streaming browser source does not.
+	if (wantsMusic.value && (!element || element.paused)) {
+		window.addEventListener("pointerdown", retryOnGesture);
+		window.addEventListener("keydown", retryOnGesture);
+	}
+}
+
+function stopMusic() {
+	disarmGesture();
+	return pauseBgm(BackgroundMusic.Match, 900);
+}
+
+watch(
+	wantsMusic,
+	(on, wasOn) => {
+		if (on) startMusic();
+		else if (wasOn) stopMusic();
+	},
+	{ immediate: true },
+);
+
+onBeforeUnmount(() => {
+	if (!props.audio) return;
+	disarmGesture();
+	pauseBgm(BackgroundMusic.Match, 300);
+});
 </script>

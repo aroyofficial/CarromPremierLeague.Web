@@ -3,7 +3,7 @@
 		<div class="widget-frame" :style="{ transform: `translate(-50%, -50%) scale(${scale})` }">
 			<p v-if="status === 'inactive'" class="widget-notice">{{ INACTIVE_MESSAGE }}</p>
 			<p v-else-if="!snapshot" class="widget-notice">Connecting to the league…</p>
-			<BroadcastStageScene v-else :snapshot="snapshot" :now-ms="syncedNowMs" />
+			<BroadcastStageScene v-else :snapshot="snapshot" :now-ms="syncedNowMs" audio />
 		</div>
 	</div>
 </template>

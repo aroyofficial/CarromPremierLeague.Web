@@ -12,9 +12,8 @@
 
 		<div class="res-hero">
 			<div class="res-team" :class="{ 'is-winner': match.outcome === 1 }">
-				<div class="bc-crest is-lg">
-					<img v-if="match.team1?.logo_url" :src="match.team1.logo_url" alt="" />
-					<span v-else class="bc-crest-initials">{{ teamInitials(match.team1?.name) }}</span>
+				<div class="bc-crest is-lg bc-pop" style="--i: 0">
+					<BroadcastPicture :src="match.team1?.logo_url" :name="match.team1?.name" />
 				</div>
 				<div class="res-team-copy">
 					<h2>{{ match.team1?.name || "TBD" }}</h2>
@@ -39,14 +38,13 @@
 						<span v-for="(lit, idx) in coinPips(totals.team2)" :key="idx" class="bc-pip" :class="{ 'is-lit': lit }"></span>
 					</div>
 				</div>
-				<div class="bc-crest is-lg">
-					<img v-if="match.team2?.logo_url" :src="match.team2.logo_url" alt="" />
-					<span v-else class="bc-crest-initials">{{ teamInitials(match.team2?.name) }}</span>
+				<div class="bc-crest is-lg bc-pop" style="--i: 0">
+					<BroadcastPicture :src="match.team2?.logo_url" :name="match.team2?.name" />
 				</div>
 			</div>
 		</div>
 
-		<div v-if="resultLine(match)" class="res-banner">
+		<div v-if="resultLine(match)" class="res-banner bc-rise" style="--i: 3">
 			<span>{{ resultLine(match) }}</span>
 		</div>
 
@@ -54,11 +52,15 @@
 			<div v-for="side in sides" :key="side.key" class="res-col">
 				<h3>{{ side.team?.name || "TBD" }}</h3>
 				<div class="res-rows">
-					<div v-for="player in side.players" :key="player.player_id" class="res-player-row">
+					<div
+						v-for="(player, idx) in side.players"
+						:key="player.player_id"
+						class="res-player-row bc-rise"
+						:style="{ '--i': idx + 4 }"
+					>
 						<div class="res-player-id">
 							<span class="bc-avatar">
-								<img v-if="player.avatar_url" :src="player.avatar_url" alt="" />
-								<span v-else>{{ teamInitials(player.name) }}</span>
+								<BroadcastPicture :src="player.avatar_url" :name="player.name" shape="avatar" />
 							</span>
 							<span class="res-player-name">{{ player.name }}</span>
 						</div>
@@ -72,21 +74,17 @@
 				</div>
 			</div>
 		</div>
-
-		<div v-if="progress != null" class="bc-timer-track">
-			<div class="bc-timer-fill" :style="{ width: `${Math.round((1 - progress) * 100)}%` }"></div>
-		</div>
 	</section>
 </template>
 
 <script setup>
 import { computed } from "vue";
-import { coinPips, fineCoins, matchLabel, resultLine, scorecardTotals, teamInitials } from "@/utils/widgetScore";
+import { coinPips, fineCoins, matchLabel, resultLine, scorecardTotals } from "@/utils/widgetScore";
+import BroadcastPicture from "./BroadcastPicture.vue";
 
 const props = defineProps({
 	bundle: { type: Object, required: true },
 	seasonName: { type: String, default: "" },
-	progress: { type: Number, default: null },
 });
 
 const match = computed(() => props.bundle?.match || {});

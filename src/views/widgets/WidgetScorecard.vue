@@ -16,9 +16,8 @@
 
 		<div class="sc-teams">
 			<div class="sc-team">
-				<div class="bc-crest is-lg">
-					<img v-if="match.team1?.logo_url" :src="match.team1.logo_url" alt="" />
-					<span v-else class="bc-crest-initials">{{ teamInitials(match.team1?.name) }}</span>
+				<div class="bc-crest is-lg bc-pop" style="--i: 0">
+					<BroadcastPicture :src="match.team1?.logo_url" :name="match.team1?.name" />
 				</div>
 				<div class="sc-team-meta">
 					<h2>{{ match.team1?.name || "TBD" }}</h2>
@@ -41,9 +40,8 @@
 						<span v-for="(lit, idx) in coinPips(totals.team2)" :key="idx" class="bc-pip" :class="{ 'is-lit': lit }"></span>
 					</div>
 				</div>
-				<div class="bc-crest is-lg">
-					<img v-if="match.team2?.logo_url" :src="match.team2.logo_url" alt="" />
-					<span v-else class="bc-crest-initials">{{ teamInitials(match.team2?.name) }}</span>
+				<div class="bc-crest is-lg bc-pop" style="--i: 0">
+					<BroadcastPicture :src="match.team2?.logo_url" :name="match.team2?.name" />
 				</div>
 			</div>
 		</div>
@@ -80,10 +78,6 @@
 		</div>
 
 		<p v-if="resultLine(match)" class="sc-result">{{ resultLine(match) }}</p>
-
-		<div v-if="progress != null" class="bc-timer-track">
-			<div class="bc-timer-fill" :style="{ width: `${Math.round((1 - progress) * 100)}%` }"></div>
-		</div>
 	</section>
 </template>
 
@@ -99,16 +93,15 @@ import {
 	resultLine,
 	scorecardTotals,
 	statusLabel,
-	teamInitials,
 	tossLine,
 } from "@/utils/widgetScore";
+import BroadcastPicture from "./BroadcastPicture.vue";
 
 const props = defineProps({
 	snapshot: { type: Object, default: null },
 	bundle: { type: Object, default: null },
 	clock: { type: Object, default: () => ({}) },
 	nowMs: { type: Number, default: () => Date.now() },
-	progress: { type: Number, default: null },
 });
 
 const match = computed(() => props.bundle?.match || props.snapshot?.match || {});

@@ -15,9 +15,8 @@
 		<div v-if="leader" class="st-grid">
 			<div class="st-hero">
 				<span class="st-hero-tag">#1 {{ stats.is_league_stage_completed ? "GOLDEN STRIKER" : "LEADER" }}</span>
-				<div class="st-hero-avatar">
-					<img v-if="leader.avatar_url" :src="leader.avatar_url" alt="" />
-					<span v-else>{{ teamInitials(leader.name) }}</span>
+				<div class="st-hero-avatar bc-pop" style="--i: 0">
+					<BroadcastPicture :src="leader.avatar_url" :name="leader.name" shape="avatar" />
 				</div>
 				<h2>{{ leader.name }}</h2>
 				<span class="st-hero-team">{{ leader.team_name || "League Player" }}</span>
@@ -45,11 +44,15 @@
 
 			<div class="st-ladder">
 				<h3>Top Coin Potters</h3>
-				<div v-for="player in contenders" :key="player.player_id" class="st-row">
+				<div
+					v-for="(player, idx) in contenders"
+					:key="player.player_id"
+					class="st-row bc-rise"
+					:style="{ '--i': idx + 1 }"
+				>
 					<span class="st-rank">#{{ player.rank }}</span>
 					<span class="bc-avatar">
-						<img v-if="player.avatar_url" :src="player.avatar_url" alt="" />
-						<span v-else>{{ teamInitials(player.name) }}</span>
+						<BroadcastPicture :src="player.avatar_url" :name="player.name" shape="avatar" />
 					</span>
 					<div class="st-who">
 						<strong>{{ player.name }}</strong>
@@ -66,20 +69,15 @@
 		</div>
 
 		<p v-else class="st-empty">Player statistics appear as soon as the first league match is completed.</p>
-
-		<div v-if="progress != null" class="bc-timer-track">
-			<div class="bc-timer-fill" :style="{ width: `${Math.round((1 - progress) * 100)}%` }"></div>
-		</div>
 	</section>
 </template>
 
 <script setup>
 import { computed } from "vue";
-import { teamInitials } from "@/utils/widgetScore";
+import BroadcastPicture from "./BroadcastPicture.vue";
 
 const props = defineProps({
 	snapshot: { type: Object, required: true },
-	progress: { type: Number, default: null },
 });
 
 const seasonName = computed(() => props.snapshot?.season?.name || "");
@@ -134,12 +132,6 @@ const contenders = computed(() => players.value.slice(1, 5));
 	font-size: 36px;
 	font-weight: 800;
 	color: var(--bc-accent-soft);
-}
-
-.st-hero-avatar img {
-	width: 100%;
-	height: 100%;
-	object-fit: cover;
 }
 
 .st-hero h2 {

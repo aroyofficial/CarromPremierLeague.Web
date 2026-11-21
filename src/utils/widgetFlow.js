@@ -1,13 +1,24 @@
 import { parseServerTime } from "./integrations.js";
 import { hasToss, isLive, isReady } from "./widgetScore.js";
 
+/** The standings card stays up long enough to read every row, and it plays the league music while it does. */
+export const POINTS_TABLE_SEC = 30;
+
+export const TRANSITION_STYLES = Object.freeze([
+	{ value: "reveal", label: "Reveal wipe", hint: "A soft-edged wipe reveals each card and wipes it away." },
+	{ value: "flip", label: "Corner page flip", hint: "Each card unfolds from its corner like a turning page." },
+]);
+
+/** Shortest time a card may stay on screen. */
+export const minSecForKind = (kind) => (kind === "points_table" ? POINTS_TABLE_SEC : 5);
+
 export const ROTATION_CARDS = Object.freeze([
 	{
 		kind: "points_table",
 		label: "Points Table",
 		shortLabel: "Points",
-		defaultSec: 20,
-		hint: "League standings with matches, wins, net coins, and points.",
+		defaultSec: POINTS_TABLE_SEC,
+		hint: "League standings with matches, wins, net coins, and points. Stays 30s with the league music.",
 	},
 	{
 		kind: "stats",
@@ -68,6 +79,7 @@ export const makeStepId = (kind = "step") => {
 export const defaultFlowConfig = () => ({
 	idle_mode: "loop",
 	theme_accent: "gold",
+	transition_style: "reveal",
 	match_stages: {
 		show_ready: true,
 		show_toss: true,
@@ -77,7 +89,7 @@ export const defaultFlowConfig = () => ({
 		result_duration_sec: 20,
 	},
 	rotation: [
-		{ id: "step-points", kind: "points_table", duration_sec: 20, enabled: true },
+		{ id: "step-points", kind: "points_table", duration_sec: POINTS_TABLE_SEC, enabled: true },
 		{ id: "step-stats", kind: "stats", duration_sec: 15, enabled: true },
 		{ id: "step-fixtures", kind: "fixtures", duration_sec: 15, enabled: true },
 	],
@@ -93,7 +105,7 @@ export const FLOW_PRESETS = Object.freeze([
 			...defaultFlowConfig(),
 			idle_mode: "loop",
 			rotation: [
-				{ id: makeStepId("points"), kind: "points_table", duration_sec: 20, enabled: true },
+				{ id: makeStepId("points"), kind: "points_table", duration_sec: POINTS_TABLE_SEC, enabled: true },
 				{ id: makeStepId("stats"), kind: "stats", duration_sec: 15, enabled: true },
 				{ id: makeStepId("fixtures"), kind: "fixtures", duration_sec: 15, enabled: true },
 				{ id: makeStepId("next"), kind: "next_match", duration_sec: 12, enabled: true },
@@ -108,7 +120,7 @@ export const FLOW_PRESETS = Object.freeze([
 			...defaultFlowConfig(),
 			idle_mode: "once_then_clean",
 			rotation: [
-				{ id: makeStepId("points"), kind: "points_table", duration_sec: 20, enabled: true },
+				{ id: makeStepId("points"), kind: "points_table", duration_sec: POINTS_TABLE_SEC, enabled: true },
 				{ id: makeStepId("stats"), kind: "stats", duration_sec: 15, enabled: true },
 			],
 		}),
@@ -121,7 +133,7 @@ export const FLOW_PRESETS = Object.freeze([
 			...defaultFlowConfig(),
 			idle_mode: "loop",
 			rotation: [
-				{ id: makeStepId("points"), kind: "points_table", duration_sec: 20, enabled: true },
+				{ id: makeStepId("points"), kind: "points_table", duration_sec: POINTS_TABLE_SEC, enabled: true },
 				{ id: makeStepId("stats"), kind: "stats", duration_sec: 15, enabled: true },
 				{ id: makeStepId("fixtures"), kind: "fixtures", duration_sec: 15, enabled: true },
 				{ id: makeStepId("pause"), kind: "clean_pause", duration_sec: 10, enabled: true },
@@ -136,17 +148,22 @@ export const cloneFlowConfig = (raw) => {
 	return {
 		idle_mode: raw.idle_mode === "once_then_clean" ? "once_then_clean" : "loop",
 		theme_accent: ["gold", "royal", "crimson"].includes(raw.theme_accent) ? raw.theme_accent : "gold",
+		transition_style: raw.transition_style === "flip" ? "flip" : "reveal",
 		match_stages: {
 			...base.match_stages,
 			...(raw.match_stages || {}),
 		},
 		rotation: Array.isArray(raw.rotation)
-			? raw.rotation.map((step, idx) => ({
-					id: String(step.id || `step-${idx + 1}`),
-					kind: step.kind || "points_table",
-					duration_sec: Math.min(180, Math.max(5, Number(step.duration_sec) || 15)),
-					enabled: step.enabled !== false,
-				}))
+			? raw.rotation.map((step, idx) => {
+					const kind = step.kind || "points_table";
+					return {
+						id: String(step.id || `step-${idx + 1}`),
+						kind,
+						// A saved flow that still says 20s for the points table is lifted to the 30s minimum.
+						duration_sec: Math.min(180, Math.max(minSecForKind(kind), Number(step.duration_sec) || 15)),
+						enabled: step.enabled !== false,
+					};
+				})
 			: base.rotation,
 		director: {
 			...base.director,

@@ -6,7 +6,7 @@
 		<aside id="admin-sidebar" class="admin-sidebar" aria-label="Admin console">
 			<div class="sidebar-head">
 				<span class="sidebar-avatar" aria-hidden="true">
-					<img v-if="authStore.avatarUrl" :src="authStore.avatarUrl" alt="" @error="authStore.avatarUrl = ''" />
+					<EntityImage v-if="authStore.avatarUrl" :src="authStore.avatarUrl" :name="authStore.displayName" kind="admin" class="sidebar-photo" />
 					<template v-else>{{ userInitial }}</template>
 				</span>
 				<span class="sidebar-who">
@@ -80,6 +80,7 @@ import {
 	VideoCamera,
 } from "@element-plus/icons-vue";
 import ActivateAccount from "@/components/admin/ActivateAccount.vue";
+import EntityImage from "@/components/EntityImage.vue";
 import ViewCoin from "@/components/admin/ViewCoin.vue";
 import StrikerChat from "@/components/striker/StrikerChat.vue";
 import { initial } from "@/utils/adminNames";
@@ -328,10 +329,9 @@ html.dark .admin-sidebar {
 	font-weight: 800;
 	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
 
-	img {
+	.sidebar-photo {
 		width: 100%;
 		height: 100%;
-		object-fit: cover;
 	}
 }
 

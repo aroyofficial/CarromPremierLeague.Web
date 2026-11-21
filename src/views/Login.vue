@@ -116,7 +116,7 @@
 					<div v-else-if="view === 'signed-in' || view === 'session'" class="panel-body signed-in">
 						<div class="account-chip">
 							<span class="avatar" aria-hidden="true">
-								<img v-if="authStore.avatarUrl" :src="authStore.avatarUrl" alt="" />
+								<EntityImage v-if="authStore.avatarUrl" :src="authStore.avatarUrl" :name="authStore.displayName || authStore.username" kind="admin" class="avatar-photo" />
 								<template v-else>{{ initials }}</template>
 							</span>
 							<div>
@@ -305,6 +305,7 @@ import ActivateAccount from "@/components/admin/ActivateAccount.vue";
 import CodeBoxes from "@/components/admin/CodeBoxes.vue";
 import LoginChallenge from "@/components/admin/LoginChallenge.vue";
 import NewPasswordFields from "@/components/admin/NewPasswordFields.vue";
+import EntityImage from "@/components/EntityImage.vue";
 import { authService } from "@/services/authService";
 import { useAuthStore } from "@/store/authStore";
 import { unwrap } from "@/utils/adminHelpers";
@@ -1315,10 +1316,9 @@ html.dark .submit-btn.el-button--primary:not(.is-plain):not(.is-link):not(.is-te
 	color: var(--cpl-navy-900);
 	background: linear-gradient(135deg, var(--cpl-gold-400), var(--cpl-gold-500));
 
-	img {
+	.avatar-photo {
 		width: 100%;
 		height: 100%;
-		object-fit: cover;
 	}
 }
 

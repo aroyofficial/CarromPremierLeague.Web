@@ -44,12 +44,32 @@
 	--bc-accent-line: rgba(251, 113, 133, 0.52);
 }
 
-/* Broadcast Glass Card Shell */
-.bc-card {
+/*
+ * Stage wrappers. Each scene sits in a wrapper that hugs the card and carries 96px of padding, so the card
+ * shadow stays inside the box that the reveal mask and the page-flip clip are drawn on.
+ */
+.bc-stage {
+	--bc-pad: 96px;
 	position: absolute;
+	width: max-content;
+	padding: var(--bc-pad);
+}
+
+.bc-stage-card {
 	left: 50%;
 	top: 52%;
 	transform: translate(-50%, -50%);
+}
+
+.bc-stage-lower {
+	left: 50%;
+	bottom: calc(52px - var(--bc-pad));
+	transform: translateX(-50%);
+}
+
+/* Broadcast Glass Card Shell */
+.bc-card {
+	position: relative;
 	width: 1460px;
 	max-height: 920px;
 	background: var(--bc-glass);
@@ -66,13 +86,25 @@
 	height: 4px;
 	background: linear-gradient(90deg, transparent 0%, var(--bc-accent) 22%, var(--bc-accent-soft) 50%, var(--bc-accent) 78%, transparent 100%);
 	pointer-events: none;
+	z-index: 2;
+}
+
+/* A slow light sweep across the card face keeps the glass alive without distracting from the data. */
+.bc-card::after,
+.bc-lower-third::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(115deg, transparent 0%, transparent 38%, rgba(255, 255, 255, 0.055) 50%, transparent 62%, transparent 100%);
+	background-size: 260% 100%;
+	background-position: 140% 0;
+	animation: bc-sheen 7s ease-in-out 1.2s infinite;
+	pointer-events: none;
+	z-index: 1;
 }
 
 .bc-lower-third {
-	position: absolute;
-	left: 50%;
-	bottom: 52px;
-	transform: translateX(-50%);
+	position: relative;
 	width: 1520px;
 	background: var(--bc-glass);
 	border: 1px solid var(--bc-rim);
@@ -87,6 +119,7 @@
 	inset: 0 0 auto 0;
 	height: 3px;
 	background: linear-gradient(90deg, transparent 0%, var(--bc-accent) 20%, var(--bc-accent-soft) 50%, var(--bc-accent) 80%, transparent 100%);
+	z-index: 2;
 }
 
 /* Header Ribbon */
@@ -189,6 +222,13 @@
 	border-radius: 24px;
 }
 
+.bc-crest.is-md {
+	width: 56px;
+	height: 56px;
+	border-radius: 15px;
+	border-width: 1.5px;
+}
+
 .bc-crest.is-sm {
 	width: 44px;
 	height: 44px;
@@ -196,25 +236,42 @@
 	border-width: 1.5px;
 }
 
-.bc-crest img {
-	width: 100%;
-	height: 100%;
-	object-fit: contain;
+/*
+ * Pictures come from BroadcastPicture, which honours the frame saved in the admin. A framed picture fills the
+ * whole crest or avatar; a plain logo keeps a little breathing room, and a plain photo covers its circle.
+ */
+.bc-pic.is-contain:not(.has-frame) {
 	padding: 6px;
+	box-sizing: border-box;
 }
 
-.bc-crest-initials {
-	font-size: 26px;
+.bc-pic.is-contain:not(.has-frame) img {
+	object-fit: contain;
+}
+
+.bc-pic.is-cover:not(.has-frame) img {
+	object-fit: cover;
+}
+
+.bc-initials {
 	font-weight: 800;
 	letter-spacing: 0.04em;
 	color: var(--bc-accent-soft);
 }
 
-.bc-crest.is-lg .bc-crest-initials {
+.bc-crest .bc-initials {
+	font-size: 26px;
+}
+
+.bc-crest.is-lg .bc-initials {
 	font-size: 36px;
 }
 
-.bc-crest.is-sm .bc-crest-initials {
+.bc-crest.is-md .bc-initials {
+	font-size: 20px;
+}
+
+.bc-crest.is-sm .bc-initials {
 	font-size: 16px;
 }
 
@@ -231,12 +288,6 @@
 	font-size: 15px;
 	font-weight: 700;
 	color: var(--bc-accent-soft);
-}
-
-.bc-avatar img {
-	width: 100%;
-	height: 100%;
-	object-fit: cover;
 }
 
 /* 9-Coin Carrom Progress Pips */
@@ -278,44 +329,165 @@
 	text-transform: uppercase;
 }
 
-/* Bottom Timed Rotation Hairline */
-.bc-timer-track {
+/*
+ * Scene transitions. Two looks, chosen per flow in the studio:
+ *   reveal - a soft-edged wipe: the scene is revealed left to right and wiped away the same way.
+ *   flip   - a page turn: the scene unfolds from its top-left corner and peels away off its bottom-right corner.
+ * Both animate a registered custom property, so the wipe edge and the fold line stay perfectly straight.
+ */
+@property --bc-p {
+	syntax: "<percentage>";
+	inherits: true;
+	initial-value: 0%;
+}
+
+@property --bc-s {
+	syntax: "<number>";
+	inherits: true;
+	initial-value: 2;
+}
+
+/* ---- Reveal wipe ---- */
+.bc-reveal-enter-active,
+.bc-reveal-leave-active {
+	will-change: mask-image;
+}
+
+.bc-reveal-enter-active {
+	-webkit-mask-image: linear-gradient(90deg, #000 calc(var(--bc-p) - 9%), transparent var(--bc-p));
+	mask-image: linear-gradient(90deg, #000 calc(var(--bc-p) - 9%), transparent var(--bc-p));
+	animation: bc-wipe 0.95s cubic-bezier(0.45, 0.05, 0.2, 1) both;
+}
+
+.bc-reveal-leave-active {
+	-webkit-mask-image: linear-gradient(90deg, transparent calc(var(--bc-p) - 9%), #000 var(--bc-p));
+	mask-image: linear-gradient(90deg, transparent calc(var(--bc-p) - 9%), #000 var(--bc-p));
+	animation: bc-wipe 0.7s cubic-bezier(0.55, 0, 0.55, 0.95) both;
+}
+
+/* The bright edge that rides the front of the wipe. */
+.bc-reveal-enter-active::before,
+.bc-reveal-leave-active::before {
+	content: "";
 	position: absolute;
-	left: 0;
-	right: 0;
-	bottom: 0;
-	height: 4px;
-	background: rgba(255, 255, 255, 0.08);
-	overflow: hidden;
+	top: var(--bc-pad);
+	bottom: var(--bc-pad);
+	width: 5px;
+	margin-left: -2px;
+	border-radius: 3px;
+	background: linear-gradient(180deg, transparent 0%, var(--bc-accent-soft) 14%, var(--bc-accent) 86%, transparent 100%);
+	box-shadow: 0 0 26px 5px var(--bc-accent-glow);
+	pointer-events: none;
+	z-index: 5;
 }
 
-.bc-timer-fill {
-	height: 100%;
-	background: linear-gradient(90deg, var(--bc-accent) 0%, var(--bc-accent-soft) 100%);
-	transition: width 0.35s linear;
+.bc-reveal-enter-active::before {
+	left: calc(var(--bc-p) - 9%);
 }
 
-/* Broadcast Scene Transitions */
-.bc-lower-enter-active,
-.bc-lower-leave-active {
-	transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.34s ease;
+.bc-reveal-leave-active::before {
+	left: var(--bc-p);
 }
 
-.bc-lower-enter-from,
-.bc-lower-leave-to {
-	transform: translate(-50%, 48px);
-	opacity: 0;
+/* ---- Corner page flip ----
+ * The card itself is clipped, in its own coordinates, so the fold line, the turned-over corner and the shadow all
+ * sit exactly on the card. The wrapper carries a drop-shadow, which follows whatever is left of the page. */
+.bc-flip-enter-active,
+.bc-flip-leave-active {
+	filter: drop-shadow(0 22px 34px rgba(0, 0, 0, 0.5));
 }
 
-.bc-card-fade-enter-active,
-.bc-card-fade-leave-active {
-	transition: transform 0.44s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.36s ease;
+.bc-flip-enter-active { animation: bc-fold-in 0.95s cubic-bezier(0.25, 0.7, 0.25, 1) both; }
+.bc-flip-leave-active { animation: bc-fold-out 0.75s cubic-bezier(0.55, 0.05, 0.75, 0.45) both; }
+
+.bc-flip-enter-active > .bc-card,
+.bc-flip-leave-active > .bc-card,
+.bc-flip-enter-active > .bc-lower-third,
+.bc-flip-leave-active > .bc-lower-third {
+	/* Visible part of the page: everything above the fold line that runs from the bottom-right corner. */
+	clip-path: polygon(
+		0 0,
+		calc(min(var(--bc-s), 1) * 100%) 0,
+		calc(min(var(--bc-s), 1) * 100%) calc(max(var(--bc-s) - 1, 0) * 100%),
+		calc(max(var(--bc-s) - 1, 0) * 100%) calc(min(var(--bc-s), 1) * 100%),
+		0 calc(min(var(--bc-s), 1) * 100%)
+	);
+	box-shadow: none;
 }
 
-.bc-card-fade-enter-from,
-.bc-card-fade-leave-to {
-	transform: translate(-50%, -46%) scale(0.965);
-	opacity: 0;
+/* Soft shadow the fold throws on the page behind it. */
+.bc-flip-enter-active::before,
+.bc-flip-leave-active::before {
+	content: "";
+	position: absolute;
+	inset: var(--bc-pad);
+	border-radius: 24px;
+	background: linear-gradient(
+		to bottom right,
+		transparent calc(var(--bc-s) * 50% - 16%),
+		rgba(0, 0, 0, 0.42) calc(var(--bc-s) * 50% - 1%),
+		transparent calc(var(--bc-s) * 50%)
+	);
+	pointer-events: none;
+	z-index: 5;
+}
+
+/* The turned-over corner: the back of the page folded onto its own face. */
+.bc-flip-enter-active::after,
+.bc-flip-leave-active::after {
+	content: "";
+	position: absolute;
+	inset: var(--bc-pad);
+	border-radius: 24px;
+	clip-path: polygon(
+		calc(min(var(--bc-s), 1) * 100%) calc(max(var(--bc-s) - 1, 0) * 100%),
+		calc(max(var(--bc-s) - 1, 0) * 100%) calc(min(var(--bc-s), 1) * 100%),
+		calc(max(var(--bc-s) - 1, 0) * 100%) calc(max(var(--bc-s) - 1, 0) * 100%)
+	);
+	background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.34) 0%, #16233f 34%, #0a1226 100%);
+	pointer-events: none;
+	z-index: 6;
+}
+
+/* Entrance for the pieces inside a card; each piece sets --i so they land one after another. */
+.bc-rise {
+	animation: bc-rise 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+	animation-delay: calc(0.3s + var(--i, 0) * 60ms);
+}
+
+.bc-pop {
+	animation: bc-pop 0.55s cubic-bezier(0.2, 1.2, 0.3, 1) both;
+	animation-delay: calc(0.4s + var(--i, 0) * 70ms);
+}
+
+@keyframes bc-wipe {
+	from { --bc-p: 0%; }
+	to { --bc-p: 109%; }
+}
+
+@keyframes bc-fold-in {
+	from { --bc-s: 0; }
+	to { --bc-s: 2; }
+}
+
+@keyframes bc-fold-out {
+	from { --bc-s: 2; }
+	to { --bc-s: 0; }
+}
+
+@keyframes bc-rise {
+	from { opacity: 0; transform: translateY(14px); }
+	to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes bc-pop {
+	from { opacity: 0; transform: scale(0.82); }
+	to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes bc-sheen {
+	0% { background-position: 140% 0; }
+	45%, 100% { background-position: -40% 0; }
 }
 
 @keyframes bc-pulse {

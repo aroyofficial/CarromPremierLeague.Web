@@ -2,7 +2,7 @@
 	<div class="profile-page">
 		<header class="profile-hero">
 			<span class="hero-avatar" aria-hidden="true">
-				<img v-if="avatar" :src="avatar" alt="" />
+				<EntityImage v-if="avatar" :src="avatar" :name="heroName" kind="admin" class="hero-photo" />
 				<template v-else>{{ heroInitial }}</template>
 			</span>
 			<div class="hero-text">
@@ -220,6 +220,7 @@ import { CircleCheck, Camera, Key, Lock, Message, Phone, User } from "@element-p
 import AdminSecurity from "@/components/admin/AdminSecurity.vue";
 import ChangePasswordDialog from "@/components/admin/ChangePasswordDialog.vue";
 import ImageUploadField from "@/components/admin/ImageUploadField.vue";
+import EntityImage from "@/components/EntityImage.vue";
 import { adminApi } from "@/services/adminService";
 import { useAuthStore } from "@/store/authStore";
 import { blankToNull, runAction, unwrap } from "@/utils/adminHelpers";
@@ -596,10 +597,9 @@ onMounted(() => settlePageLoader(load));
 	box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
 	overflow: hidden;
 
-	img {
+	.hero-photo {
 		width: 100%;
 		height: 100%;
-		object-fit: cover;
 	}
 }
 

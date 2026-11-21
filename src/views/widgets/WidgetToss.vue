@@ -13,8 +13,7 @@
 		<div class="toss-teams">
 			<div class="toss-team" :class="{ 'is-winner': winner === 'team1', 'is-dimmed': winner === 'team2' }">
 				<div class="bc-crest">
-					<img v-if="match.team1?.logo_url" :src="match.team1.logo_url" alt="" />
-					<span v-else class="bc-crest-initials">{{ teamInitials(match.team1?.name) }}</span>
+					<BroadcastPicture :src="match.team1?.logo_url" :name="match.team1?.name" />
 				</div>
 				<div class="toss-team-copy">
 					<h2>{{ match.team1?.name || "TBD" }}</h2>
@@ -32,29 +31,24 @@
 					<span v-if="winner === 'team2'" class="toss-role">Breaking First</span>
 				</div>
 				<div class="bc-crest">
-					<img v-if="match.team2?.logo_url" :src="match.team2.logo_url" alt="" />
-					<span v-else class="bc-crest-initials">{{ teamInitials(match.team2?.name) }}</span>
+					<BroadcastPicture :src="match.team2?.logo_url" :name="match.team2?.name" />
 				</div>
 			</div>
 		</div>
 
 		<p class="toss-line">{{ tossLine(match) }}</p>
-
-		<div v-if="progress != null" class="bc-timer-track">
-			<div class="bc-timer-fill" :style="{ width: `${Math.round((1 - progress) * 100)}%` }"></div>
-		</div>
 	</section>
 </template>
 
 <script setup>
 import { computed } from "vue";
-import { matchLabel, teamInitials, tossLine, tossWinnerSide } from "@/utils/widgetScore";
+import { matchLabel, tossLine, tossWinnerSide } from "@/utils/widgetScore";
+import BroadcastPicture from "./BroadcastPicture.vue";
 
 const props = defineProps({
 	snapshot: { type: Object, default: null },
 	bundle: { type: Object, default: null },
 	seasonName: { type: String, default: "" },
-	progress: { type: Number, default: null },
 });
 
 const match = computed(() => props.bundle?.match || props.snapshot?.match || {});

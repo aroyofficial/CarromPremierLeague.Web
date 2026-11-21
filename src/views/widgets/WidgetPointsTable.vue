@@ -29,14 +29,14 @@
 			<div
 				v-for="(row, index) in rows"
 				:key="row.team_id"
-				class="pt-row"
+				class="pt-row bc-rise"
 				:class="{ 'is-leader': index === 0, 'is-qual': index < qualifierCut }"
+				:style="{ '--i': index }"
 			>
 				<span class="pt-rank">{{ row.rank || index + 1 }}</span>
 				<div class="pt-team">
-					<span class="bc-crest is-sm">
-						<img v-if="row.logo_url" :src="row.logo_url" alt="" />
-						<span v-else class="bc-crest-initials">{{ teamInitials(row.team_name) }}</span>
+					<span class="bc-crest" :class="rows.length > 8 ? 'is-sm' : 'is-md'">
+						<BroadcastPicture :src="row.logo_url" :name="row.team_name" />
 					</span>
 					<span class="pt-team-name">{{ row.team_name }}</span>
 				</div>
@@ -49,20 +49,15 @@
 
 			<p v-if="!rows.length" class="pt-empty">Teams for this season will appear here once assigned.</p>
 		</div>
-
-		<div v-if="progress != null" class="bc-timer-track">
-			<div class="bc-timer-fill" :style="{ width: `${Math.round((1 - progress) * 100)}%` }"></div>
-		</div>
 	</section>
 </template>
 
 <script setup>
 import { computed } from "vue";
-import { teamInitials } from "@/utils/widgetScore";
+import BroadcastPicture from "./BroadcastPicture.vue";
 
 const props = defineProps({
 	snapshot: { type: Object, required: true },
-	progress: { type: Number, default: null },
 });
 
 const seasonName = computed(() => props.snapshot?.season?.name || "");
@@ -133,7 +128,7 @@ const netTone = (val) => {
 }
 
 .pt-row {
-	padding: 11px 18px;
+	padding: 9px 18px;
 	border-radius: 14px;
 	background: rgba(255, 255, 255, 0.04);
 	border: 1px solid rgba(255, 255, 255, 0.07);

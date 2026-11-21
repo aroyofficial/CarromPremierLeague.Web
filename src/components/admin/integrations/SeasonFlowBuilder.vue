@@ -38,6 +38,24 @@
 						</button>
 					</div>
 				</div>
+
+				<div class="sfb-look-row">
+					<span class="sfb-label">Scene transition</span>
+					<div class="sfb-accents" role="radiogroup" aria-label="Scene transition style">
+						<button
+							v-for="style in TRANSITION_STYLES"
+							:key="style.value"
+							type="button"
+							class="sfb-accent-chip"
+							:class="{ 'is-active': (modelValue.transition_style || 'reveal') === style.value }"
+							:title="style.hint"
+							@click="chooseTransition(style.value)"
+						>
+							{{ style.label }}
+						</button>
+						<button type="button" class="sfb-mini-link" @click="replayTransition">Replay</button>
+					</div>
+				</div>
 			</section>
 
 			<section class="sfb-block">
@@ -209,13 +227,13 @@
 							<div class="sfb-dur">
 								<el-input-number
 									:model-value="step.duration_sec"
-									:min="5"
+									:min="minSecForKind(step.kind)"
 									:max="180"
 									:step="5"
 									size="small"
 									controls-position="right"
 									:aria-label="`Duration in seconds for ${cardMeta(step.kind).label}`"
-									@change="(val) => updateStep(idx, { duration_sec: Number(val || 15) })"
+									@change="(val) => updateStep(idx, { duration_sec: Number(val || minSecForKind(step.kind)) })"
 								/>
 								<span>s</span>
 							</div>
@@ -338,8 +356,10 @@ import {
 	FLOW_PRESETS,
 	ROTATION_CARD_MAP,
 	ROTATION_CARDS,
+	TRANSITION_STYLES,
 	cloneFlowConfig,
 	insertStepAt,
+	minSecForKind,
 	moveStep,
 } from "@/utils/widgetFlow";
 import BroadcastStageScene from "@/views/widgets/BroadcastStageScene.vue";
@@ -392,6 +412,23 @@ const patchFlow = (patch) => {
 
 const patchStages = (patch) => {
 	patchFlow({ match_stages: { ...stages.value, ...patch } });
+};
+
+let replayTimer = null;
+
+// Takes the preview off air and back on so the chosen transition plays once in front of the admin.
+const replayTransition = () => {
+	const keep = previewMode.value === "clean" ? "auto" : previewMode.value;
+	previewMode.value = "clean";
+	window.clearTimeout(replayTimer);
+	replayTimer = window.setTimeout(() => {
+		previewMode.value = keep;
+	}, 1200);
+};
+
+const chooseTransition = (value) => {
+	patchFlow({ transition_style: value });
+	replayTransition();
 };
 
 const applyPreset = (preset) => {
@@ -551,6 +588,7 @@ onMounted(() => {
 onUnmounted(() => {
 	resizeObserver?.disconnect();
 	if (clockTimer) window.clearInterval(clockTimer);
+	window.clearTimeout(replayTimer);
 });
 </script>
 
@@ -649,6 +687,8 @@ onUnmounted(() => {
 
 .sfb-accents {
 	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
 	gap: 8px;
 }
 

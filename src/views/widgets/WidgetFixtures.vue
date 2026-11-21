@@ -9,57 +9,49 @@
 		</header>
 
 		<div class="fx-body">
-			<table>
-				<thead>
-					<tr>
-						<th>Date</th>
-						<th>Match</th>
-						<th>Fixture</th>
-						<th>Status</th>
-					</tr>
-				</thead>
-				<tbody>
-					<tr
-						v-for="match in rows"
-						:key="match.id"
-						:class="{ 'is-live': isLive(match), 'is-played': isPlayed(match), 'is-next': match.id === nextOpenId }"
-					>
-						<td class="fx-date">{{ dateLabel(match.scheduled_date) }}</td>
-						<td class="fx-order">{{ matchLabel(match) }}</td>
-						<td class="fx-fixture">
-							<span class="fx-club">
-								<span class="bc-crest is-sm">
-									<img v-if="match.team1?.logo_url" :src="match.team1.logo_url" alt="" />
-									<span v-else class="bc-crest-initials">{{ teamInitials(match.team1?.name) }}</span>
-								</span>
-								<span>{{ match.team1?.name || "TBD" }}</span>
-							</span>
-							<span class="fx-vs">vs</span>
-							<span class="fx-club">
-								<span class="bc-crest is-sm">
-									<img v-if="match.team2?.logo_url" :src="match.team2.logo_url" alt="" />
-									<span v-else class="bc-crest-initials">{{ teamInitials(match.team2?.name) }}</span>
-								</span>
-								<span>{{ match.team2?.name || "TBD" }}</span>
-							</span>
-						</td>
-						<td>
-							<span v-if="isLive(match)" class="bc-badge is-live">
-								<span class="bc-live-dot"></span>Live Now
-							</span>
-							<span v-else-if="match.id === nextOpenId" class="bc-badge is-gold">Up Next</span>
-							<span v-else class="fx-status">{{ resultLine(match) || statusLabel(match) }}</span>
-						</td>
-					</tr>
-					<tr v-if="!rows.length">
-						<td colspan="4" class="fx-empty">No fixtures scheduled yet.</td>
-					</tr>
-				</tbody>
-			</table>
-		</div>
+			<div class="fx-head" aria-hidden="true">
+				<span>Date</span>
+				<span>Match</span>
+				<span class="fx-head-fixture">Fixture</span>
+				<span>Status</span>
+			</div>
 
-		<div v-if="progress != null" class="bc-timer-track">
-			<div class="bc-timer-fill" :style="{ width: `${Math.round((1 - progress) * 100)}%` }"></div>
+			<div
+				v-for="(match, index) in rows"
+				:key="match.id"
+				class="fx-row bc-rise"
+				:class="{ 'is-live': isLive(match), 'is-played': isPlayed(match), 'is-next': match.id === nextOpenId }"
+				:style="{ '--i': index }"
+			>
+				<span class="fx-date">{{ dateLabel(match.scheduled_date) }}</span>
+				<span class="fx-order">{{ matchLabel(match) }}</span>
+
+				<div class="fx-fixture">
+					<div class="fx-side is-home" :class="{ 'is-winner': match.outcome === 1 }">
+						<span class="fx-name">{{ match.team1?.name || "TBD" }}</span>
+						<span class="bc-crest is-sm">
+							<BroadcastPicture :src="match.team1?.logo_url" :name="match.team1?.name" />
+						</span>
+					</div>
+					<span class="fx-vs">vs</span>
+					<div class="fx-side is-away" :class="{ 'is-winner': match.outcome === 2 }">
+						<span class="bc-crest is-sm">
+							<BroadcastPicture :src="match.team2?.logo_url" :name="match.team2?.name" />
+						</span>
+						<span class="fx-name">{{ match.team2?.name || "TBD" }}</span>
+					</div>
+				</div>
+
+				<div class="fx-state">
+					<span v-if="isLive(match)" class="bc-badge is-live">
+						<span class="bc-live-dot"></span>Live Now
+					</span>
+					<span v-else-if="match.id === nextOpenId" class="bc-badge is-gold">Up Next</span>
+					<span v-else class="fx-status">{{ resultLine(match) || statusLabel(match) }}</span>
+				</div>
+			</div>
+
+			<p v-if="!rows.length" class="fx-empty">No fixtures scheduled yet.</p>
 		</div>
 	</section>
 </template>
@@ -67,11 +59,11 @@
 <script setup>
 import { computed } from "vue";
 import dayjs from "@/plugins/dayjs";
-import { fixtureWindow, isLive, isPlayed, matchLabel, resultLine, statusLabel, teamInitials } from "@/utils/widgetScore";
+import { fixtureWindow, isLive, isPlayed, matchLabel, resultLine, statusLabel } from "@/utils/widgetScore";
+import BroadcastPicture from "./BroadcastPicture.vue";
 
 const props = defineProps({
 	snapshot: { type: Object, required: true },
-	progress: { type: Number, default: null },
 });
 
 const rows = computed(() => fixtureWindow(props.snapshot?.matches || [], 8));
@@ -85,19 +77,23 @@ const dateLabel = (value) => {
 
 <style scoped>
 .fx-body {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
 	padding: 20px 40px 30px;
 }
 
-table {
-	width: 100%;
-	border-collapse: separate;
-	border-spacing: 0 8px;
-	font-size: 21px;
+/* One shared grid for the header and every row keeps the columns aligned. */
+.fx-head,
+.fx-row {
+	display: grid;
+	grid-template-columns: 138px 112px minmax(0, 1fr) 250px;
+	align-items: center;
+	column-gap: 18px;
 }
 
-th {
-	padding: 0 14px 6px;
-	text-align: left;
+.fx-head {
+	padding: 0 18px 4px;
 	font-size: 14px;
 	font-weight: 700;
 	letter-spacing: 0.1em;
@@ -105,32 +101,25 @@ th {
 	color: var(--bc-muted);
 }
 
-tbody tr {
+.fx-head-fixture {
+	text-align: center;
+}
+
+.fx-row {
+	min-height: 66px;
+	padding: 9px 18px;
+	border-radius: 14px;
 	background: rgba(255, 255, 255, 0.04);
+	border: 1px solid rgba(255, 255, 255, 0.07);
+	font-size: 21px;
 }
 
-tbody td {
-	padding: 10px 14px;
-	border-top: 1px solid rgba(255, 255, 255, 0.07);
-	border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-}
-
-tbody td:first-child {
-	border-left: 1px solid rgba(255, 255, 255, 0.07);
-	border-radius: 12px 0 0 12px;
-}
-
-tbody td:last-child {
-	border-right: 1px solid rgba(255, 255, 255, 0.07);
-	border-radius: 0 12px 12px 0;
-}
-
-tr.is-next td {
+.fx-row.is-next {
 	background: rgba(245, 184, 46, 0.11);
 	border-color: var(--bc-accent-line);
 }
 
-tr.is-live td {
+.fx-row.is-live {
 	background: rgba(239, 68, 68, 0.14);
 	border-color: rgba(248, 113, 113, 0.45);
 }
@@ -138,43 +127,77 @@ tr.is-live td {
 .fx-date {
 	color: var(--bc-sub);
 	font-weight: 600;
-	width: 165px;
 }
 
 .fx-order {
 	font-weight: 700;
 	color: var(--bc-accent-soft);
-	width: 210px;
 }
 
+/* Both teams get an equal share of the row, and a long name wraps inside its own half. */
 .fx-fixture {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 36px minmax(0, 1fr);
+	align-items: center;
+	column-gap: 12px;
+	min-width: 0;
+}
+
+.fx-side {
 	display: flex;
 	align-items: center;
-	gap: 14px;
-	font-weight: 700;
+	gap: 12px;
+	min-width: 0;
 }
 
-.fx-club {
-	display: inline-flex;
-	align-items: center;
-	gap: 10px;
+.fx-side.is-home {
+	justify-content: flex-end;
+	text-align: right;
+}
+
+.fx-side.is-away {
+	justify-content: flex-start;
+	text-align: left;
+}
+
+.fx-name {
+	min-width: 0;
+	font-weight: 700;
+	line-height: 1.15;
+	overflow-wrap: anywhere;
+	text-wrap: balance;
+}
+
+.fx-side.is-winner .fx-name {
+	color: var(--bc-accent-soft);
 }
 
 .fx-vs {
+	text-align: center;
 	color: var(--bc-muted);
-	font-size: 16px;
+	font-size: 15px;
 	font-weight: 600;
 	text-transform: uppercase;
 }
 
+.fx-state {
+	min-width: 0;
+}
+
 .fx-status {
+	display: block;
 	color: var(--bc-accent-soft);
+	font-size: 19px;
 	font-weight: 700;
+	line-height: 1.2;
+	overflow-wrap: anywhere;
+	text-wrap: balance;
 }
 
 .fx-empty {
-	padding: 28px;
+	margin: 28px 0;
 	color: var(--bc-muted);
+	font-size: 22px;
 	font-style: italic;
 	text-align: center;
 }

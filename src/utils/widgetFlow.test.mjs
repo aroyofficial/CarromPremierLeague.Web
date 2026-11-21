@@ -1,10 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+	POINTS_TABLE_SEC,
+	ROTATION_CARD_MAP,
+	TRANSITION_STYLES,
+	cloneFlowConfig,
 	computeClockOffset,
 	defaultFlowConfig,
 	formatMatchClock,
 	insertStepAt,
+	minSecForKind,
 	moveStep,
 	resolveActiveScene,
 } from "./widgetFlow.js";
@@ -69,7 +74,7 @@ test("post-match result holds for result_duration_sec then steps through drag-an
 			players: { team1: [], team2: [] },
 		},
 	});
-	// Default: 20s result hold -> 20s points_table -> 15s stats -> 15s fixtures (50s loop)
+	// Default: 20s result hold -> 30s points_table -> 15s stats -> 15s fixtures (60s loop)
 	const at10s = resolveActiveScene(snap, Date.parse("2026-11-21T12:00:10Z"));
 	assert.equal(at10s.scene, "match_result");
 	assert.equal(at10s.source, "post_match");
@@ -77,17 +82,53 @@ test("post-match result holds for result_duration_sec then steps through drag-an
 
 	const at25s = resolveActiveScene(snap, Date.parse("2026-11-21T12:00:25Z"));
 	assert.equal(at25s.scene, "points_table");
-	assert.equal(at25s.remainingSec, 15);
+	assert.equal(at25s.remainingSec, 25);
 
-	const at45s = resolveActiveScene(snap, Date.parse("2026-11-21T12:00:45Z"));
-	assert.equal(at45s.scene, "stats");
+	// The standings card is still up 49 seconds in, then stats takes over.
+	const at49s = resolveActiveScene(snap, Date.parse("2026-11-21T12:00:49Z"));
+	assert.equal(at49s.scene, "points_table");
 
-	const at60s = resolveActiveScene(snap, Date.parse("2026-11-21T12:01:00Z"));
-	assert.equal(at60s.scene, "fixtures");
+	const at55s = resolveActiveScene(snap, Date.parse("2026-11-21T12:00:55Z"));
+	assert.equal(at55s.scene, "stats");
 
-	// Wraps back around to points_table in loop mode (20 + 50 + 3 = 73s).
-	const at73s = resolveActiveScene(snap, Date.parse("2026-11-21T12:01:13Z"));
-	assert.equal(at73s.scene, "points_table");
+	const at70s = resolveActiveScene(snap, Date.parse("2026-11-21T12:01:10Z"));
+	assert.equal(at70s.scene, "fixtures");
+
+	// Wraps back around to points_table in loop mode (20 + 60 + 3 = 83s).
+	const at83s = resolveActiveScene(snap, Date.parse("2026-11-21T12:01:23Z"));
+	assert.equal(at83s.scene, "points_table");
+});
+
+test("the points table always stays up for 30 seconds, even in a flow saved with a shorter time", () => {
+	assert.equal(POINTS_TABLE_SEC, 30);
+	assert.equal(minSecForKind("points_table"), 30);
+	assert.equal(minSecForKind("stats"), 5);
+	assert.equal(defaultFlowConfig().rotation[0].duration_sec, 30);
+	assert.equal(ROTATION_CARD_MAP.points_table.defaultSec, 30);
+	assert.equal(insertStepAt([], "points_table")[0].duration_sec, 30);
+
+	const saved = cloneFlowConfig({
+		rotation: [
+			{ id: "p", kind: "points_table", duration_sec: 20, enabled: true },
+			{ id: "s", kind: "stats", duration_sec: 8, enabled: true },
+		],
+	});
+	assert.equal(saved.rotation[0].duration_sec, 30);
+	assert.equal(saved.rotation[1].duration_sec, 8);
+
+	const snap = baseSeasonFlow({ flow: { rotation: [{ id: "p", kind: "points_table", duration_sec: 20, enabled: true }, { id: "s", kind: "stats", duration_sec: 15, enabled: true }] } });
+	const at29s = resolveActiveScene(snap, 29_000);
+	assert.equal(at29s.scene, "points_table");
+	assert.equal(at29s.remainingSec, 1);
+	assert.equal(resolveActiveScene(snap, 31_000).scene, "stats");
+});
+
+test("a flow reveals its scenes by default and keeps the page flip when it is chosen", () => {
+	assert.equal(defaultFlowConfig().transition_style, "reveal");
+	assert.equal(cloneFlowConfig(null).transition_style, "reveal");
+	assert.equal(cloneFlowConfig({ transition_style: "flip" }).transition_style, "flip");
+	assert.equal(cloneFlowConfig({ transition_style: "spin" }).transition_style, "reveal");
+	assert.deepEqual(TRANSITION_STYLES.map((style) => style.value), ["reveal", "flip"]);
 });
 
 test("once_then_clean plays the rotation once after a match and then leaves a clean camera feed", () => {
@@ -101,8 +142,8 @@ test("once_then_clean plays the rotation once after a match and then leaves a cl
 		},
 	});
 	assert.equal(resolveActiveScene(snap, Date.parse("2026-11-21T12:00:30Z")).scene, "points_table");
-	// 20s hold + 50s rotation = 70s -> at 75s it goes clean.
-	const afterCycle = resolveActiveScene(snap, Date.parse("2026-11-21T12:01:15Z"));
+	// 20s hold + 60s rotation = 80s -> at 85s it goes clean.
+	const afterCycle = resolveActiveScene(snap, Date.parse("2026-11-21T12:01:25Z"));
 	assert.equal(afterCycle.scene, "clean");
 	assert.equal(afterCycle.source, "idle_clean");
 });

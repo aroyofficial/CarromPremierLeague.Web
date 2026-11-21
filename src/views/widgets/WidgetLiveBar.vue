@@ -24,8 +24,7 @@
 		<div class="lb-deck">
 			<div class="lb-team is-home">
 				<div class="bc-crest">
-					<img v-if="match.team1?.logo_url" :src="match.team1.logo_url" alt="" />
-					<span v-else class="bc-crest-initials">{{ teamInitials(match.team1?.name) }}</span>
+					<BroadcastPicture :src="match.team1?.logo_url" :name="match.team1?.name" />
 				</div>
 				<div class="lb-team-meta">
 					<div class="lb-team-row">
@@ -55,8 +54,7 @@
 					</div>
 				</div>
 				<div class="bc-crest">
-					<img v-if="match.team2?.logo_url" :src="match.team2.logo_url" alt="" />
-					<span v-else class="bc-crest-initials">{{ teamInitials(match.team2?.name) }}</span>
+					<BroadcastPicture :src="match.team2?.logo_url" :name="match.team2?.name" />
 				</div>
 			</div>
 		</div>
@@ -82,10 +80,6 @@
 				</div>
 			</div>
 		</div>
-
-		<div v-if="progress != null" class="bc-timer-track">
-			<div class="bc-timer-fill" :style="{ width: `${Math.round((1 - progress) * 100)}%` }"></div>
-		</div>
 	</section>
 </template>
 
@@ -98,9 +92,9 @@ import {
 	matchFormatLabel,
 	matchLabel,
 	scorecardTotals,
-	teamInitials,
 	tossWinnerSide,
 } from "@/utils/widgetScore";
+import BroadcastPicture from "./BroadcastPicture.vue";
 
 const props = defineProps({
 	bundle: { type: Object, required: true },
@@ -109,7 +103,6 @@ const props = defineProps({
 	nowMs: { type: Number, default: () => Date.now() },
 	showClock: { type: Boolean, default: true },
 	showPlayerStrip: { type: Boolean, default: true },
-	progress: { type: Number, default: null },
 });
 
 const match = computed(() => props.bundle?.match || {});
