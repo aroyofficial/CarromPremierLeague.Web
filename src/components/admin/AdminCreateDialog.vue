@@ -141,6 +141,7 @@
 					<div><dt>Gender</dt><dd>{{ genderLabel || "Not added" }}</dd></div>
 					<div><dt>Profile picture</dt><dd>{{ pictureText }}</dd></div>
 				</dl>
+				<hr />
 				<h3 class="review-heading">Permissions ({{ form.permissions.length }})</h3>
 				<p v-if="!form.permissions.length" class="pane-note">No permissions. The admin can sign in but cannot change anything yet.</p>
 				<div v-for="group in reviewGroups" :key="group.area" class="review-group">
@@ -488,7 +489,7 @@ const save = () =>
 }
 
 .review-group h4 {
-	margin: 10px 0 4px;
+	margin: 10px 0 8px;
 	font-size: 14px;
 }
 
