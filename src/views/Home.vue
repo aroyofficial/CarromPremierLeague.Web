@@ -76,7 +76,7 @@ import { Routes, LEAGUE_TIMEZONE, SeasonStatus } from "@/utils/constants";
 import { championFromTable, countdownSeason, currentShownSeason } from "@/utils/champion";
 import { areas } from "@/utils/realtimeRules";
 import { useLive } from "@/utils/useLive";
-import { settlePageLoader } from "@/utils/common";
+import { holdPageData, settlePageLoader } from "@/utils/common";
 const seasonStore = useSeasonStore();
 const teamStore = useTeamStore();
 const champion = ref(null);
@@ -122,6 +122,16 @@ const heroKnown = computed(() => {
 	const season = currentShownSeason(seasonStore.seasons);
 	return resolvedSeasonId.value === (season?.id ?? null);
 });
+
+// A newer load can supersede the one the loader awaits, so the loader waits for the hero itself.
+const releasePageData = holdPageData();
+watch(
+	heroKnown,
+	(known) => {
+		if (known) releasePageData();
+	},
+	{ immediate: true, flush: "post" },
+);
 
 watch(() => [seasonStore.seasons, teamStore.teams], loadChampion);
 useLive(loadChampion, { areas: areas.points });

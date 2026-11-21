@@ -10,6 +10,7 @@ const OPTIONS = {
 };
 
 // Element Plus owns .el-scrollbar. Form controls keep a native bar. Both are themed in CSS.
+// An .el-overlay starts hidden by v-show; wrapping it would pin display: none and the dialog could never open.
 const SKIP = [
 	"textarea",
 	"input",
@@ -17,6 +18,7 @@ const SKIP = [
 	"option",
 	"[contenteditable='true']",
 	".el-scrollbar",
+	".el-overlay",
 	".os-scrollbar",
 	".os-size-observer",
 	".viewer-stage",
