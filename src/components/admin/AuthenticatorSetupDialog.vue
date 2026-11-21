@@ -4,7 +4,7 @@
 		title="Set up an authenticator app"
 		width="min(880px, 96vw)"
 		:fullscreen="isPhone"
-		class="totp-dialog"
+		class="totp-dialog cpl-dialog-fixed"
 		:close-on-click-modal="false"
 		:close-on-press-escape="!busy"
 		:show-close="!busy"

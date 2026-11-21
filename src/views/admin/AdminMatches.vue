@@ -85,7 +85,7 @@
 			</div>
 		</div>
 
-		<el-dialog v-model="dialogOpen" :title="editingMatch ? `Edit match #${editingMatch.order}` : 'New match'" width="min(1080px, 96vw)">
+		<el-dialog v-model="dialogOpen" :title="editingMatch ? `Edit match #${editingMatch.order}` : 'New match'" width="min(1080px, 96vw)" class="cpl-dialog-fixed">
 			<el-form novalidate ref="formRef" :model="form" :rules="rules" label-position="top" class="admin-form-grid" @submit.prevent>
 				<el-form-item label="Team 1" prop="team1">
 					<el-select v-model="form.team1" clearable placeholder="Team 1" :disabled="playedLocked">

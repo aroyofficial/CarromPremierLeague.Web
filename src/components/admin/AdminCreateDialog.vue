@@ -4,7 +4,7 @@
 		title="New admin"
 		width="min(960px, 96vw)"
 		:fullscreen="isPhone"
-		class="create-admin-dialog"
+		class="create-admin-dialog cpl-dialog-fixed"
 		:close-on-click-modal="false"
 		:close-on-press-escape="!submitting"
 		:show-close="!submitting"
@@ -394,6 +394,11 @@ const save = () =>
 	justify-content: flex-end;
 	gap: 8px;
 	margin-top: 8px;
+	position: sticky;
+	bottom: 0;
+	z-index: 1;
+	padding: 10px 0 2px;
+	background: var(--el-dialog-bg-color, var(--el-bg-color));
 }
 
 .admin-form-grid {
@@ -488,8 +493,21 @@ const save = () =>
 }
 
 .review-group ul {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
 	margin: 0;
-	padding-left: 18px;
+	padding: 0;
+	list-style: none;
+}
+
+.review-group li {
+	padding: 3px 10px;
+	border: 1px solid var(--el-border-color-light);
+	border-radius: 999px;
+	background: var(--el-fill-color-light);
+	font-size: 13px;
+	line-height: 1.5;
 }
 
 @media (max-width: 767.98px) {

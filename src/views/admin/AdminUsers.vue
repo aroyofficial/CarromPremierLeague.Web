@@ -39,7 +39,7 @@
 						<span v-if="adminName(admin) !== admin.username" class="user-handle">{{ admin.username }}</span>
 						<span v-if="admin.email" class="user-handle">{{ admin.email }}</span>
 						<span v-if="contactLine(admin)" class="user-handle">{{ contactLine(admin) }}</span>
-						<span class="user-tags">
+						<span class="user-tags" :class="{ 'mt-1': admin.must_change_password }">
 							<el-tag v-if="admin.id === authStore.adminId" size="small" effect="plain">You</el-tag>
 							<el-tag v-if="admin.must_change_password" size="small" type="warning">Awaiting email verification</el-tag>
 							<el-tag v-else-if="!admin.is_active" size="small" type="info">Disabled</el-tag>
@@ -348,8 +348,8 @@ onMounted(() => settlePageLoader(load));
 
 .user-actions {
 	display: flex;
-	flex-wrap: wrap;
-	justify-content: flex-end;
+	flex-direction: column;
+	align-items: stretch;
 	gap: 8px;
 
 	.el-button + .el-button {
