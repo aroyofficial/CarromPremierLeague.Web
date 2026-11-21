@@ -32,7 +32,8 @@ api.interceptors.response.use(
 			path.includes("auth/login-request") ||
 			path.includes("auth/refresh") ||
 			path.includes("assistant/") ||
-			path.includes("realtime/");
+			path.includes("realtime/") ||
+			path.includes("widgets/t/");
 		const failedLogin = /auth\/login\/?$/.test(path);
 		if (error.response?.status === 401 && authToken.get() && !background && !failedLogin) {
 			authToken.clear();

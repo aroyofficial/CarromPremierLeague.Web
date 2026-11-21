@@ -77,6 +77,7 @@ import {
 	Trophy,
 	User,
 	UserFilled,
+	VideoCamera,
 } from "@element-plus/icons-vue";
 import ActivateAccount from "@/components/admin/ActivateAccount.vue";
 import ViewCoin from "@/components/admin/ViewCoin.vue";
@@ -89,7 +90,7 @@ import { dismissPageLoader } from "@/utils/common";
 import { useAuthStore } from "@/store/authStore";
 import { useSettingsStore } from "@/store/settingsStore";
 
-const icons = { Avatar, Calendar, Connection, DataBoard, Flag, Key, Link, Lock, Picture, Setting, Trophy, User, UserFilled };
+const icons = { Avatar, Calendar, Connection, DataBoard, Flag, Key, Link, Lock, Picture, Setting, Trophy, User, UserFilled, VideoCamera };
 
 const router = useRouter();
 const authStore = useAuthStore();

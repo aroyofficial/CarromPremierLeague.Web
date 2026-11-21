@@ -168,6 +168,7 @@ import {
 	Trophy,
 	User,
 	UserFilled,
+	VideoCamera,
 } from "@element-plus/icons-vue";
 import { buildIndex, inOrder, sameSet } from "@/utils/permissionTree";
 
@@ -187,7 +188,7 @@ const props = defineProps({
 
 const emit = defineEmits(["update:modelValue"]);
 
-const icons = { Calendar, ChatDotRound, Connection, Flag, Key, User, Location, List, Picture, Trophy, Setting, UserFilled, Lock };
+const icons = { Calendar, ChatDotRound, Connection, Flag, Key, User, Location, List, Picture, Trophy, Setting, UserFilled, Lock, VideoCamera };
 const iconFor = (name) => icons[name] || Key;
 const uid = Math.random().toString(36).slice(2, 8);
 

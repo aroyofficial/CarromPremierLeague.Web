@@ -1,12 +1,14 @@
 <template>
-	<Navbar />
+	<Navbar v-if="!isWidgetRoute" />
 	<main id="app-content">
 		<router-view />
 	</main>
-	<Footer v-if="!isAdminRoute" />
-	<StrikerChat v-if="showPublicAssistant" mode="public" />
-	<SessionHandoff v-if="authStore.isAuthenticated" />
-	<NotifyHost />
+	<template v-if="!isWidgetRoute">
+		<Footer v-if="!isAdminRoute" />
+		<StrikerChat v-if="showPublicAssistant" mode="public" />
+		<SessionHandoff v-if="authStore.isAuthenticated" />
+		<NotifyHost />
+	</template>
 </template>
 
 <script setup>
@@ -76,6 +78,8 @@ const stopStoreSync = watchLive({
 });
 
 const isAdminRoute = computed(() => route.path.startsWith(Routes.ADMIN));
+// The widget page is an overlay for a streaming tool: no site chrome, no toasts, no assistant.
+const isWidgetRoute = computed(() => route.path.startsWith(`${Routes.WIDGET}/`));
 const showPublicAssistant = computed(
 	() =>
 		!isAdminRoute.value &&

@@ -107,6 +107,7 @@ import {
 	Trophy,
 	User,
 	UserFilled,
+	VideoCamera,
 } from "@element-plus/icons-vue";
 import dayjs from "@/plugins/dayjs";
 import { adminApi } from "@/services/adminService";
@@ -119,7 +120,7 @@ import { settlePageLoader } from "@/utils/common";
 import { useAdminLive } from "@/utils/useLive";
 
 const authStore = useAuthStore();
-const icons = { Calendar, Connection, Flag, Key, Link, Lock, Picture, Setting, Trophy, User, UserFilled };
+const icons = { Calendar, Connection, Flag, Key, Link, Lock, Picture, Setting, Trophy, User, UserFilled, VideoCamera };
 
 const toolHints = {
 	"admin-seasons": "Dates, teams and schedule",
@@ -132,6 +133,7 @@ const toolHints = {
 	"admin-permissions": "What each admin can do",
 	"admin-webhooks": "Send live updates to other tools",
 	"admin-apps": "API keys for outside tools",
+	"admin-widgets": "Overlay links for the live stream",
 	"admin-settings": "Match clock, Queen and Striker",
 };
 

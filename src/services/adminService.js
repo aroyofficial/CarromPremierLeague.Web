@@ -116,6 +116,12 @@ export const adminApi = {
 		rotate: (id) => api.post(`apps/${id}/rotate`),
 		remove: (id) => api.delete(`apps/${id}`),
 	},
+	widgets: {
+		list: () => api.get("widgets"),
+		create: (payload) => api.post("widgets", payload),
+		update: (id, payload) => api.patch(`widgets/${id}`, payload),
+		rotate: (id) => api.post(`widgets/${id}/rotate`),
+	},
 };
 
 export const apiErrorMessage = (error, fallback = "Something went wrong. Please try again.") => {

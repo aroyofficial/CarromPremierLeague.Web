@@ -22,6 +22,7 @@ const adminViews = {
 	"admin-permissions": () => import("@/views/admin/AdminPermissions.vue"),
 	"admin-webhooks": () => import("@/views/admin/AdminWebhooks.vue"),
 	"admin-apps": () => import("@/views/admin/AdminApps.vue"),
+	"admin-widgets": () => import("@/views/admin/AdminWidgets.vue"),
 	"admin-settings": () => import("@/views/admin/AdminSettings.vue"),
 	"admin-profile": () => import("@/views/admin/AdminProfile.vue"),
 };
@@ -126,6 +127,12 @@ const routes = [
 				permissions: section.permissions,
 			},
 		})),
+	},
+	{
+		path: `${Routes.WIDGET}/:token`,
+		name: "widget",
+		component: () => import("@/views/widgets/WidgetHost.vue"),
+		meta: { title: "Widget", skipPreload: true },
 	},
 	{
 		path: Routes.NOT_FOUND,

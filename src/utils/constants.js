@@ -15,6 +15,7 @@ const Routes = Object.freeze({
 	PRIVACY: "/privacy",
 	TERMS: "/terms",
 	ABOUT: "/about",
+	WIDGET: "/widget",
 });
 
 // Codes match CarromPremierLeague.API core/permissions.py.
@@ -51,6 +52,7 @@ const Permission = Object.freeze({
 	GALLERY_DELETE: "gallery.delete",
 	WEBHOOKS_MANAGE: "webhooks.manage",
 	APPS_MANAGE: "apps.manage",
+	WIDGETS_MANAGE: "widgets.manage",
 });
 
 const areaCodes = (area) => Object.values(Permission).filter((code) => code.startsWith(`${area}.`));
@@ -91,6 +93,13 @@ const AdminSections = Object.freeze([
 		label: "Apps",
 		icon: "Key",
 		permissions: [Permission.APPS_MANAGE],
+	},
+	{
+		name: "admin-widgets",
+		path: "widgets",
+		label: "Widgets",
+		icon: "VideoCamera",
+		permissions: [Permission.WIDGETS_MANAGE],
 	},
 	{
 		name: "admin-settings",
