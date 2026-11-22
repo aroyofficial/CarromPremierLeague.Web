@@ -129,6 +129,12 @@ const Organizer = Object.freeze({
 	website: "https://cpltournament.com/",
 });
 
+const SocialLinks = Object.freeze([
+	{ label: "Facebook", href: "https://www.facebook.com/cplcarromtournament" },
+	{ label: "Instagram", href: "https://www.instagram.com/cplcarromtournament" },
+	{ label: "YouTube", href: "https://www.youtube.com/@carrompremierleague" },
+]);
+
 const LEAGUE_TIMEZONE = "Asia/Kolkata";
 
 const SeasonStatus = Object.freeze({
@@ -204,6 +210,7 @@ const BackgroundMusic = Object.freeze({
 export {
 	Routes,
 	Organizer,
+	SocialLinks,
 	NavItems,
 	AdminSections,
 	Permission,

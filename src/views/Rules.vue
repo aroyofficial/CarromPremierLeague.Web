@@ -25,8 +25,8 @@
 				<section id="about" class="rule-card">
 					<h2><span aria-hidden="true">🏆</span> About the Carrom Premier League</h2>
 					<p>
-						The Carrom Premier League (CPL) is a structured, competitive carrom tournament designed to
-						bring together skill, strategy, and sporting spirit under one league platform.
+						The Carrom Premier League (CPL) is a friendly carrom tournament. Teams play for the table,
+						and the season is played in a sporting spirit.
 					</p>
 					<p>
 						CPL is not just about pocketing coins - it is about composure under pressure, smart
@@ -40,8 +40,8 @@
 						decided by Golden Strike.
 					</p>
 					<p>
-						The tournament is governed by a transparent points system and clear tie-breaker rules to
-						maintain fairness and competitiveness throughout the season.
+						The tournament is governed by a transparent points system and clear tie-breaker rules so the
+						table stays fair through the season.
 					</p>
 				</section>
 
@@ -89,6 +89,46 @@
 							Teams must report at their scheduled slot. Late arrivals may be moved to the end of the
 							schedule.
 						</li>
+					</ul>
+				</section>
+
+				<section id="official" class="rule-card">
+					<h2><span aria-hidden="true">🪑</span> Official play</h2>
+					<p>
+						How a player sits and strikes follows the Laws of Carrom adopted by the International Carrom
+						Federation. Pocketing, fines, the queen, and the clock follow the CPL rules on this page.
+					</p>
+
+					<h3>Sitting</h3>
+					<ul>
+						<li>Partners sit opposite each other, one pair on each side of the board.</li>
+						<li>
+							A player may settle into a seat before the turn. During the turn the chair stays put. It
+							is not lifted or shifted.
+						</li>
+						<li>
+							<b>No part of the body goes onto the board.</b> During the board, nothing but the playing
+							arm may touch the carrom board, its stand, or the table it rests on. Clothing, a ring,
+							bangles, or a watch may be worn, and they must not touch the playing surface.
+						</li>
+						<li>
+							Nothing but the hand may pass the imaginary arrow lines at the corners. The elbow of the
+							playing arm stays off the playing surface and does not pass those lines. The hand itself
+							may cross the arrow.
+						</li>
+						<li>
+							A player does not lean on the chair, the stand, or the table, and does not rest a leg on
+							the rim of the stand or the table. The hands may rest on the player's own body. The legs
+							may rest on the rim of the seat.
+						</li>
+						<li>The seat may be raised only between boards, and not above 50 cm.</li>
+					</ul>
+
+					<h3>The stroke</h3>
+					<ul>
+						<li>The striker is struck with a finger. It is not pushed. Other fingers may support the stroke.</li>
+						<li>Either hand may be used. The hand may touch the playing surface while the stroke is made.</li>
+						<li>The striker is not left on the frame or in a pocket during the board.</li>
 					</ul>
 				</section>
 
@@ -212,6 +252,7 @@ const leagueQueenSentence = computed(() => {
 const sections = [
 	{ id: "about", icon: "🏆", title: "About CPL" },
 	{ id: "format", icon: "🎯", title: "Match Format" },
+	{ id: "official", icon: "🪑", title: "Official play" },
 	{ id: "points", icon: "📊", title: "Points" },
 	{ id: "tie-breakers", icon: "⛓️", title: "Tie-Breaker" },
 	{ id: "golden-strike", icon: "🥇", title: "Golden Strike" },

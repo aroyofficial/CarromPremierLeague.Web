@@ -5,6 +5,11 @@
 				&copy; {{ year }} Carrom Premier League (CPL). All Rights Reserved.
 				<a class="footer-mail" :href="`mailto:${Organizer.email}`">{{ Organizer.name }} · {{ Organizer.email }}</a>
 			</span>
+			<nav class="footer-social" aria-label="Social media">
+				<a v-for="link in SocialLinks" :key="link.href" :href="link.href" target="_blank" rel="noopener noreferrer">
+					{{ link.label }}
+				</a>
+			</nav>
 			<nav class="footer-links" aria-label="Footer navigation">
 				<router-link v-for="item in NavItems" :key="item.path" :to="item.path">
 					{{ item.label }}
@@ -18,7 +23,7 @@
 </template>
 
 <script setup>
-import { NavItems, Organizer, Routes } from "@/utils/constants";
+import { NavItems, Organizer, Routes, SocialLinks } from "@/utils/constants";
 
 const year = new Date().getFullYear();
 </script>
@@ -42,6 +47,7 @@ const year = new Date().getFullYear();
 	gap: 12px;
 }
 
+.footer-social,
 .footer-links {
 	display: flex;
 	flex-wrap: wrap;
@@ -73,6 +79,7 @@ const year = new Date().getFullYear();
 		flex-direction: column;
 		text-align: center;
 	}
+	.footer-social,
 	.footer-links {
 		justify-content: center;
 	}

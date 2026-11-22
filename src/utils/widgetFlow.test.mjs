@@ -12,6 +12,7 @@ import {
 	minSecForKind,
 	moveStep,
 	resolveActiveScene,
+	trackClockOffset,
 } from "./widgetFlow.js";
 
 const baseSeasonFlow = (overrides = {}) => ({
@@ -223,6 +224,16 @@ test("synced match clock handles regulation, extra time, zero floor, Golden Stri
 	assert.equal(extra.timer, "04:20");
 	assert.equal(extra.phase, "extra");
 	assert.equal(extra.urgent, true);
+
+	// A slow refresh arrives with a staler server_now. The clock keeps the best recent sample instead of jumping back.
+	let tracked = trackClockOffset([], -120, 1_000_000);
+	tracked = trackClockOffset(tracked.samples, -900, 1_005_000);
+	assert.equal(tracked.offset, -120);
+	tracked = trackClockOffset(tracked.samples, -80, 1_010_000);
+	assert.equal(tracked.offset, -80);
+	// Old samples age out, so a real change in the server clock is picked up within the window.
+	tracked = trackClockOffset(tracked.samples, -400, 1_010_000 + 10 * 60_000);
+	assert.equal(tracked.offset, -400);
 
 	const gs = formatMatchClock({ status: 2, category: 7 }, { regulation_minutes: 15 }, Date.now());
 	assert.equal(gs.phase, "golden_strike");

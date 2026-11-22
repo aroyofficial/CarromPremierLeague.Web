@@ -208,6 +208,16 @@ export const computeClockOffset = (serverNowIso, clientNowMs = Date.now()) => {
 	return parsed.getTime() - clientNowMs;
 };
 
+/**
+ * A server_now sample can only arrive late (by the time the response spent travelling), never early,
+ * so the largest offset seen recently is the truest one. Keeps the clock from jumping on a slow refresh.
+ */
+export const trackClockOffset = (samples, offsetMs, clientNowMs = Date.now(), windowMs = 10 * 60_000) => {
+	const kept = (samples || []).filter((sample) => clientNowMs - sample.at < windowMs).slice(-19);
+	kept.push({ at: clientNowMs, offset: offsetMs });
+	return { samples: kept, offset: Math.max(...kept.map((sample) => sample.offset)) };
+};
+
 const pad2 = (num) => String(Math.max(0, Math.floor(num))).padStart(2, "0");
 
 export const formatClockSeconds = (totalSeconds) => {

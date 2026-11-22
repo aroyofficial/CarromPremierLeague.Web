@@ -14,7 +14,7 @@ import { useRoute } from "vue-router";
 import { widgetService } from "@/services/widgetService";
 import { areas } from "@/utils/realtimeRules";
 import { useLive } from "@/utils/useLive";
-import { computeClockOffset } from "@/utils/widgetFlow";
+import { computeClockOffset, trackClockOffset } from "@/utils/widgetFlow";
 import BroadcastStageScene from "./BroadcastStageScene.vue";
 
 // The overlay is designed for a 1920x1080 browser source and scales down for smaller screens.
@@ -33,6 +33,7 @@ const syncedNowMs = computed(() => clientNowMs.value + clockOffsetMs.value);
 
 let tickHandle = null;
 let previousHtmlBg = "";
+let clockSamples = [];
 
 const load = async () => {
 	const current = token.value;
@@ -46,7 +47,10 @@ const load = async () => {
 		const data = response?.data || null;
 		snapshot.value = data;
 		if (data?.server_now) {
-			clockOffsetMs.value = computeClockOffset(data.server_now, Date.now());
+			const receivedMs = Date.now();
+			const tracked = trackClockOffset(clockSamples, computeClockOffset(data.server_now, receivedMs), receivedMs);
+			clockSamples = tracked.samples;
+			clockOffsetMs.value = tracked.offset;
 		}
 		clientNowMs.value = Date.now();
 		status.value = "ready";

@@ -1,7 +1,7 @@
 <template>
-	<LegalDocument title="About" updated="20 November 2026">
+		<LegalDocument title="About" updated="22 November 2026">
 		<p>
-			The Carrom Premier League (CPL) is a competitive carrom tournament. Teams play a season of
+			The Carrom Premier League (CPL) is a friendly carrom tournament. Teams play a season of
 			matches. Points and the published tie-breakers decide the table.
 		</p>
 
