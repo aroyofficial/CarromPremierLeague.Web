@@ -75,7 +75,8 @@ const format = computed(() => knockout.value.format || "final");
 const slots = computed(() => knockout.value.slots || []);
 const champion = computed(() => knockout.value.champion || null);
 
-const eyebrow = computed(() => (champion.value ? "Season Champions" : "Road to the Final"));
+// Even with the champion decided this card is the road that led to the Final.
+const eyebrow = "Road to the Final";
 
 // Where the winner (and the loser) of each match goes next.
 const ADVANCES = {

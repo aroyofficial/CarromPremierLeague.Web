@@ -1,5 +1,7 @@
 <template>
 	<div class="bc-root" :data-bc-accent="resolved.themeAccent || 'gold'" :data-bc-stage="stageTheme || undefined">
+		<!-- The champions' fireworks light the whole frame, behind the card. -->
+		<PageFireworks v-if="resolved.scene === 'champion'" active :size="{ width: 1920, height: 1080 }" />
 		<Transition :name="transitionName" mode="out-in" appear>
 			<div
 				v-if="resolved.scene !== 'clean'"
@@ -45,6 +47,7 @@
 				<WidgetStats v-else-if="resolved.scene === 'stats'" :snapshot="snapshot" />
 				<WidgetBracket v-else-if="resolved.scene === 'bracket'" :snapshot="bracketSnapshot" />
 				<WidgetTieBreakers v-else-if="resolved.scene === 'tie_breakers'" :snapshot="snapshot" />
+				<WidgetChampion v-else-if="resolved.scene === 'champion'" :snapshot="bracketSnapshot" />
 				<WidgetFixtures v-else-if="resolved.scene === 'fixtures'" :snapshot="snapshot" />
 			</div>
 		</Transition>
@@ -56,8 +59,10 @@ import { computed, onBeforeUnmount, watch } from "vue";
 import "@/assets/styles/broadcast.css";
 import { pauseBgm, playBgm } from "@/utils/common";
 import { BackgroundMusic } from "@/utils/constants";
-import { resolveActiveScene, sampleKnockout, stageThemeFor } from "@/utils/widgetFlow";
+import { broadcastMusic, resolveActiveScene, sampleKnockout, stageThemeFor } from "@/utils/widgetFlow";
+import PageFireworks from "@/components/PageFireworks.vue";
 import WidgetBracket from "./WidgetBracket.vue";
+import WidgetChampion from "./WidgetChampion.vue";
 import WidgetTieBreakers from "./WidgetTieBreakers.vue";
 import WidgetFixtures from "./WidgetFixtures.vue";
 import WidgetLiveBar from "./WidgetLiveBar.vue";
@@ -211,7 +216,12 @@ const stageTheme = computed(() => stageThemeFor(resolved.value));
 // An admin preview of the bracket card shows a sample while no team has qualified, so the card can still be checked.
 const bracketSnapshot = computed(() => {
 	const snap = effectiveSnapshot.value;
-	if (!snap || !props.previewScene || snap.knockout?.has_teams) return snap;
+	if (!snap || !props.previewScene) return snap;
+	if (props.previewScene === "champion") {
+		if (snap.knockout?.champion) return snap;
+		return { ...snap, knockout: sampleKnockout(snap.points_table?.standings || [], { decided: true }) };
+	}
+	if (snap.knockout?.has_teams) return snap;
 	return { ...snap, knockout: sampleKnockout(snap.points_table?.standings || []) };
 });
 
@@ -222,13 +232,20 @@ const showPlayerStrip = computed(() => effectiveSnapshot.value?.flow?.match_stag
 const sceneKey = computed(() => `${resolved.value.scene}:${resolved.value.subMode || ""}:${resolved.value.bundle?.match?.id || ""}`);
 const transitionName = computed(() => (effectiveSnapshot.value?.flow?.transition_style === "flip" ? "bc-flip" : "bc-reveal"));
 
-// The standings card plays the same looping background music as the Points Table page.
-const wantsMusic = computed(() => props.audio && resolved.value.scene === "points_table");
+const MUSIC_IDS = { champion: BackgroundMusic.Champion, standings: BackgroundMusic.Match };
+
+// The champions card, and the standings once the season has a winner, loop the celebration track.
+// The standings card before that keeps the usual table music. Other cards stay quiet.
+const musicId = computed(() => {
+	if (!props.audio) return null;
+	const kind = broadcastMusic(resolved.value.scene, effectiveSnapshot.value);
+	return kind ? MUSIC_IDS[kind] : null;
+});
 
 const retryOnGesture = () => {
 	window.removeEventListener("pointerdown", retryOnGesture);
 	window.removeEventListener("keydown", retryOnGesture);
-	if (wantsMusic.value) startMusic();
+	if (musicId.value) startMusic(musicId.value);
 };
 
 const disarmGesture = () => {
@@ -236,26 +253,28 @@ const disarmGesture = () => {
 	window.removeEventListener("keydown", retryOnGesture);
 };
 
-async function startMusic() {
-	await playBgm(BackgroundMusic.Match, 1800);
-	const element = document.getElementById(BackgroundMusic.Match);
+async function startMusic(type) {
+	await playBgm(type, 1800);
+	const element = document.getElementById(type);
 	// A plain browser tab blocks sound until the page is touched; a streaming browser source does not.
-	if (wantsMusic.value && (!element || element.paused)) {
+	if (musicId.value === type && (!element || element.paused)) {
 		window.addEventListener("pointerdown", retryOnGesture);
 		window.addEventListener("keydown", retryOnGesture);
 	}
 }
 
-function stopMusic() {
-	disarmGesture();
-	return pauseBgm(BackgroundMusic.Match, 900);
-}
+let musicToken = 0;
 
 watch(
-	wantsMusic,
-	(on, wasOn) => {
-		if (on) startMusic();
-		else if (wasOn) stopMusic();
+	musicId,
+	async (next, prev) => {
+		const token = ++musicToken;
+		if (prev && prev !== next) {
+			disarmGesture();
+			await pauseBgm(prev, 700);
+		}
+		if (token !== musicToken || !next) return;
+		await startMusic(next);
 	},
 	{ immediate: true },
 );
@@ -263,6 +282,8 @@ watch(
 onBeforeUnmount(() => {
 	if (!props.audio) return;
 	disarmGesture();
-	pauseBgm(BackgroundMusic.Match, 300);
+	musicToken += 1;
+	const playing = musicId.value;
+	if (playing) pauseBgm(playing, 300);
 });
 </script>

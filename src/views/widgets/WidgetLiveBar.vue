@@ -62,20 +62,20 @@
 		<div v-if="showPlayerStrip && (homePlayers.length || awayPlayers.length)" class="lb-strip">
 			<div class="lb-strip-side">
 				<div v-for="player in homePlayers" :key="player.player_id" class="lb-player-chip">
-					<span class="lb-player-name">{{ player.name }}</span>
+					<span class="lb-player-name">{{ firstName(player) }}</span>
 					<span class="lb-player-stat"><strong>{{ player.coins_pocketed }}</strong>c</span>
 					<span v-if="player.opponent_coins_pocketed" class="lb-player-stat is-opp">+{{ player.opponent_coins_pocketed }}o</span>
-					<span v-if="fineCoins(player)" class="lb-player-stat is-fine">-{{ fineCoins(player) }}f</span>
 					<span v-if="player.strikers_pocketed" class="lb-player-stat">{{ player.strikers_pocketed }}s</span>
 				</div>
+				<span v-if="homeFines" class="lb-player-stat is-fine">{{ homeFines }}f</span>
 			</div>
 			<div class="lb-strip-divider"></div>
 			<div class="lb-strip-side is-away">
+				<span v-if="awayFines" class="lb-player-stat is-fine">{{ awayFines }}f</span>
 				<div v-for="player in awayPlayers" :key="player.player_id" class="lb-player-chip">
-					<span class="lb-player-name">{{ player.name }}</span>
+					<span class="lb-player-name">{{ firstName(player) }}</span>
 					<span class="lb-player-stat"><strong>{{ player.coins_pocketed }}</strong>c</span>
 					<span v-if="player.opponent_coins_pocketed" class="lb-player-stat is-opp">+{{ player.opponent_coins_pocketed }}o</span>
-					<span v-if="fineCoins(player)" class="lb-player-stat is-fine">-{{ fineCoins(player) }}f</span>
 					<span v-if="player.strikers_pocketed" class="lb-player-stat">{{ player.strikers_pocketed }}s</span>
 				</div>
 			</div>
@@ -88,8 +88,9 @@ import { computed, ref, watch } from "vue";
 import { formatMatchClock } from "@/utils/widgetFlow";
 import {
 	coinPips,
-	fineCoins,
+	firstName,
 	matchFormatLabel,
+	sideFines,
 	matchLabel,
 	scorecardTotals,
 	tossWinnerSide,
@@ -109,6 +110,8 @@ const match = computed(() => props.bundle?.match || {});
 const players = computed(() => props.bundle?.players || { team1: [], team2: [] });
 const homePlayers = computed(() => players.value.team1 || []);
 const awayPlayers = computed(() => players.value.team2 || []);
+const homeFines = computed(() => sideFines(homePlayers.value));
+const awayFines = computed(() => sideFines(awayPlayers.value));
 const totals = computed(() => scorecardTotals(players.value));
 const homePips = computed(() => coinPips(totals.value.team1));
 const awayPips = computed(() => coinPips(totals.value.team2));

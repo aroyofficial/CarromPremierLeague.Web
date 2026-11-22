@@ -207,6 +207,8 @@ const activeSummary = computed(() => {
 		points_table: "Points Table",
 		stats: "Golden Striker & Stats",
 		bracket: "Knockout Bracket",
+		tie_breakers: "Tie-breakers",
+		champion: "Season Champions",
 		fixtures: "Fixtures & Results",
 	}[cur.scene] || cur.scene;
 	const prefix = cur.source === "director" ? "Director Override" : "Auto Flow";

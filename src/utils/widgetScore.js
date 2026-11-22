@@ -10,6 +10,15 @@ export const fineCoins = (player) => {
 	return split || player.coins_fined || 0;
 };
 
+/** The scoreboard names a player by their first name, so the strip stays readable. */
+export const firstName = (player) => {
+	const name = typeof player === "string" ? player : player?.name;
+	return String(name || "").trim().split(/\s+/)[0] || "";
+};
+
+/** Single fines and double fines added up for a whole side, shown once. */
+export const sideFines = (players = []) => players.reduce((sum, player) => sum + fineCoins(player), 0);
+
 export const tallyTeam = (players = []) =>
 	players.reduce(
 		(sum, player) => {

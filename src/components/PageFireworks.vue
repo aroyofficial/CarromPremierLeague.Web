@@ -1,5 +1,5 @@
 <template>
-	<canvas v-show="active" ref="sky" class="page-fireworks" aria-hidden="true"></canvas>
+	<canvas v-show="active" ref="sky" class="page-fireworks" :class="{ 'is-contained': Boolean(size) }" aria-hidden="true"></canvas>
 </template>
 
 <script setup>
@@ -104,10 +104,13 @@ const paintClimb = (ctx, rocket) => {
 
 const props = defineProps({
 	active: { type: Boolean, default: false },
+	// A fixed stage ({ width, height }), such as the 1920x1080 broadcast frame. Without it the sky fills the window.
+	size: { type: Object, default: null },
 });
 
 const sky = ref(null);
-const reducedMotion = () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+// A broadcast overlay is video, not a page, so a fixed stage always plays its show.
+const reducedMotion = () => !props.size && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
 let frame = 0;
 let rockets = [];
@@ -157,10 +160,12 @@ const fitCanvas = () => {
 	const canvas = sky.value;
 	if (!canvas) return;
 	const ratio = Math.min(window.devicePixelRatio || 1, 2);
-	canvas.width = Math.floor(window.innerWidth * ratio);
-	canvas.height = Math.floor(window.innerHeight * ratio);
-	canvas.style.width = `${window.innerWidth}px`;
-	canvas.style.height = `${window.innerHeight}px`;
+	const width = props.size?.width || window.innerWidth;
+	const height = props.size?.height || window.innerHeight;
+	canvas.width = Math.floor(width * ratio);
+	canvas.height = Math.floor(height * ratio);
+	canvas.style.width = `${width}px`;
+	canvas.style.height = `${height}px`;
 	const ctx = canvas.getContext("2d");
 	ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
 };
@@ -220,8 +225,18 @@ onUnmounted(() => {
 	pointer-events: none;
 }
 
+/* Inside the broadcast frame the sky sits over the card, on the frame's own pixels. */
+.page-fireworks.is-contained {
+	position: absolute;
+	inset: auto;
+	left: 0;
+	top: 0;
+	z-index: 20;
+	pointer-events: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
-	.page-fireworks {
+	.page-fireworks:not(.is-contained) {
 		display: none;
 	}
 }

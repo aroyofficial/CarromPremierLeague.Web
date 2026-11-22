@@ -5,6 +5,7 @@ import {
 	POINTS_TABLE_SEC,
 	ROTATION_CARD_MAP,
 	TRANSITION_STYLES,
+	broadcastMusic,
 	cloneFlowConfig,
 	computeClockOffset,
 	defaultFlowConfig,
@@ -15,10 +16,14 @@ import {
 	moveStep,
 	resolveActiveScene,
 	sampleKnockout,
+	showsFinishedResult,
 	stageThemeFor,
 	trackClockOffset,
 	withBracketStep,
+	withChampionStep,
+	withSeasonStorySteps,
 	withTieBreakerStep,
+	CHAMPION_SEC,
 } from "./widgetFlow.js";
 
 const baseSeasonFlow = (overrides = {}) => ({
@@ -157,6 +162,33 @@ test("a result waiting to be marked complete outranks the next match's Ready and
 	// Once it is marked complete the next match's Ready card comes through.
 	finished.match.concluded_at = "2026-11-21T12:06:00Z";
 	assert.equal(resolveActiveScene(ready, now).scene, "match_ready");
+});
+
+test("the last league match and the eliminator drop off the stream once they are over", () => {
+	const finished = (category, leagueDone) =>
+		baseSeasonFlow({
+			top_stats: { matches_played: 15, is_league_stage_completed: leagueDone, players: [{ player_id: 1, name: "Ravi" }] },
+			last_completed_match: {
+				match: { id: 9, order: 15, category, status: 3, outcome: 1, completed_at: "2026-11-21T12:00:00Z", concluded_at: null },
+				players: { team1: [], team2: [] },
+			},
+		});
+	const now = Date.parse("2026-11-21T12:10:00Z");
+
+	// While the league is still going, the match that just finished stays up.
+	assert.equal(resolveActiveScene(finished(1, false), now).scene, "match_result");
+	// Once every league match is played, that last league result leaves the stream.
+	const leagueOver = finished(1, true);
+	assert.equal(showsFinishedResult(leagueOver), false);
+	assert.equal(resolveActiveScene(leagueOver, now).scene, "stats");
+	assert.equal(isStepAvailable("last_result", leagueOver), false);
+
+	const eliminator = finished(3, true);
+	assert.equal(showsFinishedResult(eliminator), false);
+	assert.equal(resolveActiveScene(eliminator, now).scene, "stats");
+
+	// A final still holds its scoreboard until it is marked complete.
+	assert.equal(resolveActiveScene(finished(2, true), now).scene, "match_result");
 });
 
 test("knockout matches and the final each get their own stage theme", () => {
@@ -464,6 +496,74 @@ test("the bracket joins the rotation after stats once a team qualifies, even in 
 	// A rotation that already lists the bracket is left alone, and a disabled one stays off.
 	const listed = [...rotation, { id: "b", kind: "bracket", duration_sec: 20, enabled: false }];
 	assert.equal(withBracketStep(listed, withTeam).length, listed.length);
+});
+
+test("the champions card with fireworks leads the rotation once the Final has a winner, in the final theme", () => {
+	const rotation = [
+		{ id: "p", kind: "points_table", duration_sec: 30, enabled: true },
+		{ id: "s", kind: "stats", duration_sec: 15, enabled: true },
+	];
+	const champion = { id: 7, name: "Carrom Kings", logo_url: null };
+	const decided = baseSeasonFlow({ flow: { rotation }, knockout: { ...knockoutSnapshot(), champion } });
+	const undecided = baseSeasonFlow({ flow: { rotation }, knockout: knockoutSnapshot() });
+
+	assert.equal(isStepAvailable("champion", decided), true);
+	assert.equal(isStepAvailable("champion", undecided), false);
+	assert.equal(withChampionStep(rotation, undecided).length, rotation.length);
+	assert.equal(withChampionStep(rotation, decided)[0].kind, "champion");
+
+	const first = resolveActiveScene(decided, 5_000);
+	assert.equal(first.scene, "champion");
+	assert.equal(first.layout, "card");
+	assert.equal(stageThemeFor(first), "final");
+
+	// After the celebration the usual cards carry on.
+	assert.notEqual(resolveActiveScene(decided, (CHAMPION_SEC + 5) * 1000).scene, "champion");
+
+	// Listed already: left alone.
+	const listed = [{ id: "c", kind: "champion", duration_sec: 60, enabled: true }, ...rotation];
+	assert.equal(withChampionStep(listed, decided).length, listed.length);
+});
+
+test("after the champions come the road to the final, then the Golden Striker, even in a flow saved without them", () => {
+	const champion = { id: 7, name: "Carrom Kings", logo_url: null };
+	const knockout = { ...knockoutSnapshot(), champion };
+	const stats = { matches_played: 28, is_league_stage_completed: true, players: [{ player_id: 10, name: "Ravi", net_coins: 6 }] };
+	// A flow that never listed the bracket or the stats, and one that has the stats switched off.
+	const bare = [{ id: "n", kind: "next_match", duration_sec: 12, enabled: true }];
+	const off = [{ id: "s", kind: "stats", duration_sec: 25, enabled: false }, ...bare];
+
+	for (const rotation of [bare, off]) {
+		const snap = baseSeasonFlow({ flow: { rotation }, top_stats: stats, knockout });
+		const kinds = withSeasonStorySteps(rotation, snap).map((step) => step.kind);
+		assert.deepEqual(kinds.slice(0, 3), ["champion", "bracket", "stats"]);
+		assert.equal(kinds.filter((kind) => kind === "stats").length, 1);
+		assert.equal(kinds.filter((kind) => kind === "bracket").length, 1);
+	}
+
+	// On air in that order, each for its own time: 45s champions, 20s bracket, then the stats.
+	const snap = baseSeasonFlow({ flow: { rotation: off }, top_stats: stats, knockout });
+	assert.equal(resolveActiveScene(snap, 10_000).scene, "champion");
+	assert.equal(resolveActiveScene(snap, (CHAMPION_SEC + 5) * 1000).scene, "bracket");
+	assert.equal(resolveActiveScene(snap, (CHAMPION_SEC + 20 + 5) * 1000).scene, "stats");
+
+	// A saved time is kept, and no champion means the rotation is left alone.
+	assert.equal(withSeasonStorySteps(off, snap).find((step) => step.kind === "stats").duration_sec, 25);
+	const noChampion = baseSeasonFlow({ flow: { rotation: bare }, top_stats: stats, knockout: knockoutSnapshot() });
+	assert.deepEqual(withSeasonStorySteps(bare, noChampion), bare);
+});
+
+test("the celebration track plays for the champions card, and for the table only once the season has a winner", () => {
+	const finished = { points_table: { season_status: 3, winner_id: 7, winner_name: "Carrom Kings", standings: [] } };
+	const open = { points_table: { season_status: 2, winner_id: null, winner_name: null, standings: [] } };
+	const finishedNameless = { points_table: { season_status: 3, winner_id: null, winner_name: null, standings: [] } };
+
+	assert.equal(broadcastMusic("champion", open), "champion");
+	assert.equal(broadcastMusic("points_table", finished), "champion");
+	assert.equal(broadcastMusic("points_table", open), "standings");
+	assert.equal(broadcastMusic("points_table", finishedNameless), "standings");
+	assert.equal(broadcastMusic("stats", finished), null);
+	assert.equal(broadcastMusic("bracket", finished), null);
 });
 
 test("pinning the bracket falls back to the points table until a team qualifies", () => {

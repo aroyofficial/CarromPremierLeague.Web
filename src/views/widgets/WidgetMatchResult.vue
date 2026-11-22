@@ -62,16 +62,16 @@
 							<span class="bc-avatar">
 								<BroadcastPicture :src="player.avatar_url" :name="player.name" shape="avatar" />
 							</span>
-							<span class="res-player-name">{{ player.name }}</span>
+							<span class="res-player-name">{{ firstName(player) }}</span>
 						</div>
 						<div class="res-stats">
 							<span><strong>{{ player.coins_pocketed }}</strong> Coins</span>
 							<span v-if="player.opponent_coins_pocketed" class="is-opp">+{{ player.opponent_coins_pocketed }} Opp</span>
-							<span class="is-muted">{{ fineCoins(player) }} Fines</span>
 							<span class="is-muted">{{ player.strikers_pocketed }} Str</span>
 						</div>
 					</div>
 				</div>
+				<p v-if="sideFines(side.players)" class="res-fines">{{ sideFines(side.players) }} Fines</p>
 			</div>
 		</div>
 	</section>
@@ -79,7 +79,7 @@
 
 <script setup>
 import { computed } from "vue";
-import { coinPips, fineCoins, matchLabel, resultLine, scorecardTotals } from "@/utils/widgetScore";
+import { coinPips, firstName, matchLabel, resultLine, scorecardTotals, sideFines } from "@/utils/widgetScore";
 import BroadcastPicture from "./BroadcastPicture.vue";
 
 const props = defineProps({
@@ -190,6 +190,15 @@ const sides = computed(() => [
 	display: flex;
 	flex-direction: column;
 	gap: 10px;
+}
+
+.res-fines {
+	margin: 12px 4px 0;
+	font-size: 18px;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: #fca5a5;
 }
 
 .res-player-row {

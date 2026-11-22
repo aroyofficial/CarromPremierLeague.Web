@@ -33,7 +33,8 @@ export const adminApi = {
 		teams: (seasonId) => api.get(`seasons/${seasonId}/teams`),
 		addTeam: (seasonId, teamId) => api.post(`seasons/${seasonId}/teams`, { team_id: teamId }),
 		removeTeam: (seasonId, teamId) => api.delete(`seasons/${seasonId}/teams/${teamId}`),
-		schedule: (seasonId) => api.post(`seasons/${seasonId}/schedule`),
+		// `rounds` is how many times each team plays every other team.
+		schedule: (seasonId, rounds = 1) => api.post(`seasons/${seasonId}/schedule`, { rounds }),
 	},
 	teams: {
 		...crud("teams"),

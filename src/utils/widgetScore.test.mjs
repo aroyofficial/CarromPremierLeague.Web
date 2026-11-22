@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { awaitsCompletion, fixtureWindow, isConcluded, resultLine, scorecardTotals, statusLabel, tossLine, matchLabel } from "./widgetScore.js";
+import { awaitsCompletion, firstName, fixtureWindow, isConcluded, resultLine, scorecardTotals, sideFines, statusLabel, tossLine, matchLabel } from "./widgetScore.js";
 
 const team1 = { id: 1, name: "Alpha", logo_url: null };
 const team2 = { id: 2, name: "Beta", logo_url: null };
@@ -21,6 +21,15 @@ test("a fine never takes a team below zero", () => {
 		team2: [],
 	});
 	assert.equal(totals.team1, 0);
+});
+
+test("the scoreboard uses a first name and one combined fine total per side", () => {
+	assert.equal(firstName({ name: "Arijit Roy" }), "Arijit");
+	assert.equal(firstName("  Ajit Saha  "), "Ajit");
+	assert.equal(firstName({ name: "" }), "");
+	// One single fine is 1 coin and one double fine is 2, so the side shows 3, not two separate counts.
+	assert.equal(sideFines([{ single_fines: 1, double_fines: 1 }, { single_fines: 0, double_fines: 0 }]), 3);
+	assert.equal(sideFines([{ coins_fined: 2 }]), 2);
 });
 
 test("a fine falls back to coins_fined when the split is empty", () => {

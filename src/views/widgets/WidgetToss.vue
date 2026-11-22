@@ -17,7 +17,7 @@
 				</div>
 				<div class="toss-team-copy">
 					<h2>{{ match.team1?.name || "TBD" }}</h2>
-					<span v-if="winner === 'team1'" class="toss-role">Breaking First</span>
+					<span v-if="winner === 'team1'" class="toss-role">Won the toss</span>
 				</div>
 			</div>
 
@@ -28,7 +28,7 @@
 			<div class="toss-team is-away" :class="{ 'is-winner': winner === 'team2', 'is-dimmed': winner === 'team1' }">
 				<div class="toss-team-copy">
 					<h2>{{ match.team2?.name || "TBD" }}</h2>
-					<span v-if="winner === 'team2'" class="toss-role">Breaking First</span>
+					<span v-if="winner === 'team2'" class="toss-role">Won the toss</span>
 				</div>
 				<div class="bc-crest">
 					<BroadcastPicture :src="match.team2?.logo_url" :name="match.team2?.name" />
@@ -36,13 +36,12 @@
 			</div>
 		</div>
 
-		<p class="toss-line">{{ tossLine(match) }}</p>
 	</section>
 </template>
 
 <script setup>
 import { computed } from "vue";
-import { matchLabel, tossLine, tossWinnerSide } from "@/utils/widgetScore";
+import { matchLabel, tossWinnerSide } from "@/utils/widgetScore";
 import BroadcastPicture from "./BroadcastPicture.vue";
 
 const props = defineProps({
@@ -147,13 +146,4 @@ const winner = computed(() => tossWinnerSide(match.value));
 	color: #091020;
 }
 
-.toss-line {
-	margin: 0;
-	padding: 0 32px 18px;
-	text-align: center;
-	font-size: 26px;
-	font-weight: 800;
-	letter-spacing: 0.02em;
-	color: var(--bc-accent-soft);
-}
 </style>

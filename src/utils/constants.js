@@ -203,6 +203,7 @@ const TossOutcome = Object.freeze({
 
 const BackgroundMusic = Object.freeze({
 	Match: "cpl-bgm-audio",
+	Champion: "cpl-champion-audio",
 	Countdown: "countdown-bgm-audio",
 	Horn: "horn-bgm-audio",
 });

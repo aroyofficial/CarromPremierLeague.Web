@@ -1,3 +1,4 @@
+import { SeasonStatus } from "./constants.js";
 import { parseServerTime } from "./integrations.js";
 import { awaitsCompletion, hasToss, isLive, isReady } from "./widgetScore.js";
 
@@ -8,6 +9,23 @@ export const POINTS_TABLE_SEC = 30;
 export const BRACKET_SEC = 20;
 /** The tie-breaker card: each tied pair with the breaker that separated it, and any Golden Strike still to play. */
 export const TIE_BREAKER_SEC = 20;
+/** The champions card with the fireworks: long enough to enjoy the celebration. */
+export const CHAMPION_SEC = 45;
+/** The Golden Striker card's usual time, used when a flow saved without it has to show it for the champion story. */
+const STATS_SEC = 15;
+
+/**
+ * Which bed the broadcast loops. "champion" is the celebration track: the champions card, and the points table once
+ * the season is finished and has a winner. "standings" is the usual table music before that. Anything else is silent.
+ */
+export const broadcastMusic = (scene, snapshot) => {
+	if (scene === "champion") return "champion";
+	if (scene !== "points_table") return null;
+	const table = snapshot?.points_table;
+	const finished = table?.season_status === SeasonStatus.FINISHED;
+	const hasWinner = table?.winner_id != null || Boolean(table?.winner_name);
+	return finished && hasWinner ? "champion" : "standings";
+};
 
 export const TRANSITION_STYLES = Object.freeze([
 	{ value: "reveal", label: "Reveal wipe", hint: "A soft-edged wipe reveals each card and wipes it away." },
@@ -304,7 +322,9 @@ export const formatMatchClock = (match, clockSettings = {}, nowMs = Date.now()) 
 	};
 };
 
+const LEAGUE_CATEGORY_ID = 1;
 const FINAL_CATEGORY_ID = 2;
+const ELIMINATOR_CATEGORY_ID = 3;
 const KNOCKOUT_THEME_CATEGORY_IDS = [3, 4, 5];
 
 /**
@@ -313,6 +333,7 @@ const KNOCKOUT_THEME_CATEGORY_IDS = [3, 4, 5];
  */
 export const stageThemeFor = (resolved) => {
 	if (!resolved) return null;
+	if (resolved.scene === "champion") return "final";
 	if (resolved.scene === "bracket") return "knockout";
 	const category = Number(resolved.bundle?.match?.category);
 	if (category === FINAL_CATEGORY_ID) return "final";
@@ -323,6 +344,19 @@ export const stageThemeFor = (resolved) => {
 /** Every league match is played. From then on the table and the fixtures list say nothing new; the bracket does. */
 export const isLeagueStageDone = (snapshot) => Boolean(snapshot?.top_stats?.is_league_stage_completed);
 
+/**
+ * A finished match's scoreboard stays on the stream, except two that the bracket already covers:
+ * the last league match once the league is over, and the eliminator once it has been played.
+ */
+export const showsFinishedResult = (snapshot) => {
+	const match = snapshot?.last_completed_match?.match;
+	if (!match) return false;
+	const category = Number(match.category);
+	if (category === ELIMINATOR_CATEGORY_ID) return false;
+	if (category === LEAGUE_CATEGORY_ID && isLeagueStageDone(snapshot)) return false;
+	return true;
+};
+
 export const isStepAvailable = (kind, snapshot) => {
 	if (!snapshot) return false;
 	if (kind === "clean_pause") return true;
@@ -331,7 +365,8 @@ export const isStepAvailable = (kind, snapshot) => {
 	if (kind === "fixtures") return !isLeagueStageDone(snapshot) && Boolean(snapshot.matches?.length);
 	if (kind === "bracket") return Boolean(snapshot.knockout?.has_teams);
 	if (kind === "tie_breakers") return Boolean(snapshot.tie_breakers?.league_complete && snapshot.tie_breakers?.groups?.length);
-	if (kind === "last_result") return Boolean(snapshot.last_completed_match?.match);
+	if (kind === "champion") return Boolean(snapshot.knockout?.champion);
+	if (kind === "last_result") return showsFinishedResult(snapshot);
 	if (kind === "next_match") return Boolean(snapshot.next_scheduled_match?.match);
 	return false;
 };
@@ -365,8 +400,42 @@ export const withTieBreakerStep = (rotation, snapshot) => {
 	return [...steps.slice(0, at), tieBreakers, ...steps.slice(at)];
 };
 
+/**
+ * Once the Final has a winner the season's champions go on air first, with fireworks. Like the bracket, the card
+ * needs no rotation setup. The Final's own scoreboard still holds the screen until it is marked complete, so the
+ * champions arrive right after it.
+ */
+export const withChampionStep = (rotation, snapshot) => {
+	const steps = rotation || [];
+	if (!isStepAvailable("champion", snapshot)) return steps;
+	if (steps.some((step) => step.kind === "champion")) return steps;
+	const champion = { id: "step-champion-auto", kind: "champion", duration_sec: CHAMPION_SEC, enabled: true };
+	return [champion, ...steps];
+};
+
+/**
+ * With a champion decided the broadcast tells the season's story in a fixed order: the champions, how they got
+ * there (the road to the final), then the Golden Striker. Both follow the champions card directly and are always
+ * on, whatever the saved rotation says; their saved times are kept. The rest of the rotation carries on after them.
+ */
+export const withSeasonStorySteps = (rotation, snapshot) => {
+	const steps = withChampionStep(rotation, snapshot);
+	if (!isStepAvailable("champion", snapshot)) return steps;
+	const championAt = steps.findIndex((step) => step.kind === "champion");
+	if (championAt < 0) return steps;
+	const story = [
+		{ kind: "bracket", id: "step-bracket-auto", duration_sec: BRACKET_SEC },
+		{ kind: "stats", id: "step-stats-auto", duration_sec: STATS_SEC },
+	].map((fallback) => {
+		const saved = steps.find((step) => step.kind === fallback.kind);
+		return { ...fallback, ...(saved || {}), enabled: true };
+	});
+	const rest = steps.filter((step, index) => index !== championAt && step.kind !== "bracket" && step.kind !== "stats");
+	return [steps[championAt], ...story, ...rest];
+};
+
 /** A made-up eight-team bracket for the admin preview: Qualifier 1 is set, the rest is still TBD. */
-export const sampleKnockout = (standings = []) => {
+export const sampleKnockout = (standings = [], { decided = false } = {}) => {
 	const names = ["Carrom Kings", "Board Strikers", "Queen Hunters", "Pocket Aces"];
 	const team = (index) => {
 		const row = standings[index];
@@ -374,6 +443,14 @@ export const sampleKnockout = (standings = []) => {
 	};
 	const side = (source, index = null) => ({ team: index == null ? null : team(index), source, is_winner: false });
 	const slot = (key, label, sides) => ({ key, label, match_id: null, status: null, outcome: null, net_points: null, sides });
+	if (decided) {
+		// The Final is played and won by the top seed, so the champions card has something to show.
+		const final = slot("final", "Final", [
+			{ team: team(0), source: "#1", is_winner: true },
+			{ team: team(1), source: "#2", is_winner: false },
+		]);
+		return { format: "full", has_teams: true, champion: team(0), slots: [{ ...final, net_points: 4 }] };
+	}
 	return {
 		format: "full",
 		has_teams: true,
@@ -517,7 +594,8 @@ export const resolveActiveScene = (snapshot, nowMs = Date.now()) => {
 	const concludedDate = parseServerTime(lastDone?.match?.concluded_at);
 	const concludedMs = concludedDate ? concludedDate.getTime() : null;
 	const holdSec = Math.max(0, Number(stages.result_duration_sec ?? 20));
-	const resultAwaitsCompletion = Boolean(lastDone?.match && holdSec > 0 && awaitsCompletion(lastDone.match));
+	const resultVisible = showsFinishedResult(snapshot);
+	const resultAwaitsCompletion = Boolean(resultVisible && lastDone?.match && holdSec > 0 && awaitsCompletion(lastDone.match));
 	const heldResult = () => ({
 		scene: "match_result",
 		layout: "card",
@@ -574,7 +652,7 @@ export const resolveActiveScene = (snapshot, nowMs = Date.now()) => {
 
 	// 3. No match is on the table: the held result, or the timed hold for an API without `concluded_at`.
 	if (resultAwaitsCompletion) return heldResult();
-	const timedHold = lastDone?.match && lastDone.match.concluded_at === undefined;
+	const timedHold = resultVisible && lastDone?.match && lastDone.match.concluded_at === undefined;
 	if (timedHold && completedMs != null && holdSec > 0) {
 		const sinceDoneMs = nowMs - completedMs;
 		if (sinceDoneMs >= 0 && sinceDoneMs < holdSec * 1000) {
@@ -592,7 +670,7 @@ export const resolveActiveScene = (snapshot, nowMs = Date.now()) => {
 	}
 
 	// 4. Drag-and-drop Rotation sequence.
-	const availableSteps = withTieBreakerStep(withBracketStep(flow.rotation, snapshot), snapshot).filter(
+	const availableSteps = withSeasonStorySteps(withTieBreakerStep(withBracketStep(flow.rotation, snapshot), snapshot), snapshot).filter(
 		(step) => step.enabled !== false && isStepAvailable(step.kind, snapshot),
 	);
 	if (!availableSteps.length) {

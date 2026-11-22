@@ -32,6 +32,11 @@ export async function playBgm(
 				audio.src = new URL("../assets/audio/horn.mp3", import.meta.url).href;
 				break;
 
+			case BackgroundMusic.Champion:
+				audio.src = new URL("../assets/audio/season-champion.mp3", import.meta.url).href;
+				audio.loop = true;
+				break;
+
 			default:
 				audio.src = new URL("../assets/audio/bgm.mp3", import.meta.url).href;
 				audio.loop = true;

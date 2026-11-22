@@ -177,7 +177,11 @@ const getRowClassName = (row, index) => {
 	return "";
 };
 
+// A finished season with a winner plays the celebration track. Every other table keeps the usual music.
+const tableMusic = computed(() => (showFireworks.value ? BackgroundMusic.Champion : BackgroundMusic.Match));
+
 let musicStart = null;
+let playingMusic = null;
 
 const releaseMusicGesture = () => {
 	window.removeEventListener("pointerdown", startTableMusic);
@@ -185,17 +189,27 @@ const releaseMusicGesture = () => {
 };
 
 const startTableMusic = () => {
-	if (musicStart) return musicStart;
-	musicStart = playBgm(BackgroundMusic.Match).then(() => {
-		const audio = document.getElementById(BackgroundMusic.Match);
+	const type = tableMusic.value;
+	if (musicStart && playingMusic === type) return musicStart;
+	const previous = playingMusic;
+	playingMusic = type;
+	musicStart = (async () => {
+		if (previous && previous !== type) await pauseBgm(previous, 500);
+		await playBgm(type);
+		const audio = document.getElementById(type);
 		if (audio && !audio.paused) {
 			releaseMusicGesture();
 			return;
 		}
 		musicStart = null;
-	});
+		playingMusic = previous;
+	})();
 	return musicStart;
 };
+
+watch(tableMusic, () => {
+	startTableMusic();
+});
 
 onMounted(() => {
 	seasons.value = seasonStore.visibleSeasons;
@@ -210,6 +224,7 @@ onUnmounted(() => {
 	window.removeEventListener("pointerdown", startTableMusic);
 	window.removeEventListener("keydown", startTableMusic);
 	pauseBgm(BackgroundMusic.Match, 400);
+	pauseBgm(BackgroundMusic.Champion, 400);
 });
 </script>
 

@@ -63,7 +63,7 @@
 					</thead>
 					<tbody>
 						<tr v-for="player in side.players" :key="player.player_id">
-							<td class="sc-name">{{ player.name }}</td>
+							<td class="sc-name">{{ firstName(player) }}</td>
 							<td>{{ player.coins_pocketed }}</td>
 							<td>{{ player.opponent_coins_pocketed }}</td>
 							<td>{{ fineCoins(player) }}</td>
@@ -87,6 +87,7 @@ import { formatMatchClock } from "@/utils/widgetFlow";
 import {
 	coinPips,
 	fineCoins,
+	firstName,
 	isLive,
 	isPlayed,
 	matchLabel,

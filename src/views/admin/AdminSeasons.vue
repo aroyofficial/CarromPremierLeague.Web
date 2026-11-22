@@ -45,7 +45,7 @@
 							plain
 							:aria-label="actionFor(row) === 'reschedule' ? 'Reschedule matches' : 'Schedule matches'"
 							:loading="schedulingId === row.id"
-							@click="schedule(row)"
+							@click="openSchedule(row)"
 						>
 							<el-icon class="me-1"><Calendar /></el-icon>
 							<span class="btn-label">{{ actionFor(row) === "reschedule" ? "Reschedule" : "Schedule" }}</span>
@@ -86,6 +86,46 @@
 			</template>
 		</el-dialog>
 
+		<el-dialog
+			v-model="scheduleOpen"
+			:title="scheduleIsReschedule ? 'Reschedule matches' : 'Schedule matches'"
+			width="min(480px, 94vw)"
+		>
+			<p class="schedule-note">
+				<template v-if="scheduleIsReschedule">
+					Matches of {{ scheduleSeason?.name }} that have not started are deleted and the league is built again.
+					Matches in progress or already played stay, and count towards how often a pair has met.
+				</template>
+				<template v-else>Every league match of {{ scheduleSeason?.name }} is scheduled in one go.</template>
+			</p>
+			<el-form label-position="top" @submit.prevent>
+				<el-form-item label="How many matches should each team play against every other team?">
+					<el-input-number
+						v-model="scheduleRounds"
+						:min="1"
+						:max="MAX_ROUNDS"
+						:step="1"
+						:precision="0"
+						step-strictly
+						aria-label="Matches between each pair of teams"
+					/>
+				</el-form-item>
+			</el-form>
+			<p class="schedule-summary">
+				Each pair of teams plays <strong>{{ roundsWords(scheduleRounds) }}</strong>
+				<template v-if="scheduleTeamCount">
+					: <strong>{{ scheduleMatchTotal }}</strong> league matches for {{ scheduleTeamCount }} teams.
+				</template>
+				<template v-else>.</template>
+			</p>
+			<template #footer>
+				<el-button @click="scheduleOpen = false">Cancel</el-button>
+				<el-button type="primary" :loading="schedulingId === scheduleSeason?.id" @click="schedule">
+					{{ scheduleIsReschedule ? "Reschedule" : "Schedule" }}
+				</el-button>
+			</template>
+		</el-dialog>
+
 		<el-drawer v-model="teamsOpen" :title="`Teams in ${teamsSeason?.name || ''}`" size="min(460px, 96vw)">
 			<div class="admin-toolbar mb-3">
 				<el-select v-model="teamToAdd" placeholder="Choose a team to add" filterable style="flex: 1">
@@ -116,7 +156,6 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
-import { ElMessageBox } from "element-plus";
 import { Calendar, Delete, Edit, Flag, Plus, Search } from "@element-plus/icons-vue";
 import { adminApi } from "@/services/adminService";
 import { blankToNull, confirmDelete, matchesSearch, runAction, unwrap } from "@/utils/adminHelpers";
@@ -127,7 +166,7 @@ import { areas } from "@/utils/realtimeRules";
 import { settlePageLoader } from "@/utils/common";
 import { useAdminLive } from "@/utils/useLive";
 import { isSeasonUpcoming } from "@/utils/season";
-import { scheduleButton } from "@/utils/seasonSchedule";
+import { DEFAULT_ROUNDS, MAX_ROUNDS, clampRounds, leagueMatchCount, roundsWords, scheduleButton } from "@/utils/seasonSchedule";
 
 const isPhone = useIsPhone();
 const { Permission, can, canAny } = usePermissions();
@@ -237,31 +276,39 @@ const save = async () => {
 	}
 };
 
-const schedule = async (season) => {
+// Scheduling asks first how many times each team plays every other team. One is the default.
+const scheduleOpen = ref(false);
+const scheduleSeason = ref(null);
+const scheduleRounds = ref(DEFAULT_ROUNDS);
+const scheduleIsReschedule = ref(false);
+
+const scheduleTeamCount = computed(() => seasonFacts.value[scheduleSeason.value?.id]?.teams || 0);
+const scheduleMatchTotal = computed(() => leagueMatchCount(scheduleTeamCount.value, scheduleRounds.value));
+
+const openSchedule = (season) => {
 	const action = actionFor(season);
 	if (!action || schedulingId.value) return;
-	const reschedule = action === "reschedule";
-	const confirmed = await ElMessageBox.confirm(
-		reschedule
-			? `Reschedule ${season.name}? Scheduled matches that have not started are deleted and the league is built again. Matches in progress or already played stay.`
-			: `Schedule every league match for ${season.name}? Each pair of teams plays once.`,
-		reschedule ? "Reschedule matches" : "Schedule matches",
-		{
-			confirmButtonText: reschedule ? "Reschedule" : "Schedule",
-			cancelButtonText: "Cancel",
-			type: "warning",
-		},
-	)
-		.then(() => true)
-		.catch(() => false);
-	if (!confirmed) return;
+	scheduleSeason.value = season;
+	scheduleIsReschedule.value = action === "reschedule";
+	scheduleRounds.value = DEFAULT_ROUNDS;
+	scheduleOpen.value = true;
+};
+
+const schedule = async () => {
+	const season = scheduleSeason.value;
+	if (!season || schedulingId.value) return;
+	const reschedule = scheduleIsReschedule.value;
+	const rounds = clampRounds(scheduleRounds.value);
 	schedulingId.value = season.id;
 	const { ok } = await runAction(
-		() => adminApi.seasons.schedule(season.id),
+		() => adminApi.seasons.schedule(season.id, rounds),
 		reschedule ? "League matches rescheduled" : "League matches scheduled",
 	);
 	schedulingId.value = null;
-	if (ok) await load();
+	if (ok) {
+		scheduleOpen.value = false;
+		await load();
+	}
 };
 
 const remove = async (season) => {
@@ -350,3 +397,16 @@ useAdminLive(
 
 onMounted(() => settlePageLoader(load));
 </script>
+
+<style scoped>
+.schedule-note {
+	margin: 0 0 16px;
+	color: var(--el-text-color-regular);
+	line-height: 1.5;
+}
+
+.schedule-summary {
+	margin: 4px 0 0;
+	color: var(--el-text-color-secondary);
+}
+</style>
