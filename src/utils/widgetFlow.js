@@ -509,7 +509,27 @@ export const resolveActiveScene = (snapshot, nowMs = Date.now()) => {
 		}
 	}
 
-	// 2. Active match: Live -> Toss -> Ready.
+	// The last finished match keeps its result on screen until an operator marks it complete (`concluded_at`).
+	// An API that does not report `concluded_at` still gets the old timed hold after CompletedAt.
+	const lastDone = snapshot.last_completed_match;
+	const completedDate = parseServerTime(lastDone?.match?.completed_at);
+	const completedMs = completedDate ? completedDate.getTime() : null;
+	const concludedDate = parseServerTime(lastDone?.match?.concluded_at);
+	const concludedMs = concludedDate ? concludedDate.getTime() : null;
+	const holdSec = Math.max(0, Number(stages.result_duration_sec ?? 20));
+	const resultAwaitsCompletion = Boolean(lastDone?.match && holdSec > 0 && awaitsCompletion(lastDone.match));
+	const heldResult = () => ({
+		scene: "match_result",
+		layout: "card",
+		bundle: lastDone,
+		progress: null,
+		remainingSec: null,
+		source: "post_match",
+		themeAccent,
+	});
+
+	// 2. Active match: Live -> held result -> Toss -> Ready. A live match always wins, but marking the next
+	//    match Ready or tossing it does not take the finished match's scoreboard off the screen.
 	const active = snapshot.active_match;
 	if (active?.match) {
 		if (isLive(active.match)) {
@@ -526,6 +546,7 @@ export const resolveActiveScene = (snapshot, nowMs = Date.now()) => {
 			}
 			return { scene: "clean", layout: "none", bundle: null, progress: null, remainingSec: null, source: "match_live_hidden", themeAccent };
 		}
+		if (resultAwaitsCompletion) return heldResult();
 		if (active.match.status === 1 && hasToss(active.match) && stages.show_toss !== false) {
 			return {
 				scene: "toss",
@@ -551,25 +572,8 @@ export const resolveActiveScene = (snapshot, nowMs = Date.now()) => {
 		}
 	}
 
-	// 3. A finished match keeps its result on screen until an operator marks it complete (`concluded_at`).
-	//    An API that does not report `concluded_at` still gets the old timed hold after CompletedAt.
-	const lastDone = snapshot.last_completed_match;
-	const completedDate = parseServerTime(lastDone?.match?.completed_at);
-	const completedMs = completedDate ? completedDate.getTime() : null;
-	const concludedDate = parseServerTime(lastDone?.match?.concluded_at);
-	const concludedMs = concludedDate ? concludedDate.getTime() : null;
-	const holdSec = Math.max(0, Number(stages.result_duration_sec ?? 20));
-	if (lastDone?.match && holdSec > 0 && awaitsCompletion(lastDone.match)) {
-		return {
-			scene: "match_result",
-			layout: "card",
-			bundle: lastDone,
-			progress: null,
-			remainingSec: null,
-			source: "post_match",
-			themeAccent,
-		};
-	}
+	// 3. No match is on the table: the held result, or the timed hold for an API without `concluded_at`.
+	if (resultAwaitsCompletion) return heldResult();
 	const timedHold = lastDone?.match && lastDone.match.concluded_at === undefined;
 	if (timedHold && completedMs != null && holdSec > 0) {
 		const sinceDoneMs = nowMs - completedMs;

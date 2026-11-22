@@ -135,6 +135,30 @@ test("a finished match keeps its result on screen until it is marked complete", 
 	assert.equal(resolveActiveScene(off, Date.parse("2026-11-21T12:00:05Z")).scene, "points_table");
 });
 
+test("a result waiting to be marked complete outranks the next match's Ready and Toss, but not a live match", () => {
+	const finished = {
+		match: { id: 1, order: 1, status: 3, outcome: 1, completed_at: "2026-11-21T12:00:00Z", concluded_at: null },
+		players: { team1: [], team2: [] },
+	};
+	const withActive = (match) =>
+		baseSeasonFlow({
+			last_completed_match: finished,
+			active_match: { match, rosters: { team1: [], team2: [] }, players: { team1: [], team2: [] } },
+		});
+	const now = Date.parse("2026-11-21T12:10:00Z");
+
+	const ready = withActive({ id: 2, order: 2, status: 1, toss_outcome: 3, ready_at: "2026-11-21T12:05:00Z" });
+	assert.equal(resolveActiveScene(ready, now).scene, "match_result");
+	const tossed = withActive({ id: 2, order: 2, status: 1, toss_outcome: 1, ready_at: "2026-11-21T12:05:00Z" });
+	assert.equal(resolveActiveScene(tossed, now).scene, "match_result");
+	const live = withActive({ id: 2, order: 2, status: 2, toss_outcome: 1, started_at: "2026-11-21T12:08:00Z" });
+	assert.equal(resolveActiveScene(live, now).scene, "live_bar");
+
+	// Once it is marked complete the next match's Ready card comes through.
+	finished.match.concluded_at = "2026-11-21T12:06:00Z";
+	assert.equal(resolveActiveScene(ready, now).scene, "match_ready");
+});
+
 test("knockout matches and the final each get their own stage theme", () => {
 	const scene = (category, extra = {}) => ({ scene: "scorecard", bundle: { match: { category } }, ...extra });
 	assert.equal(stageThemeFor(scene(2)), "final");

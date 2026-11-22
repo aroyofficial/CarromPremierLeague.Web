@@ -127,6 +127,35 @@
 								<div class="countdown-frozen">{{ forwardClock }}</div>
 							</div>
 						</template>
+						<div v-if="timeUpDecision" class="level-decision mt-4" role="alert">
+							<template v-if="timeUpDecision === 'extra_time' || timeUpDecision === 'extra_time_declined'">
+								<strong>
+									{{ timeUpDecision === "extra_time" ? "Regulation time is over and the scores are level" : "Recorded as a tie unless you play on" }}
+								</strong>
+								<span>Play {{ settingsStore.extra_minutes }} minutes of extra time, or finish the match as a tie.</span>
+								<div class="level-decision-actions">
+									<el-button type="warning" @click="handleRegulationDecision(true)">Go to extra time</el-button>
+									<el-button v-if="timeUpDecision === 'extra_time'" @click="handleRegulationDecision(false)">Record a tie</el-button>
+								</div>
+							</template>
+							<template v-else-if="timeUpDecision === 'golden_strike' || timeUpDecision === 'golden_strike_declined'">
+								<strong>
+									{{ timeUpDecision === "golden_strike" ? "Extra time is over and the scores are still level" : "Recorded as a tie unless you play on" }}
+								</strong>
+								<span>Decide it on a Golden Strike inside this match, or finish the match as a tie.</span>
+								<div class="level-decision-actions">
+									<el-button type="warning" @click="handleExtraDecision(true)">Go to Golden Strike</el-button>
+									<el-button v-if="timeUpDecision === 'golden_strike'" @click="handleExtraDecision(false)">Record a tie</el-button>
+								</div>
+							</template>
+							<template v-else>
+								<strong>Golden Strike</strong>
+								<span>Pick the winner of the Golden Strike, then finish the match.</span>
+								<div class="level-decision-actions">
+									<el-button type="warning" @click="openGoldenStrikeDialog()">Choose the winner</el-button>
+								</div>
+							</template>
+						</div>
 						<div class="mt-5 live-badge" :class="{ disabled: !live }">
 							<span class="live-icon"></span>
 							{{ live ? "Live" : "Starting" }}
@@ -993,6 +1022,14 @@ const playHorn = async () => {
 	}, 4000);
 };
 
+const playHornSafely = async () => {
+	try {
+		await playHorn();
+	} catch (error) {
+		console.warn("The horn could not play", error);
+	}
+};
+
 const formatDurationFromSeconds = (seconds) => {
 	const safeSeconds = Math.max(0, Number(seconds || 0));
 	const minutes = Math.floor(safeSeconds / 60)
@@ -1145,6 +1182,20 @@ const handleExtraDecision = async (goToGoldenStrike) => {
 	continueFinishAfterDecision();
 };
 
+// What the scorer can still decide on a knockout match once a period has run out. These controls stay on the card
+// (the dialogs are only a prompt), so a dismissed dialog or a score fixed after time-up never leaves the scorer stuck.
+const timeUpDecision = computed(() => {
+	if (!live.value || editingResult.value || !isKnockoutCategory(props.match.category)) return null;
+	if (goldenStrikeTaken.value) return "golden_strike_winner";
+	if (!isScoreLevel()) return null;
+	if (extraTimeStarted.value) {
+		if (!extraTimeExhausted.value) return null;
+		return goldenStrikeDeclined.value ? "golden_strike_declined" : "golden_strike";
+	}
+	if (!regulationTimeExhausted.value) return null;
+	return extraTimeDeclined.value ? "extra_time_declined" : "extra_time";
+});
+
 // When time runs out, a level knockout match asks what happens next. Any other match only asks for the final scores.
 const promptTimeUp = () => {
 	if (editingResult.value) return;
@@ -1202,9 +1253,10 @@ const onEndingCountdown = async () => {
 		pausedTimerSeconds.value = 0;
 		showSaveBtn.value = false;
 		regulationTimer.value = dayjs().valueOf();
-		await playHorn();
 		enableFinishBtn.value = false;
+		// The question comes first; a horn that cannot play (the browser blocks sound) must not hold it back.
 		promptTimeUp();
+		await playHornSafely();
 		return;
 	}
 
@@ -1215,8 +1267,8 @@ const onEndingCountdown = async () => {
 	showSaveBtn.value = false;
 	regulationTimer.value = dayjs().valueOf();
 	enableFinishBtn.value = false;
-	await playHorn();
 	promptTimeUp();
+	await playHornSafely();
 };
 
 const getTossText = () => {
@@ -2062,6 +2114,26 @@ defineExpose({ open: openMatchManagementDialog });
 .team-scorecard:hover {
 	cursor: pointer;
 	box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+}
+
+.level-decision {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	max-width: 280px;
+	padding: 12px 14px;
+	border: 1px solid var(--el-color-warning);
+	border-radius: 10px;
+	background: color-mix(in srgb, var(--el-color-warning) 12%, transparent);
+	text-align: center;
+	font-size: 0.85rem;
+}
+
+.level-decision-actions {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	gap: 8px;
 }
 
 .live-badge {
