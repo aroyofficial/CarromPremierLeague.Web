@@ -6,12 +6,12 @@
 				<div>
 					<div class="stats-title-row">
 						<div class="stats-header poppins-semibold">Golden Striker</div>
-						<el-tooltip
+						<AppTooltip
 							content="Ranked by net coins (coins pocketed minus fined coins), then coins pocketed, fewer double fines, fewer single fines, fewer opponent coins, fewer striker pockets, then name."
 							placement="top"
 						>
 							<el-icon class="info-icon"><InfoFilled /></el-icon>
-						</el-tooltip>
+						</AppTooltip>
 					</div>
 					<div class="stats-subtitle">
 						The player with the most net coins in this season's league-stage matches
@@ -101,6 +101,7 @@ import { useStatsStore } from "@/store/statsStore";
 import { playerName } from "@/utils/media";
 import { areas } from "@/utils/realtimeRules";
 import { useLive } from "@/utils/useLive";
+import AppTooltip from "@/components/AppTooltip.vue";
 import EntityImage from "@/components/EntityImage.vue";
 import { InfoFilled } from "@element-plus/icons-vue";
 import StatsSwitch from "@/components/StatsSwitch.vue";

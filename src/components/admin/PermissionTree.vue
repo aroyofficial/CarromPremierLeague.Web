@@ -132,9 +132,9 @@
 							<div class="perm-text">
 								<span class="perm-name">
 									{{ row.name }}
-									<el-tooltip v-if="row.blocked" :content="row.blocked" placement="top">
+									<AppTooltip v-if="row.blocked" :content="row.blocked" placement="top">
 										<el-icon class="perm-lock" tabindex="0" :aria-label="row.blocked"><Lock /></el-icon>
-									</el-tooltip>
+									</AppTooltip>
 									<span v-if="row.change === 'added'" class="change-tag is-added">Added</span>
 									<span v-else-if="row.change === 'removed'" class="change-tag is-removed">Removed</span>
 								</span>
@@ -151,6 +151,7 @@
 
 <script setup>
 import { computed, ref, watch } from "vue";
+import AppTooltip from "@/components/AppTooltip.vue";
 import {
 	ArrowDown,
 	Calendar,

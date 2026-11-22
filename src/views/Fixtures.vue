@@ -212,7 +212,7 @@
 						/>
 					</div>
 					<div class="d-flex justify-content-start">
-						<el-tooltip
+						<AppTooltip
 							class="box-item"
 							effect="dark"
 							:content="tooltipText"
@@ -225,7 +225,7 @@
 								size="large"
 								style="width: 60px"
 							/>
-						</el-tooltip>
+						</AppTooltip>
 					</div>
 				</div>
 			</div>
@@ -255,6 +255,7 @@ import { MatchCategory, MatchOutcome, MatchStatus } from "../utils/constants";
 import { isSeasonOpen } from "@/utils/season";
 import dayjs from "@/plugins/dayjs";
 import MatchCard from "../components/MatchCard.vue";
+import AppTooltip from "@/components/AppTooltip.vue";
 import EntityImage from "@/components/EntityImage.vue";
 import { startLoader, pauseLoader } from "../utils/common";
 import { areas } from "@/utils/realtimeRules";

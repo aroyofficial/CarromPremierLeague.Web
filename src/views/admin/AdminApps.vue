@@ -108,11 +108,11 @@
 								<span class="ip-pill is-plain">Read-only</span>
 							</span>
 							<template v-else>
-								<el-tooltip placement="top" :content="permissionNames(app)" :show-after="200">
+								<AppTooltip placement="top" :content="permissionNames(app)" :show-after="200">
 									<span class="ip-name" style="font-weight: 600">
 										{{ app.permissions.length }} permission{{ app.permissions.length === 1 ? "" : "s" }}
 									</span>
-								</el-tooltip>
+								</AppTooltip>
 								<span class="ip-sub">{{ permissionPreview(app) }}</span>
 							</template>
 						</div>
@@ -184,6 +184,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { ElMessageBox } from "element-plus";
 import { CopyDocument, Key, Lock, MoreFilled, Plus, Search } from "@element-plus/icons-vue";
 import AppDrawer from "@/components/admin/integrations/AppDrawer.vue";
+import AppTooltip from "@/components/AppTooltip.vue";
 import SecretRevealDialog from "@/components/admin/integrations/SecretRevealDialog.vue";
 import { adminApi, apiErrorMessage } from "@/services/adminService";
 import { useAuthStore } from "@/store/authStore";

@@ -109,11 +109,11 @@
 
 						<div class="ip-cell">
 							<span class="ip-cell-label">Events</span>
-							<el-tooltip placement="top" :content="eventNames(hook)" :show-after="200">
+							<AppTooltip placement="top" :content="eventNames(hook)" :show-after="200">
 								<span class="ip-name" style="font-weight: 600">
 									{{ hook.events.length }} event{{ hook.events.length === 1 ? "" : "s" }}
 								</span>
-							</el-tooltip>
+							</AppTooltip>
 							<span class="ip-sub">{{ eventPreview(hook) }}</span>
 						</div>
 
@@ -186,6 +186,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { ElMessageBox } from "element-plus";
 import { Connection, CopyDocument, Lock, MoreFilled, Plus, Search } from "@element-plus/icons-vue";
+import AppTooltip from "@/components/AppTooltip.vue";
 import SecretRevealDialog from "@/components/admin/integrations/SecretRevealDialog.vue";
 import WebhookDeliveriesDrawer from "@/components/admin/integrations/WebhookDeliveriesDrawer.vue";
 import WebhookDrawer from "@/components/admin/integrations/WebhookDrawer.vue";
