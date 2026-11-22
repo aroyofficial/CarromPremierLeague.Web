@@ -202,48 +202,40 @@
 	animation: bc-pulse 1.35s ease-in-out infinite;
 }
 
-/* Team Crest & Player Avatar */
+/* Team Crest & Player Avatar: a team logo stands on its own, with no box, border or backing around it. */
 .bc-crest {
 	display: inline-grid;
 	place-items: center;
 	width: 72px;
 	height: 72px;
-	border-radius: 18px;
-	background: linear-gradient(145deg, rgba(30, 46, 78, 0.95) 0%, rgba(12, 21, 40, 0.95) 100%);
-	border: 2px solid var(--bc-accent-line);
-	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 8px 20px rgba(0, 0, 0, 0.35);
-	overflow: hidden;
 	flex-shrink: 0;
+	filter: drop-shadow(0 5px 10px rgba(0, 0, 0, 0.4));
 }
 
 .bc-crest.is-lg {
 	width: 104px;
 	height: 104px;
-	border-radius: 24px;
 }
 
 .bc-crest.is-md {
 	width: 56px;
 	height: 56px;
-	border-radius: 15px;
-	border-width: 1.5px;
 }
 
 .bc-crest.is-sm {
 	width: 44px;
 	height: 44px;
-	border-radius: 12px;
-	border-width: 1.5px;
+}
+
+/* A logo framed in the admin was picked with a round frame, so it shows round. */
+.bc-crest .bc-pic.has-frame {
+	border-radius: 50%;
 }
 
 /*
  * Pictures come from BroadcastPicture, which honours the frame saved in the admin. A framed picture fills the
- * whole crest or avatar; a plain logo keeps a little breathing room, and a plain photo covers its circle.
+ * whole crest or avatar; a plain logo is shown whole, and a plain photo covers its circle.
  */
-.bc-pic.is-contain:not(.has-frame) {
-	padding: 6px;
-	box-sizing: border-box;
-}
 
 .bc-pic.is-contain:not(.has-frame) img {
 	object-fit: contain;
@@ -259,7 +251,14 @@
 	color: var(--bc-accent-soft);
 }
 
+/* No logo: soft round initials, so the slot still reads as a team. */
 .bc-crest .bc-initials {
+	display: grid;
+	place-items: center;
+	width: 100%;
+	height: 100%;
+	border-radius: 50%;
+	background: rgba(255, 255, 255, 0.1);
 	font-size: 26px;
 }
 

@@ -2,6 +2,7 @@
 	<span class="entity-image">
 		<img
 			:src="shown.src"
+			referrerpolicy="no-referrer"
 			:alt="alt"
 			:class="{ 'is-framed': shown.crop }"
 			:style="frameStyle"

@@ -1,6 +1,6 @@
 <template>
 	<span class="framed" :class="{ 'has-frame': crop }">
-		<img :src="parts.src" :alt="alt" :style="frameStyle" draggable="false" @error="$emit('error')" />
+		<img :src="parts.src" referrerpolicy="no-referrer" :alt="alt" :style="frameStyle" draggable="false" @error="$emit('error')" />
 	</span>
 </template>
 
