@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { fixtureWindow, resultLine, scorecardTotals, statusLabel, tossLine, matchLabel } from "./widgetScore.js";
+import { awaitsCompletion, fixtureWindow, isConcluded, resultLine, scorecardTotals, statusLabel, tossLine, matchLabel } from "./widgetScore.js";
 
 const team1 = { id: 1, name: "Alpha", logo_url: null };
 const team2 = { id: 2, name: "Beta", logo_url: null };
@@ -45,8 +45,20 @@ test("toss line names the winner or waits", () => {
 
 test("result line names the winner and the margin", () => {
 	assert.equal(resultLine({ status: 3, outcome: 2, team2, net_points: 4 }), "Beta won by 4 coins");
-	assert.equal(resultLine({ status: 3, outcome: 3, team1, team2 }), "Result pending");
+	assert.equal(resultLine({ status: 3, outcome: 3, team1, team2 }), "Tied · no winner decided");
+	assert.equal(resultLine({ status: 3, outcome: 3, category: 1, team1, team2 }), "Match tied");
+	assert.equal(resultLine({ status: 3, outcome: 3, category: 2, tied: true, team1, team2 }), "Tied · no winner decided");
 	assert.equal(resultLine({ status: 1, outcome: 3, team1, team2 }), "");
+});
+
+test("a finished match awaits completion until concluded_at is set", () => {
+	assert.equal(awaitsCompletion({ status: 3, concluded_at: null }), true);
+	assert.equal(awaitsCompletion({ status: 3, concluded_at: "2026-11-21T12:00:00Z" }), false);
+	// An API that does not report the field never holds a result.
+	assert.equal(awaitsCompletion({ status: 3 }), false);
+	assert.equal(awaitsCompletion({ status: 2, concluded_at: null }), false);
+	assert.equal(isConcluded({ status: 3, concluded_at: "2026-11-21T12:00:00Z" }), true);
+	assert.equal(isConcluded({ status: 3, concluded_at: null }), false);
 });
 
 test("league matches are labelled by number only", () => {

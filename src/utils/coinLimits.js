@@ -44,20 +44,32 @@ export const eitherTeamReachedNine = (rows, teamIds) =>
 // they only stop a change that would break the nine-coin rule.
 const keep = (min, max, value) => ({ min: Math.min(min, value), max: Math.max(max, value) });
 
-export const coinBounds = (rows, row) => {
+// Final, Eliminator, Qualifier 1 and Qualifier 2.
+export const KNOCKOUT_CATEGORY_IDS = Object.freeze([2, 3, 4, 5]);
+export const isKnockoutCategoryId = (category) => KNOCKOUT_CATEGORY_IDS.includes(category);
+
+// In a knockout match the first colour to be cleared ends it, so both teams are never on 9 together.
+export const bothTeamsReachedNine = (rows, teamIds) =>
+	teamIds.length > 1 && teamIds.every((teamId) => teamScore(rows, teamId) >= COINS_PER_COLOR);
+
+// `knockout` stops the second colour at 8 once the first one is on 9.
+export const coinBounds = (rows, row, { knockout = false } = {}) => {
 	const own = count(row.own);
 	const opponent = count(row.opponent);
 	const single = count(row.single);
 	const double = count(row.double);
 	const { mine, other } = teamTotals(rows, row.teamId);
 
-	const ownMax = Math.max(0, COINS_PER_COLOR + mine.fines - other.opponent - (mine.own - own));
+	const mineCap = knockout && offBoard(other, mine) >= COINS_PER_COLOR ? COINS_PER_COLOR - 1 : COINS_PER_COLOR;
+	const otherCap = knockout && offBoard(mine, other) >= COINS_PER_COLOR ? COINS_PER_COLOR - 1 : COINS_PER_COLOR;
+
+	const ownMax = Math.max(0, mineCap + mine.fines - other.opponent - (mine.own - own));
 	// The other colour still free is one number for the whole team. Each player's counter
 	// then stops early once a teammate has already pocketed some of those coins.
-	const opponentCap = Math.max(0, COINS_PER_COLOR - Math.max(0, other.own - other.fines));
+	const opponentCap = Math.max(0, otherCap - Math.max(0, other.own - other.fines));
 	const opponentMax = Math.max(0, opponentCap - (mine.opponent - opponent));
 
-	const finesNeeded = Math.max(0, mine.own + other.opponent - COINS_PER_COLOR);
+	const finesNeeded = Math.max(0, mine.own + other.opponent - mineCap);
 	const otherFines = mine.fines - fineCoins(single, double);
 	const singleMin = Math.max(0, finesNeeded - (otherFines + 2 * double));
 	const doubleMin = Math.max(0, Math.ceil((finesNeeded - (otherFines + single)) / 2));

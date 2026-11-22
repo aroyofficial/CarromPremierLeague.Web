@@ -52,9 +52,18 @@
 				<el-table-column label="Result" min-width="156">
 					<template #default="{ row }">{{ resultText(row) }}</template>
 				</el-table-column>
-				<el-table-column v-if="hasRowActions" label="" width="224" align="right">
+				<el-table-column v-if="hasRowActions" label="" width="300" align="right">
 					<template #default="{ row }">
 						<div class="row-actions">
+							<el-button
+								v-if="canUndoReady(row)"
+								size="small"
+								plain
+								:loading="readyBusyId === row.id"
+								@click="setReadyState(row, false)"
+							>
+								Undo ready
+							</el-button>
 							<el-button
 								v-if="primaryStageAction(row)"
 								size="small"
@@ -78,6 +87,9 @@
 										<el-dropdown-item v-if="rowCommands(row).includes('ready')" command="ready">Mark ready</el-dropdown-item>
 										<el-dropdown-item v-if="rowCommands(row).includes('clear-ready')" command="clear-ready">
 											Clear ready
+										</el-dropdown-item>
+										<el-dropdown-item v-if="rowCommands(row).includes('reopen')" command="reopen">
+											Reopen result on stream
 										</el-dropdown-item>
 										<el-dropdown-item v-if="rowCommands(row).includes('start')" command="start">Start / Toss</el-dropdown-item>
 										<el-dropdown-item v-if="rowCommands(row).includes('live')" command="live">Open live match</el-dropdown-item>
@@ -200,12 +212,12 @@ import { useTeamStore } from "@/store/teamStore";
 import { confirmDelete, defaultSeasonId, runAction, unwrap } from "@/utils/adminHelpers";
 import { MatchCategory, MatchOutcome, MatchStatus, TossOutcome } from "@/utils/constants";
 import { pauseLoader, settlePageLoader, startLoader } from "@/utils/common";
-import { coinBounds, colourOverflow } from "@/utils/coinLimits";
+import { bothTeamsReachedNine, coinBounds, colourOverflow, isKnockoutCategoryId } from "@/utils/coinLimits";
 import { usePermissions } from "@/utils/permissions";
 import { areas } from "@/utils/realtimeRules";
 import { useFillHeight } from "@/utils/useFillHeight";
 import { useAdminLive } from "@/utils/useLive";
-import { isReady, MATCH_STAGE_META, matchStage } from "@/utils/widgetScore";
+import { awaitsCompletion, isConcluded, isReady, MATCH_STAGE_META, matchStage } from "@/utils/widgetScore";
 
 const { Permission, can, canAny, canAll } = usePermissions();
 const { box: tableBox, height: tableHeight } = useFillHeight();
@@ -218,10 +230,20 @@ const readyBusyId = ref(null);
 
 const canRunMatch = () => canAll([Permission.MATCHES_UPDATE, Permission.MATCHES_SCORECARD]);
 const hasBothTeams = (row) => Boolean(row?.team1 && row?.team2);
-const stageMeta = (row) => MATCH_STAGE_META[matchStage(row)] || MATCH_STAGE_META.scheduled;
+const stageMeta = (row) => {
+	// A finished match stays on the stream until an operator marks it complete.
+	if (awaitsCompletion(row)) return { label: "On stream", tag: "warning" };
+	return MATCH_STAGE_META[matchStage(row)] || MATCH_STAGE_META.scheduled;
+};
+
+const canUndoReady = (row) =>
+	(matchStage(row) === "ready" || matchStage(row) === "toss_done") && isReady(row) && can(Permission.MATCHES_UPDATE);
 
 const primaryStageAction = (row) => {
 	const stage = matchStage(row);
+	if (stage === "played" && awaitsCompletion(row) && can(Permission.MATCHES_UPDATE)) {
+		return { kind: "conclude", label: "Mark complete", type: "success" };
+	}
 	if (stage === "scheduled" && hasBothTeams(row) && can(Permission.MATCHES_UPDATE)) {
 		return { kind: "ready", label: "Mark ready", type: "primary" };
 	}
@@ -248,6 +270,7 @@ const rowCommands = (row) => {
 	if (row.status === 1 && isReady(row) && can(Permission.MATCHES_UPDATE)) {
 		commands.push("clear-ready");
 	}
+	if (isConcluded(row) && can(Permission.MATCHES_UPDATE)) commands.push("reopen");
 	if (row.status === 1 && canRunMatch()) commands.push("start");
 	if (row.status === inProgressStatusId && canRunMatch()) commands.push("live");
 	if (row.status !== 1 && can(Permission.MATCHES_RESET)) commands.push("reset");
@@ -426,7 +449,9 @@ const limitRow = (row) => ({
 	double: row.double_fines,
 });
 
-const bounds = (rows, row) => coinBounds(rows.map(limitRow), limitRow(row));
+const editingKnockout = () => isKnockoutCategoryId(editingMatch.value?.category);
+
+const bounds = (rows, row) => coinBounds(rows.map(limitRow), limitRow(row), { knockout: editingKnockout() });
 
 const colorOverflow = (rows) => {
 	const limits = rows.map(limitRow);
@@ -435,6 +460,12 @@ const colorOverflow = (rows) => {
 		if (colourOverflow(limits, teamId)) return teamName(teamId);
 	}
 	return "";
+};
+
+const bothColoursCleared = (rows) => {
+	if (!editingKnockout()) return false;
+	const teams = [...new Set(rows.filter((row) => row.team_id != null).map((row) => row.team_id))];
+	return bothTeamsReachedNine(rows.map(limitRow), teams);
 };
 
 const loadMetricRows = async (match) => {
@@ -482,6 +513,10 @@ const save = async () => {
 	const overflow = colorOverflow(rows);
 	if (overflow) {
 		notify.error(`${overflow}'s colour would have more than 9 coins off the board after fines.`);
+		return;
+	}
+	if (bothColoursCleared(rows)) {
+		notify.error("Both teams cannot be on 9 at the same time in a knockout match.");
 		return;
 	}
 	saving.value = true;
@@ -549,11 +584,27 @@ const setReadyState = async (match, ready) => {
 	if (ok) await loadSeason();
 };
 
+const setConcludedState = async (match, concluded) => {
+	readyBusyId.value = match.id;
+	const { ok } = await runAction(
+		() => adminApi.matches.update(match.id, { is_concluded: concluded }),
+		concluded
+			? `Match #${match.order} marked complete; the stream moves on from its result`
+			: `Match #${match.order} result is back on the stream`,
+	);
+	readyBusyId.value = null;
+	if (ok) await loadSeason();
+};
+
 const runStageAction = (match) => {
 	const action = primaryStageAction(match);
 	if (!action) return;
 	if (action.kind === "ready") {
 		setReadyState(match, true);
+		return;
+	}
+	if (action.kind === "conclude") {
+		setConcludedState(match, true);
 		return;
 	}
 	openMatchRunner(match, { directStage: true });
@@ -603,6 +654,7 @@ const remove = async (match) => {
 const runRowCommand = (command, match) => {
 	if (command === "ready") setReadyState(match, true);
 	else if (command === "clear-ready") setReadyState(match, false);
+	else if (command === "reopen") setConcludedState(match, false);
 	else if (command === "start") openMatchRunner(match);
 	else if (command === "live") openMatchRunner(match, { directStage: true });
 	else if (command === "reset") reset(match);

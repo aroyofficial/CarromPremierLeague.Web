@@ -1,11 +1,13 @@
 import { parseServerTime } from "./integrations.js";
-import { hasToss, isLive, isReady } from "./widgetScore.js";
+import { awaitsCompletion, hasToss, isLive, isReady } from "./widgetScore.js";
 
 /** The standings card stays up long enough to read every row, and it plays the league music while it does. */
 export const POINTS_TABLE_SEC = 30;
 
 /** The bracket card stays up long enough to follow every path to the final. */
 export const BRACKET_SEC = 20;
+/** The tie-breaker card: each tied pair with the breaker that separated it, and any Golden Strike still to play. */
+export const TIE_BREAKER_SEC = 20;
 
 export const TRANSITION_STYLES = Object.freeze([
 	{ value: "reveal", label: "Reveal wipe", hint: "A soft-edged wipe reveals each card and wipes it away." },
@@ -112,7 +114,7 @@ export const FLOW_PRESETS = Object.freeze([
 	{
 		id: "full_tv",
 		label: "Full Tournament TV",
-		description: "Ready -> Toss -> Live bar -> 20s Result -> loops Points, Stats, Bracket, Fixtures & Up Next.",
+		description: "Ready -> Toss -> Live bar -> Result until marked complete -> loops Points, Stats, Bracket, Fixtures & Up Next.",
 		build: () => ({
 			...defaultFlowConfig(),
 			idle_mode: "loop",
@@ -267,9 +269,11 @@ export const formatMatchClock = (match, clockSettings = {}, nowMs = Date.now()) 
 	if (extraStart) {
 		const elapsed = elapsedSeconds(extraStart.getTime(), extraSec, nowMs);
 		const done = elapsed >= extraSec;
+		// Level after extra time: the scorer is deciding whether to go to a Golden Strike.
+		const deciding = done && match.level === true;
 		return {
-			phase: done ? "time_up" : "extra",
-			label: done ? "EXTRA TIME UP" : "EXTRA TIME",
+			phase: deciding ? "decision" : done ? "time_up" : "extra",
+			label: deciding ? "LEVEL · GOLDEN STRIKE?" : done ? "EXTRA TIME UP" : "EXTRA TIME",
 			timer: formatClockSeconds(elapsed),
 			urgent: extraSec - elapsed <= 60,
 			active: true,
@@ -280,9 +284,11 @@ export const formatMatchClock = (match, clockSettings = {}, nowMs = Date.now()) 
 	if (regStart) {
 		const elapsed = elapsedSeconds(regStart.getTime(), regSec, nowMs);
 		const done = elapsed >= regSec;
+		// Level when regulation ends: the scorer is deciding whether to play extra time.
+		const deciding = done && match.level === true;
 		return {
-			phase: done ? "time_up" : "regulation",
-			label: done ? "TIME UP" : "LIVE",
+			phase: deciding ? "decision" : done ? "time_up" : "regulation",
+			label: deciding ? "LEVEL · EXTRA TIME?" : done ? "TIME UP" : "LIVE",
 			timer: formatClockSeconds(elapsed),
 			urgent: regSec - elapsed <= 120,
 			active: true,
@@ -298,13 +304,33 @@ export const formatMatchClock = (match, clockSettings = {}, nowMs = Date.now()) 
 	};
 };
 
+const FINAL_CATEGORY_ID = 2;
+const KNOCKOUT_THEME_CATEGORY_IDS = [3, 4, 5];
+
+/**
+ * Broadcast look for the stage of the competition: the Final, the other knockout matches (and the bracket),
+ * or null for the league stage, which keeps the flow's own accent.
+ */
+export const stageThemeFor = (resolved) => {
+	if (!resolved) return null;
+	if (resolved.scene === "bracket") return "knockout";
+	const category = Number(resolved.bundle?.match?.category);
+	if (category === FINAL_CATEGORY_ID) return "final";
+	if (KNOCKOUT_THEME_CATEGORY_IDS.includes(category)) return "knockout";
+	return null;
+};
+
+/** Every league match is played. From then on the table and the fixtures list say nothing new; the bracket does. */
+export const isLeagueStageDone = (snapshot) => Boolean(snapshot?.top_stats?.is_league_stage_completed);
+
 export const isStepAvailable = (kind, snapshot) => {
 	if (!snapshot) return false;
 	if (kind === "clean_pause") return true;
-	if (kind === "points_table") return Boolean(snapshot.points_table?.standings?.length);
+	if (kind === "points_table") return !isLeagueStageDone(snapshot) && Boolean(snapshot.points_table?.standings?.length);
 	if (kind === "stats") return Boolean(snapshot.top_stats?.players?.length);
-	if (kind === "fixtures") return Boolean(snapshot.matches?.length);
+	if (kind === "fixtures") return !isLeagueStageDone(snapshot) && Boolean(snapshot.matches?.length);
 	if (kind === "bracket") return Boolean(snapshot.knockout?.has_teams);
+	if (kind === "tie_breakers") return Boolean(snapshot.tie_breakers?.league_complete && snapshot.tie_breakers?.groups?.length);
 	if (kind === "last_result") return Boolean(snapshot.last_completed_match?.match);
 	if (kind === "next_match") return Boolean(snapshot.next_scheduled_match?.match);
 	return false;
@@ -322,6 +348,21 @@ export const withBracketStep = (rotation, snapshot) => {
 	const bracket = { id: "step-bracket-auto", kind: "bracket", duration_sec: BRACKET_SEC, enabled: true };
 	const at = anchor < 0 ? steps.length : anchor + 1;
 	return [...steps.slice(0, at), bracket, ...steps.slice(at)];
+};
+
+/**
+ * Once the league is finished and teams are level for a knockout place, the tie-breaker card goes on air
+ * ahead of the bracket, so viewers see why the bracket still has TBD places. Like the bracket, it needs no
+ * rotation setup: it joins only when there is a tie to show.
+ */
+export const withTieBreakerStep = (rotation, snapshot) => {
+	const steps = rotation || [];
+	if (!steps.length || !isStepAvailable("tie_breakers", snapshot)) return steps;
+	if (steps.some((step) => step.kind === "tie_breakers")) return steps;
+	const tieBreakers = { id: "step-tie-breakers-auto", kind: "tie_breakers", duration_sec: TIE_BREAKER_SEC, enabled: true };
+	const bracketAt = steps.findIndex((step) => step.kind === "bracket");
+	const at = bracketAt >= 0 ? bracketAt : steps.length;
+	return [...steps.slice(0, at), tieBreakers, ...steps.slice(at)];
 };
 
 /** A made-up eight-team bracket for the admin preview: Qualifier 1 is set, the rest is still TBD. */
@@ -352,6 +393,16 @@ const layoutForScene = (scene) => {
 	return "card";
 };
 
+// What to show when a pinned card has nothing to show: the bracket once the league is over, otherwise the table.
+const fallbackScene = (base, snapshot, preferred = "points_table") => {
+	if (isLeagueStageDone(snapshot)) {
+		return isStepAvailable("bracket", snapshot)
+			? { ...base, scene: "bracket", layout: "card", bundle: null }
+			: { ...base, scene: "clean", layout: "none", bundle: null };
+	}
+	return { ...base, scene: preferred, layout: "card", bundle: null };
+};
+
 const resolvePinnedScene = (director, snapshot, remainingSec, progress) => {
 	const card = director.card;
 	const pinned = snapshot.pinned_match;
@@ -372,21 +423,21 @@ const resolvePinnedScene = (director, snapshot, remainingSec, progress) => {
 		const target = pinned || snapshot.next_scheduled_match || snapshot.active_match;
 		return target
 			? { ...base, scene: "match_ready", layout: "card", bundle: target, subMode: card === "next_match" ? "up_next" : "ready" }
-			: { ...base, scene: "fixtures", layout: "card", bundle: null };
+			: fallbackScene(base, snapshot, "fixtures");
 	}
 	if (card === "match_result") {
 		const target = pinned || snapshot.last_completed_match || snapshot.active_match;
 		return target
 			? { ...base, scene: "match_result", layout: "card", bundle: target }
-			: { ...base, scene: "points_table", layout: "card", bundle: null };
+			: fallbackScene(base, snapshot);
 	}
 	if (card === "scorecard") {
 		return fallbackActive
 			? { ...base, scene: "scorecard", layout: "card", bundle: fallbackActive }
-			: { ...base, scene: "points_table", layout: "card", bundle: null };
+			: fallbackScene(base, snapshot);
 	}
 	if (card === "bracket" && !isStepAvailable("bracket", snapshot)) {
-		return { ...base, scene: "points_table", layout: "card", bundle: null };
+		return fallbackScene(base, snapshot);
 	}
 	if (card === "points_table" || card === "stats" || card === "bracket" || card === "fixtures") {
 		return { ...base, scene: card, layout: "card", bundle: null };
@@ -500,12 +551,27 @@ export const resolveActiveScene = (snapshot, nowMs = Date.now()) => {
 		}
 	}
 
-	// 3. Immediate Post-Match Result hold right after CompletedAt.
+	// 3. A finished match keeps its result on screen until an operator marks it complete (`concluded_at`).
+	//    An API that does not report `concluded_at` still gets the old timed hold after CompletedAt.
 	const lastDone = snapshot.last_completed_match;
 	const completedDate = parseServerTime(lastDone?.match?.completed_at);
 	const completedMs = completedDate ? completedDate.getTime() : null;
+	const concludedDate = parseServerTime(lastDone?.match?.concluded_at);
+	const concludedMs = concludedDate ? concludedDate.getTime() : null;
 	const holdSec = Math.max(0, Number(stages.result_duration_sec ?? 20));
-	if (lastDone?.match && completedMs != null && holdSec > 0) {
+	if (lastDone?.match && holdSec > 0 && awaitsCompletion(lastDone.match)) {
+		return {
+			scene: "match_result",
+			layout: "card",
+			bundle: lastDone,
+			progress: null,
+			remainingSec: null,
+			source: "post_match",
+			themeAccent,
+		};
+	}
+	const timedHold = lastDone?.match && lastDone.match.concluded_at === undefined;
+	if (timedHold && completedMs != null && holdSec > 0) {
 		const sinceDoneMs = nowMs - completedMs;
 		if (sinceDoneMs >= 0 && sinceDoneMs < holdSec * 1000) {
 			const holdMs = holdSec * 1000;
@@ -522,17 +588,22 @@ export const resolveActiveScene = (snapshot, nowMs = Date.now()) => {
 	}
 
 	// 4. Drag-and-drop Rotation sequence.
-	const availableSteps = withBracketStep(flow.rotation, snapshot).filter((step) => step.enabled !== false && isStepAvailable(step.kind, snapshot));
+	const availableSteps = withTieBreakerStep(withBracketStep(flow.rotation, snapshot), snapshot).filter(
+		(step) => step.enabled !== false && isStepAvailable(step.kind, snapshot),
+	);
 	if (!availableSteps.length) {
 		return { scene: "clean", layout: "none", bundle: null, progress: null, remainingSec: null, source: "idle_empty", themeAccent };
 	}
 
 	const totalMs = availableSteps.reduce((sum, step) => sum + step.duration_sec * 1000, 0);
-	const anchorMs = completedMs != null ? completedMs + holdSec * 1000 : 0;
+	// The rotation starts when the result leaves the screen: at completion, or after the timed hold.
+	const anchorKnown = concludedMs != null || completedMs != null;
+	const anchorMs =
+		concludedMs != null ? concludedMs : completedMs != null ? completedMs + (timedHold ? holdSec * 1000 : 0) : 0;
 	const elapsedMs = Math.max(0, nowMs - anchorMs);
 
 	if (flow.idle_mode === "once_then_clean") {
-		if (completedMs == null || elapsedMs >= totalMs) {
+		if (!anchorKnown || elapsedMs >= totalMs) {
 			return { scene: "clean", layout: "none", bundle: null, progress: null, remainingSec: null, source: "idle_clean", themeAccent };
 		}
 	}

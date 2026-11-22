@@ -190,8 +190,8 @@
 					<p>
 						If the final or the eliminator is tied after {{ regulationMinutes }} minutes, with the same number of white and
 						black coins left, {{ extraMinutes }} more minutes are played. If the match is still tied after that extra
-						time, the system schedules a Golden Strike between the same teams. These matches do not
-						share 1 point. The winner of that Golden Strike takes the knockout place.
+						time, it goes to a Golden Strike in the same match. These matches do not share 1 point. The
+						winner of that Golden Strike takes the knockout place.
 					</p>
 				</section>
 

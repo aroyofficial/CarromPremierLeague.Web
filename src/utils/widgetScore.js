@@ -36,6 +36,10 @@ export const isPlayed = (match) => match?.status === statusId("Played");
 export const hasToss = (match) =>
 	match?.toss_outcome === TossOutcome.Team1Won || match?.toss_outcome === TossOutcome.Team2Won;
 export const isReady = (match) => match?.status === statusId("Scheduled") && Boolean(match?.ready_at);
+/** A finished match stays on the stream until an operator marks it complete (`concluded_at` set). */
+export const isConcluded = (match) => isPlayed(match) && Boolean(match?.concluded_at);
+/** `concluded_at === null` means the API tracks completion and this result is still on screen. */
+export const awaitsCompletion = (match) => isPlayed(match) && match?.concluded_at === null;
 
 /** Exact stage in the matchday workflow: scheduled -> ready -> toss_done -> live -> played. */
 export const matchStage = (match) => {
@@ -99,7 +103,12 @@ export const winnerTeam = (match) => {
 
 export const resultLine = (match) => {
 	const winner = winnerTeam(match);
-	if (!winner) return isPlayed(match) ? "Result pending" : "";
+	if (!winner) {
+		if (!isPlayed(match)) return "";
+		// A finished match with no winner is a tie; a knockout tie was not taken to a Golden Strike.
+		if (match.category === 1) return "Match tied";
+		return "Tied · no winner decided";
+	}
 	if (match.golden_strike) return `${winner.name} won via Golden Strike`;
 	if (match.net_points != null) return `${winner.name} won by ${match.net_points} coins`;
 	return `${winner.name} won`;

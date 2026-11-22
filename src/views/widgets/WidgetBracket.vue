@@ -27,7 +27,7 @@
 					<header class="br-match-head">
 						<span class="br-match-name">{{ slot.label }}</span>
 						<span v-if="slot.status === 2" class="br-state is-live">LIVE</span>
-						<span v-else-if="slot.status === 3" class="br-state">FT</span>
+						<span v-else-if="slot.status === 3" class="br-state">{{ slot.tied ? "TIED" : "FT" }}</span>
 						<span v-else class="br-state is-soon">{{ slot.sides.every((side) => side.team) ? "UP NEXT" : "TBD" }}</span>
 					</header>
 
@@ -96,7 +96,7 @@ const advances = computed(() => ADVANCES[format.value] || {});
 
 // A finished match dims the side that went out. Qualifier 1's loser is not out, it plays Qualifier 2.
 const isOut = (slot, side) => {
-	if (slot.status !== 3 || !side.team || side.is_winner) return false;
+	if (slot.status !== 3 || slot.tied || !side.team || side.is_winner) return false;
 	return !(slot.key === "qualifier1" && format.value === "full");
 };
 </script>

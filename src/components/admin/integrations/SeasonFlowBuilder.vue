@@ -128,20 +128,16 @@
 							<span class="sfb-step-num">4</span>
 							<strong>Full-Time Result Hold</strong>
 							<button type="button" class="sfb-mini-link" @click="previewMode = 'match_result'">Preview</button>
-							<div class="sfb-hold-input">
-								<el-input-number
-									:model-value="stages.result_duration_sec"
-									:min="0"
-									:max="180"
-									:step="5"
-									size="small"
-									controls-position="right"
-									@change="(val) => patchStages({ result_duration_sec: Number(val ?? 20) })"
-								/>
-								<span>sec</span>
-							</div>
+							<el-switch
+								:model-value="stages.result_duration_sec !== 0"
+								size="small"
+								@change="(val) => patchStages({ result_duration_sec: val ? 20 : 0 })"
+							/>
 						</div>
-						<p>Displays the final scorecard right after a match ends before starting the break rotation.</p>
+						<p>
+							Keeps the final scorecard on screen after a match ends until an operator marks the match complete, then
+							starts the break rotation.
+						</p>
 					</div>
 				</div>
 			</section>

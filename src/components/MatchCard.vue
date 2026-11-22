@@ -369,10 +369,10 @@
 				<div class="ms-2">Regulation time is over</div>
 			</template>
 			<div class="ms-2">
-				Go to 5 minutes of extra time? If you choose no, update the player scores and finish the match. The winner is calculated from the scorecard.
+				The scores are level. Go to {{ settingsStore.extra_minutes }} minutes of extra time? If you choose no, the match is recorded as a tie with no winner.
 			</div>
 			<template #footer>
-				<el-button @click="handleRegulationDecision(false)">No, update scores</el-button>
+				<el-button @click="handleRegulationDecision(false)">No, record a tie</el-button>
 				<el-button type="warning" @click="handleRegulationDecision(true)">Go to extra time</el-button>
 			</template>
 		</el-dialog>
@@ -388,10 +388,10 @@
 				<div class="ms-2">Extra time is over</div>
 			</template>
 			<div class="ms-2">
-				Go to Golden Strike? If you choose no, update the player scores and finish the match. The winner is calculated from the scorecard.
+				The scores are still level. Go to a Golden Strike? If you choose no, the match is recorded as a tie with no winner.
 			</div>
 			<template #footer>
-				<el-button @click="handleExtraDecision(false)">No, update scores</el-button>
+				<el-button @click="handleExtraDecision(false)">No, record a tie</el-button>
 				<el-button type="warning" @click="handleExtraDecision(true)">Go to Golden Strike</el-button>
 			</template>
 		</el-dialog>
@@ -404,7 +404,7 @@
 			width="min(460px, 92vw)"
 		>
 			<template #header>
-				<div class="ms-2">Regulation time is over</div>
+				<div class="ms-2">{{ extraTimeStarted ? "Extra time is over" : "Regulation time is over" }}</div>
 			</template>
 			<div class="ms-2">
 				Update the player scores, then finish the match. The winner is calculated from the scorecard.
@@ -538,7 +538,7 @@ import { useSettingsStore } from "@/store/settingsStore";
 import { playerName } from "@/utils/media";
 import EntityImage from "@/components/EntityImage.vue";
 import AddToCalendarMenu from "@/components/AddToCalendarMenu.vue";
-import { COINS_PER_COLOR, coinBounds, colourOverflow, eitherTeamReachedNine, fineCoins as fineCoinCount, teamScore } from "@/utils/coinLimits";
+import { COINS_PER_COLOR, bothTeamsReachedNine, coinBounds, colourOverflow, eitherTeamReachedNine, fineCoins as fineCoinCount, teamScore } from "@/utils/coinLimits";
 import { matchQueue } from "@/utils/requestQueue";
 import { tossFrameState, tossPlan } from "@/utils/tossSpin";
 
@@ -584,6 +584,10 @@ const editingResult = ref(false);
 const showGoldenStrikeDialog = ref(false);
 const enableFinishBtn = ref(false);
 const goldenStrikeTaken = ref(false);
+// The scorer's answers when a knockout match is level. "No" records the match as a tie.
+const extraTimeDeclined = ref(false);
+const goldenStrikeDeclined = ref(false);
+const askedFromFinish = ref(false);
 const winnerTeamId = ref(null);
 const timerFrozenAtZero = ref(false);
 const extraTimeStarted = ref(false);
@@ -678,6 +682,9 @@ const resetMatchModalState = () => {
 	live.value = false;
 	enableFinishBtn.value = false;
 	goldenStrikeTaken.value = false;
+	extraTimeDeclined.value = false;
+	goldenStrikeDeclined.value = false;
+	askedFromFinish.value = false;
 	winnerTeamId.value = null;
 	scorecard.value = createInitialScorecard();
 	exitFullScreen();
@@ -749,7 +756,10 @@ const limitRows = () => [
 const playerTeamId = (player) =>
 	scorecard.value.team1.players.includes(player) ? props.match.team1 : props.match.team2;
 
-const playerBounds = (player) => coinBounds(limitRows(), toLimitRow(player, playerTeamId(player)));
+const playerBounds = (player) =>
+	coinBounds(limitRows(), toLimitRow(player, playerTeamId(player)), {
+		knockout: isKnockoutCategory(props.match.category),
+	});
 
 const limitText = (min, max) => (min > 0 ? `${min} to ${max}` : `Up to ${max}`);
 
@@ -800,6 +810,19 @@ const getInvalidTeamNetPoints = () => {
 	return null;
 };
 
+// Both colours cannot be cleared together in a knockout match: the first one to clear ends it.
+const getBothColoursCleared = () =>
+	isKnockoutCategory(props.match.category) &&
+	bothTeamsReachedNine(limitRows(), [props.match.team1, props.match.team2]);
+
+const BOTH_NINE_MESSAGE =
+	"Both teams cannot be on 9 at the same time in a knockout match. The first colour to clear ends the match.";
+
+const isScoreLevel = () => {
+	const { team1NetPoints, team2NetPoints } = getTeamNetPoints();
+	return team1NetPoints === team2NetPoints;
+};
+
 const getInvalidGoldenStrikeState = () => {
 	const { team1NetPoints, team2NetPoints } = getTeamNetPoints();
 	const isTie = team1NetPoints === team2NetPoints;
@@ -823,6 +846,19 @@ const getFinishedMatchMetadata = () => {
 		if (winnerTeamId.value == null) {
 			return null;
 		}
+		return {
+			winnerTeamId: winnerTeamId.value,
+			outcome:
+				winnerTeamId.value === props.match.team1
+					? MatchOutcome.Team1Won
+					: MatchOutcome.Team2Won,
+			netPoints: 0,
+			goldenStrike: true,
+		};
+	}
+
+	// A knockout match that is still level after extra time can go to a Golden Strike, which gives it a winner.
+	if (isTie && goldenStrikeTaken.value && winnerTeamId.value != null) {
 		return {
 			winnerTeamId: winnerTeamId.value,
 			outcome:
@@ -864,7 +900,9 @@ const finishSummary = computed(() => {
 		return `${getTeam(result.winnerTeamId)?.name || "The selected team"} won on the Golden Strike. Saving will record that winner.`;
 	}
 	if (result.draw) {
-		return "The scorecard is level, so this match will be recorded as a tie.";
+		return isKnockoutCategory(props.match.category)
+			? "The scorecard is level, so this match will be recorded as a tie with no winner. The bracket will not move on from it."
+			: "The scorecard is level, so this match will be recorded as a tie.";
 	}
 	return `${getTeam(result.winnerTeamId)?.name || "The leading team"} won by ${result.netPoints}. Saving calculates and records this winner.`;
 });
@@ -1041,21 +1079,23 @@ const getElapsedMatchTime = () => {
 
 const startExtraTime = async () => {
 	showRegulationDecisionDialog.value = false;
-	extraTimeStarted.value = true;
-	enableFinishBtn.value = false;
-	timerFrozenAtZero.value = false;
-	timerPaused.value = false;
-	pausedTimerSeconds.value = 0;
-	showSaveBtn.value = false;
-	goldenStrikeTaken.value = false;
-	regulationTimer.value = dayjs().add(extraSeconds(), "second").valueOf();
 	try {
+		// The server judges this too: extra time starts only while the scorecard is level.
 		const updatedMatch = await persistMatch({ extra: 0 }, "extra time start");
-		if (updatedMatch?.extra_started_at) {
-			regulationTimer.value = dayjs(updatedMatch.extra_started_at).valueOf() + extraSeconds() * 1000;
-		}
+		extraTimeStarted.value = true;
+		extraTimeDeclined.value = false;
+		enableFinishBtn.value = false;
+		timerFrozenAtZero.value = false;
+		timerPaused.value = false;
+		pausedTimerSeconds.value = 0;
+		showSaveBtn.value = false;
+		goldenStrikeTaken.value = false;
+		regulationTimer.value = updatedMatch?.extra_started_at
+			? dayjs(updatedMatch.extra_started_at).valueOf() + extraSeconds() * 1000
+			: dayjs().add(extraSeconds(), "second").valueOf();
 	} catch (error) {
 		console.error("Failed to start extra time", error);
+		showRegulationDecisionDialog.value = true;
 	}
 };
 
@@ -1064,24 +1104,88 @@ const acknowledgeRegulation = () => {
 	enableFinishBtn.value = true;
 };
 
+// Finish was pressed on a level knockout scorecard that has not been decided yet, so the question comes first.
+const continueFinishAfterDecision = () => {
+	if (!askedFromFinish.value) return;
+	askedFromFinish.value = false;
+	requestFinish();
+};
+
 const handleRegulationDecision = async (goToExtraTime) => {
 	showRegulationDecisionDialog.value = false;
 	if (goToExtraTime) {
+		askedFromFinish.value = false;
 		await startExtraTime();
 		return;
 	}
+	extraTimeDeclined.value = true;
 	enableFinishBtn.value = true;
+	continueFinishAfterDecision();
 };
 
-const handleExtraDecision = (goToGoldenStrike) => {
+const handleExtraDecision = async (goToGoldenStrike) => {
 	showExtraDecisionDialog.value = false;
 	if (goToGoldenStrike) {
+		askedFromFinish.value = false;
+		try {
+			// Saved now so the live widget shows the Golden Strike; the server checks extra time was played and the scorecard is level.
+			await persistMatch({ golden_strike: true }, "Golden Strike choice");
+		} catch (error) {
+			console.error("Failed to start the Golden Strike", error);
+			showExtraDecisionDialog.value = true;
+			return;
+		}
 		openGoldenStrikeDialog();
 		return;
 	}
 	goldenStrikeTaken.value = false;
+	goldenStrikeDeclined.value = true;
 	winnerTeamId.value = null;
 	enableFinishBtn.value = true;
+	continueFinishAfterDecision();
+};
+
+// When time runs out, a level knockout match asks what happens next. Any other match only asks for the final scores.
+const promptTimeUp = () => {
+	if (editingResult.value) return;
+	const knockout = isKnockoutCategory(props.match.category);
+	if (knockout && props.match.golden_strike) {
+		enableFinishBtn.value = true;
+		openGoldenStrikeDialog();
+		return;
+	}
+	if (extraTimeStarted.value) {
+		if (!extraTimeExhausted.value) return;
+		if (knockout && isScoreLevel() && !goldenStrikeDeclined.value) {
+			showExtraDecisionDialog.value = true;
+		} else {
+			showRegulationCompleteDialog.value = true;
+		}
+		return;
+	}
+	if (!regulationTimeExhausted.value) return;
+	if (knockout && isScoreLevel() && !extraTimeDeclined.value) {
+		showRegulationDecisionDialog.value = true;
+	} else {
+		showRegulationCompleteDialog.value = true;
+	}
+};
+
+// Finish on a level knockout scorecard asks the open question first. Returns true when it asked.
+const askAboutLevelScore = () => {
+	if (editingResult.value || !isKnockoutCategory(props.match.category) || !isScoreLevel()) return false;
+	if (goldenStrikeTaken.value) return false;
+	if (!extraTimeStarted.value && !extraTimeDeclined.value) {
+		askedFromFinish.value = true;
+		showRegulationDecisionDialog.value = true;
+		return true;
+	}
+	if (extraTimeStarted.value && !goldenStrikeDeclined.value) {
+		askedFromFinish.value = true;
+		showExtraDecisionDialog.value = true;
+		return true;
+	}
+	return false;
 };
 
 watch(clockNow, () => {
@@ -1100,11 +1204,7 @@ const onEndingCountdown = async () => {
 		regulationTimer.value = dayjs().valueOf();
 		await playHorn();
 		enableFinishBtn.value = false;
-		if (isKnockoutCategory(props.match.category)) {
-			showRegulationDecisionDialog.value = true;
-			return;
-		}
-		showRegulationCompleteDialog.value = true;
+		promptTimeUp();
 		return;
 	}
 
@@ -1116,7 +1216,7 @@ const onEndingCountdown = async () => {
 	regulationTimer.value = dayjs().valueOf();
 	enableFinishBtn.value = false;
 	await playHorn();
-	showExtraDecisionDialog.value = true;
+	promptTimeUp();
 };
 
 const getTossText = () => {
@@ -1151,7 +1251,7 @@ const getStatusText = () => {
 			if (!winnerTeamId) {
 				if (props.match.outcome === MatchOutcome.NotDecided) {
 					if (isKnockoutCategory(props.match.category)) {
-						return "Tied — Golden Strike scheduled";
+						return "Tied — no winner";
 					}
 					if (isLeagueCategory(props.match.category)) {
 						return "Match tied";
@@ -1336,6 +1436,9 @@ const startMatch = async () => {
 	live.value = true;
 	enableFinishBtn.value = false;
 	goldenStrikeTaken.value = false;
+	extraTimeDeclined.value = false;
+	goldenStrikeDeclined.value = false;
+	askedFromFinish.value = false;
 	timerFrozenAtZero.value = false;
 	timerPaused.value = false;
 	pausedTimerSeconds.value = 0;
@@ -1465,7 +1568,6 @@ const restoreClock = () => {
 			extraTimeExhausted.value = true;
 			timerFrozenAtZero.value = true;
 			enableFinishBtn.value = false;
-			showExtraDecisionDialog.value = true;
 		}
 		return;
 	}
@@ -1475,11 +1577,6 @@ const restoreClock = () => {
 		regulationTimeExhausted.value = true;
 		timerFrozenAtZero.value = true;
 		enableFinishBtn.value = false;
-		if (isKnockoutCategory(props.match.category)) {
-			showRegulationDecisionDialog.value = true;
-		} else {
-			showRegulationCompleteDialog.value = true;
-		}
 	}
 };
 
@@ -1496,6 +1593,8 @@ const resumeLiveMatch = async () => {
 		restoreClock();
 		takeFullScreen();
 		await loadScorecard();
+		// Whether the match is level is known only once the scorecard is loaded.
+		promptTimeUp();
 	} catch (error) {
 		console.error("Failed to resume the live match", error);
 		notify.error(apiMessage(error, "The live match could not be loaded."));
@@ -1623,11 +1722,16 @@ const requestFinish = () => {
 		);
 		return;
 	}
+	if (getBothColoursCleared()) {
+		notify.warning(BOTH_NINE_MESSAGE);
+		return;
+	}
 	const invalidGoldenStrikeState = getInvalidGoldenStrikeState();
 	if (invalidGoldenStrikeState) {
 		notify.warning(invalidGoldenStrikeState);
 		return;
 	}
+	if (askAboutLevelScore()) return;
 	if (!getFinishedMatchMetadata()) {
 		openGoldenStrikeDialog();
 		return;
@@ -1662,6 +1766,10 @@ const finishMatch = async (forcefully = false) => {
 		notify.warning(
 			`${invalidTeamNetPoints.teamName} cannot score more than 9 net coins. Current value: ${invalidTeamNetPoints.netPoints}.`,
 		);
+		return;
+	}
+	if (getBothColoursCleared()) {
+		notify.warning(BOTH_NINE_MESSAGE);
 		return;
 	}
 	const invalidGoldenStrikeState = getInvalidGoldenStrikeState();

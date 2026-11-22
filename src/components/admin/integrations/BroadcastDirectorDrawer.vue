@@ -92,6 +92,25 @@
 				</div>
 			</section>
 
+			<section v-if="canUpdateMatches && finishedOnStream" class="ip-section">
+				<h3>Finished match on stream</h3>
+				<p class="ip-section-hint">
+					A finished match keeps its scorecard on screen until you mark it complete. Then the stream moves on to the
+					break rotation.
+				</p>
+				<div class="bdd-match-cue">
+					<div>
+						<strong>Match #{{ finishedOnStream.order ?? finishedOnStream.match_order }} · {{ finishedOnStream.team1?.name || "TBD" }} vs {{ finishedOnStream.team2?.name || "TBD" }}</strong>
+						<span>{{ resultLine(finishedOnStream) }}</span>
+					</div>
+					<div class="bdd-cue-btns">
+						<el-button type="success" size="small" :loading="matchBusy" @click="concludeMatch(finishedOnStream.id)">
+							Mark complete
+						</el-button>
+					</div>
+				</div>
+			</section>
+
 			<section v-if="canUpdateMatches && upcomingOrReadyMatch" class="ip-section">
 				<h3>Table stage cue</h3>
 				<p class="ip-section-hint"> Cue the next fixture on stream when players step up to the Carrom board.</p>
@@ -142,7 +161,7 @@ import { notify } from "@/utils/notify";
 import { areas } from "@/utils/realtimeRules";
 import { useLive } from "@/utils/useLive";
 import { DIRECTOR_PIN_CARDS, computeClockOffset, resolveActiveScene } from "@/utils/widgetFlow";
-import { isReady } from "@/utils/widgetScore";
+import { awaitsCompletion, isReady, resultLine } from "@/utils/widgetScore";
 import BroadcastStageScene from "@/views/widgets/BroadcastStageScene.vue";
 
 const props = defineProps({
@@ -203,6 +222,11 @@ const upcomingOrReadyMatch = computed(() => {
 
 const isReadyMatch = computed(() => isReady(upcomingOrReadyMatch.value));
 
+const finishedOnStream = computed(() => {
+	const match = snapshot.value?.last_completed_match?.match;
+	return awaitsCompletion(match) ? match : null;
+});
+
 const loadPreview = async () => {
 	if (!props.modelValue || !props.widget?.id) return;
 	loading.value = true;
@@ -257,6 +281,19 @@ const toggleReady = async (matchId, ready) => {
 		await loadPreview();
 	} catch (error) {
 		notify.error(apiErrorMessage(error, "Match status could not be updated."));
+	} finally {
+		matchBusy.value = false;
+	}
+};
+
+const concludeMatch = async (matchId) => {
+	matchBusy.value = true;
+	try {
+		await adminApi.matches.update(matchId, { is_concluded: true });
+		notify.success("Match marked complete. The stream moves on from its result.");
+		await loadPreview();
+	} catch (error) {
+		notify.error(apiErrorMessage(error, "Match could not be marked complete."));
 	} finally {
 		matchBusy.value = false;
 	}

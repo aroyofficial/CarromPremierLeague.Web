@@ -1,5 +1,5 @@
 <template>
-	<div class="bc-root" :data-bc-accent="resolved.themeAccent || 'gold'">
+	<div class="bc-root" :data-bc-accent="resolved.themeAccent || 'gold'" :data-bc-stage="stageTheme || undefined">
 		<Transition :name="transitionName" mode="out-in" appear>
 			<div
 				v-if="resolved.scene !== 'clean'"
@@ -44,6 +44,7 @@
 				<WidgetPointsTable v-else-if="resolved.scene === 'points_table'" :snapshot="snapshot" />
 				<WidgetStats v-else-if="resolved.scene === 'stats'" :snapshot="snapshot" />
 				<WidgetBracket v-else-if="resolved.scene === 'bracket'" :snapshot="bracketSnapshot" />
+				<WidgetTieBreakers v-else-if="resolved.scene === 'tie_breakers'" :snapshot="snapshot" />
 				<WidgetFixtures v-else-if="resolved.scene === 'fixtures'" :snapshot="snapshot" />
 			</div>
 		</Transition>
@@ -55,8 +56,9 @@ import { computed, onBeforeUnmount, watch } from "vue";
 import "@/assets/styles/broadcast.css";
 import { pauseBgm, playBgm } from "@/utils/common";
 import { BackgroundMusic } from "@/utils/constants";
-import { resolveActiveScene, sampleKnockout } from "@/utils/widgetFlow";
+import { resolveActiveScene, sampleKnockout, stageThemeFor } from "@/utils/widgetFlow";
 import WidgetBracket from "./WidgetBracket.vue";
+import WidgetTieBreakers from "./WidgetTieBreakers.vue";
 import WidgetFixtures from "./WidgetFixtures.vue";
 import WidgetLiveBar from "./WidgetLiveBar.vue";
 import WidgetMatchReady from "./WidgetMatchReady.vue";
@@ -202,6 +204,9 @@ const resolved = computed(() => {
 
 	return resolveActiveScene(snap, props.nowMs);
 });
+
+// Knockout matches and the Final get their own look, so the stage of the competition reads at a glance.
+const stageTheme = computed(() => stageThemeFor(resolved.value));
 
 // An admin preview of the bracket card shows a sample while no team has qualified, so the card can still be checked.
 const bracketSnapshot = computed(() => {

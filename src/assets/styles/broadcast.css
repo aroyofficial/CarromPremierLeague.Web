@@ -45,6 +45,49 @@
 }
 
 /*
+ * Stage themes. Knockout matches (Eliminator, Qualifiers, the bracket) turn violet; the Final turns
+ * royal burgundy and gold. Both override the flow's accent so the stage of the competition reads at a glance.
+ */
+.bc-root[data-bc-stage="knockout"] {
+	--bc-accent: #a78bfa;
+	--bc-accent-soft: #ddd6fe;
+	--bc-accent-ink: #14092e;
+	--bc-accent-glow: rgba(167, 139, 250, 0.38);
+	--bc-accent-line: rgba(167, 139, 250, 0.6);
+	--bc-glass: linear-gradient(155deg, rgba(14, 9, 38, 0.96) 0%, rgba(30, 19, 70, 0.94) 52%, rgba(12, 8, 32, 0.97) 100%);
+	--bc-glass-soft: rgba(32, 22, 72, 0.78);
+	--bc-rim: rgba(196, 181, 253, 0.26);
+	--bc-rim-soft: rgba(167, 139, 250, 0.22);
+}
+
+.bc-root[data-bc-stage="final"] {
+	--bc-accent: #ffd34d;
+	--bc-accent-soft: #fff1a8;
+	--bc-accent-ink: #2a1400;
+	--bc-accent-glow: rgba(255, 211, 77, 0.46);
+	--bc-accent-line: rgba(255, 211, 77, 0.7);
+	--bc-glass: linear-gradient(155deg, rgba(40, 7, 18, 0.97) 0%, rgba(70, 12, 30, 0.95) 52%, rgba(30, 5, 14, 0.98) 100%);
+	--bc-glass-soft: rgba(70, 16, 32, 0.78);
+	--bc-rim: rgba(255, 211, 77, 0.34);
+	--bc-rim-soft: rgba(255, 211, 77, 0.24);
+}
+
+.bc-root[data-bc-stage] .bc-card,
+.bc-root[data-bc-stage] .bc-lower-third {
+	border-color: var(--bc-accent-line);
+	box-shadow: var(--bc-shadow), 0 0 46px var(--bc-accent-glow);
+}
+
+.bc-root[data-bc-stage] .bc-card::before {
+	height: 6px;
+}
+
+.bc-root[data-bc-stage="final"] .bc-card::before,
+.bc-root[data-bc-stage="final"] .bc-lower-third::before {
+	background: linear-gradient(90deg, #b45309 0%, var(--bc-accent) 24%, #fff7c2 50%, var(--bc-accent) 76%, #b45309 100%);
+}
+
+/*
  * Stage wrappers. Each scene sits in a wrapper that hugs the card and carries 96px of padding, so the card
  * shadow stays inside the box that the reveal mask and the page-flip clip are drawn on.
  */
