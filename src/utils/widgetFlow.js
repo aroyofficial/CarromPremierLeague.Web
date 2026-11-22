@@ -217,7 +217,16 @@ export const formatClockSeconds = (totalSeconds) => {
 	return `${pad2(minutes)}:${pad2(seconds)}`;
 };
 
-/** Synchronized countdown clock derived from server UTC timestamps and league clock settings. */
+/**
+ * Elapsed match clock. Same reading as the scorer's match card: seconds since started_at
+ * (or extra_started_at once extra time has begun), capped at the period length. Both screens
+ * use the same second boundary, so they tick together.
+ */
+const elapsedSeconds = (startMs, periodSec, nowMs) => {
+	const remaining = Math.max(0, Math.ceil((startMs + periodSec * 1000 - nowMs) / 1000));
+	return Math.max(0, periodSec - remaining);
+};
+
 export const formatMatchClock = (match, clockSettings = {}, nowMs = Date.now()) => {
 	if (!match) return { phase: "idle", label: "", timer: "", urgent: false, active: false };
 	if (match.category === 7 || match.golden_strike) {
@@ -227,29 +236,31 @@ export const formatMatchClock = (match, clockSettings = {}, nowMs = Date.now()) 
 		return { phase: "idle", label: "", timer: "", urgent: false, active: false };
 	}
 
-	const regMinutes = Number(clockSettings?.regulation_minutes || 15);
-	const extraMinutes = Number(clockSettings?.extra_minutes || 5);
+	const regSec = Math.round(Number(clockSettings?.regulation_minutes || 15) * 60);
+	const extraSec = Math.round(Number(clockSettings?.extra_minutes || 5) * 60);
 
 	const extraStart = parseServerTime(match.extra_started_at);
 	if (extraStart) {
-		const remSec = Math.max(0, Math.ceil((extraStart.getTime() + extraMinutes * 60_000 - nowMs) / 1000));
+		const elapsed = elapsedSeconds(extraStart.getTime(), extraSec, nowMs);
+		const done = elapsed >= extraSec;
 		return {
-			phase: remSec === 0 ? "time_up" : "extra",
-			label: remSec === 0 ? "EXTRA TIME UP" : "EXTRA TIME",
-			timer: formatClockSeconds(remSec),
-			urgent: remSec <= 60,
+			phase: done ? "time_up" : "extra",
+			label: done ? "EXTRA TIME UP" : "EXTRA TIME",
+			timer: formatClockSeconds(elapsed),
+			urgent: extraSec - elapsed <= 60,
 			active: true,
 		};
 	}
 
 	const regStart = parseServerTime(match.started_at);
 	if (regStart) {
-		const remSec = Math.max(0, Math.ceil((regStart.getTime() + regMinutes * 60_000 - nowMs) / 1000));
+		const elapsed = elapsedSeconds(regStart.getTime(), regSec, nowMs);
+		const done = elapsed >= regSec;
 		return {
-			phase: remSec === 0 ? "time_up" : "regulation",
-			label: remSec === 0 ? "TIME UP" : "LIVE",
-			timer: formatClockSeconds(remSec),
-			urgent: remSec <= 120,
+			phase: done ? "time_up" : "regulation",
+			label: done ? "TIME UP" : "LIVE",
+			timer: formatClockSeconds(elapsed),
+			urgent: regSec - elapsed <= 120,
 			active: true,
 		};
 	}
@@ -257,7 +268,7 @@ export const formatMatchClock = (match, clockSettings = {}, nowMs = Date.now()) 
 	return {
 		phase: "regulation",
 		label: "LIVE",
-		timer: `${pad2(regMinutes)}:00`,
+		timer: "00:00",
 		urgent: false,
 		active: true,
 	};

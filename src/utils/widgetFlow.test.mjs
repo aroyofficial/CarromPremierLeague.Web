@@ -188,15 +188,39 @@ test("synced match clock handles regulation, extra time, zero floor, Golden Stri
 		{ regulation_minutes: 15, extra_minutes: 5 },
 		Date.parse("2026-11-21T12:05:30Z"),
 	);
-	assert.equal(reg.timer, "09:30");
+	assert.equal(reg.timer, "05:30");
 	assert.equal(reg.phase, "regulation");
+
+	// A fraction of a second does not tick early: 5:30.900 still reads 05:30, the same as the scorer's clock.
+	const midSecond = formatMatchClock(
+		{ status: 2, category: 1, started_at: "2026-11-21T12:00:00Z" },
+		{ regulation_minutes: 15 },
+		Date.parse("2026-11-21T12:05:30.900Z"),
+	);
+	assert.equal(midSecond.timer, "05:30");
+
+	// Naive server timestamps are UTC. Five and a half hours of local offset must not move the clock.
+	const naive = formatMatchClock(
+		{ status: 2, category: 1, started_at: "2026-11-21T12:00:00" },
+		{ regulation_minutes: 15 },
+		Date.parse("2026-11-21T12:05:30Z"),
+	);
+	assert.equal(naive.timer, "05:30");
+
+	const fullTime = formatMatchClock(
+		{ status: 2, category: 1, started_at: "2026-11-21T12:00:00Z" },
+		{ regulation_minutes: 15 },
+		Date.parse("2026-11-21T12:20:00Z"),
+	);
+	assert.equal(fullTime.timer, "15:00");
+	assert.equal(fullTime.phase, "time_up");
 
 	const extra = formatMatchClock(
 		{ status: 2, category: 2, started_at: "2026-11-21T12:00:00Z", extra_started_at: "2026-11-21T12:15:00Z" },
 		{ regulation_minutes: 15, extra_minutes: 5 },
 		Date.parse("2026-11-21T12:19:20Z"),
 	);
-	assert.equal(extra.timer, "00:40");
+	assert.equal(extra.timer, "04:20");
 	assert.equal(extra.phase, "extra");
 	assert.equal(extra.urgent, true);
 
