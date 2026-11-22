@@ -187,6 +187,7 @@ const activeSummary = computed(() => {
 		scorecard: "Full Scorecard",
 		points_table: "Points Table",
 		stats: "Golden Striker & Stats",
+		bracket: "Knockout Bracket",
 		fixtures: "Fixtures & Results",
 	}[cur.scene] || cur.scene;
 	const prefix = cur.source === "director" ? "Director Override" : "Auto Flow";

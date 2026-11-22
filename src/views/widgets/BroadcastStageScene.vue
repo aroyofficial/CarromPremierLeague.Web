@@ -43,6 +43,7 @@
 				/>
 				<WidgetPointsTable v-else-if="resolved.scene === 'points_table'" :snapshot="snapshot" />
 				<WidgetStats v-else-if="resolved.scene === 'stats'" :snapshot="snapshot" />
+				<WidgetBracket v-else-if="resolved.scene === 'bracket'" :snapshot="bracketSnapshot" />
 				<WidgetFixtures v-else-if="resolved.scene === 'fixtures'" :snapshot="snapshot" />
 			</div>
 		</Transition>
@@ -54,7 +55,8 @@ import { computed, onBeforeUnmount, watch } from "vue";
 import "@/assets/styles/broadcast.css";
 import { pauseBgm, playBgm } from "@/utils/common";
 import { BackgroundMusic } from "@/utils/constants";
-import { resolveActiveScene } from "@/utils/widgetFlow";
+import { resolveActiveScene, sampleKnockout } from "@/utils/widgetFlow";
+import WidgetBracket from "./WidgetBracket.vue";
 import WidgetFixtures from "./WidgetFixtures.vue";
 import WidgetLiveBar from "./WidgetLiveBar.vue";
 import WidgetMatchReady from "./WidgetMatchReady.vue";
@@ -199,6 +201,13 @@ const resolved = computed(() => {
 	}
 
 	return resolveActiveScene(snap, props.nowMs);
+});
+
+// An admin preview of the bracket card shows a sample while no team has qualified, so the card can still be checked.
+const bracketSnapshot = computed(() => {
+	const snap = effectiveSnapshot.value;
+	if (!snap || !props.previewScene || snap.knockout?.has_teams) return snap;
+	return { ...snap, knockout: sampleKnockout(snap.points_table?.standings || []) };
 });
 
 const seasonName = computed(() => effectiveSnapshot.value?.season?.name || "");

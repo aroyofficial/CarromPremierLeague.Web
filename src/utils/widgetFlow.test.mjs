@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+	DIRECTOR_PIN_CARDS,
 	POINTS_TABLE_SEC,
 	ROTATION_CARD_MAP,
 	TRANSITION_STYLES,
@@ -9,10 +10,13 @@ import {
 	defaultFlowConfig,
 	formatMatchClock,
 	insertStepAt,
+	isStepAvailable,
 	minSecForKind,
 	moveStep,
 	resolveActiveScene,
+	sampleKnockout,
 	trackClockOffset,
+	withBracketStep,
 } from "./widgetFlow.js";
 
 const baseSeasonFlow = (overrides = {}) => ({
@@ -253,4 +257,61 @@ test("drag-and-drop helpers reorder and insert steps cleanly", () => {
 	assert.equal(inserted.length, 4);
 	assert.equal(inserted[1].kind, "clean_pause");
 	assert.equal(inserted[1].duration_sec, 10);
+});
+
+const knockoutSnapshot = (overrides = {}) => ({
+	format: "eliminator",
+	has_teams: true,
+	champion: null,
+	slots: [
+		{ key: "eliminator", label: "Eliminator", sides: [{ team: null, source: "#2" }, { team: null, source: "#3" }] },
+		{ key: "final", label: "Final", sides: [{ team: { id: 1, name: "Alpha" }, source: "#1" }, { team: null, source: "Winner of Eliminator" }] },
+	],
+	...overrides,
+});
+
+test("the bracket card is offered, pinnable, and only available once a team has qualified", () => {
+	assert.ok(ROTATION_CARD_MAP.bracket);
+	assert.ok(DIRECTOR_PIN_CARDS.some((item) => item.card === "bracket"));
+	assert.ok(defaultFlowConfig().rotation.some((step) => step.kind === "bracket"));
+	assert.equal(isStepAvailable("bracket", baseSeasonFlow()), false);
+	assert.equal(isStepAvailable("bracket", baseSeasonFlow({ knockout: { format: "final", has_teams: false, slots: [] } })), false);
+	assert.equal(isStepAvailable("bracket", baseSeasonFlow({ knockout: knockoutSnapshot() })), true);
+});
+
+test("the bracket joins the rotation after stats once a team qualifies, even in a flow saved without it", () => {
+	const rotation = [
+		{ id: "p", kind: "points_table", duration_sec: 30, enabled: true },
+		{ id: "s", kind: "stats", duration_sec: 15, enabled: true },
+		{ id: "f", kind: "fixtures", duration_sec: 15, enabled: true },
+	];
+	const withTeam = baseSeasonFlow({ flow: { rotation }, knockout: knockoutSnapshot() });
+	assert.deepEqual(withBracketStep(rotation, withTeam).map((step) => step.kind), ["points_table", "stats", "bracket", "fixtures"]);
+	assert.deepEqual(withBracketStep(rotation, baseSeasonFlow()).map((step) => step.kind), ["points_table", "stats", "fixtures"]);
+
+	// 30s points + 15s stats, then the bracket for its 20s.
+	assert.equal(resolveActiveScene(withTeam, 44_000).scene, "stats");
+	const onBracket = resolveActiveScene(withTeam, 46_000);
+	assert.equal(onBracket.scene, "bracket");
+	assert.equal(onBracket.layout, "card");
+	assert.equal(resolveActiveScene(withTeam, 66_000).scene, "fixtures");
+
+	// A rotation that already lists the bracket is left alone, and a disabled one stays off.
+	const listed = [...rotation, { id: "b", kind: "bracket", duration_sec: 20, enabled: false }];
+	assert.equal(withBracketStep(listed, withTeam).length, listed.length);
+});
+
+test("pinning the bracket falls back to the points table until a team qualifies", () => {
+	const flow = defaultFlowConfig();
+	flow.director = { mode: "pin", card: "bracket", match_id: null, until_utc: null };
+	assert.equal(resolveActiveScene(baseSeasonFlow({ flow }), 1000).scene, "points_table");
+	assert.equal(resolveActiveScene(baseSeasonFlow({ flow, knockout: knockoutSnapshot() }), 1000).scene, "bracket");
+});
+
+test("the sample bracket shows the whole eight-team flow with TBD slots", () => {
+	const sample = sampleKnockout([{ team_name: "Alpha" }]);
+	assert.equal(sample.format, "full");
+	assert.deepEqual(sample.slots.map((slot) => slot.key), ["qualifier1", "eliminator", "qualifier2", "final"]);
+	assert.equal(sample.slots[0].sides[0].team.name, "Alpha");
+	assert.equal(sample.slots[3].sides[0].team, null);
 });

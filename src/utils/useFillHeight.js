@@ -1,9 +1,12 @@
 import { onUnmounted, ref, watch } from "vue";
 
 // Pixel height of the box, so Element Plus can scroll the table body inside it.
+// The height starts empty on purpose. A table given a number before it is on screen queues that same
+// number to apply on the next tick, and that stale write lands after the measured height and shrinks
+// the table back. With no number the table fills the box (CSS) until the first measure sets the pixels.
 export function useFillHeight() {
 	const box = ref(null);
-	const height = ref(320);
+	const height = ref(null);
 	let observer;
 
 	const measure = () => {

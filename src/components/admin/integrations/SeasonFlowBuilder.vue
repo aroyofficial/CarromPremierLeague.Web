@@ -385,6 +385,7 @@ const PREVIEW_TABS = [
 	{ value: "match_result", label: "Result" },
 	{ value: "points_table", label: "Points" },
 	{ value: "stats", label: "Stats" },
+	{ value: "bracket", label: "Bracket" },
 	{ value: "fixtures", label: "Fixtures" },
 ];
 

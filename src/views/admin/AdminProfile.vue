@@ -562,7 +562,6 @@ onMounted(() => settlePageLoader(load));
 	flex-direction: column;
 	gap: 20px;
 	min-height: 0;
-	max-width: 1180px;
 }
 
 .profile-hero {

@@ -77,5 +77,5 @@ test("payload sends only the target that matches the widget type and attaches fl
 	assert.equal(flow.widget_type, "season_flow");
 	assert.equal(flow.match_id, null);
 	assert.equal(flow.season_id, 3);
-	assert.equal(flow.flow_config.rotation.length, 3);
+	assert.equal(flow.flow_config.rotation.length, 4);
 });

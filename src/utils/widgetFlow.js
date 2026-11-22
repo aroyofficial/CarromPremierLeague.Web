@@ -4,6 +4,9 @@ import { hasToss, isLive, isReady } from "./widgetScore.js";
 /** The standings card stays up long enough to read every row, and it plays the league music while it does. */
 export const POINTS_TABLE_SEC = 30;
 
+/** The bracket card stays up long enough to follow every path to the final. */
+export const BRACKET_SEC = 20;
+
 export const TRANSITION_STYLES = Object.freeze([
 	{ value: "reveal", label: "Reveal wipe", hint: "A soft-edged wipe reveals each card and wipes it away." },
 	{ value: "flip", label: "Corner page flip", hint: "Each card unfolds from its corner like a turning page." },
@@ -26,6 +29,13 @@ export const ROTATION_CARDS = Object.freeze([
 		shortLabel: "Top Stats",
 		defaultSec: 15,
 		hint: "Top coin potters leaderboard with net coins and strikers.",
+	},
+	{
+		kind: "bracket",
+		label: "Knockout Bracket",
+		shortLabel: "Bracket",
+		defaultSec: BRACKET_SEC,
+		hint: "The road to the final: who has qualified and who is still TBD. Appears once a team qualifies.",
 	},
 	{
 		kind: "fixtures",
@@ -62,6 +72,7 @@ export const ROTATION_CARD_MAP = Object.freeze(Object.fromEntries(ROTATION_CARDS
 export const DIRECTOR_PIN_CARDS = Object.freeze([
 	{ card: "points_table", label: "Points Table" },
 	{ card: "stats", label: "Top Stats" },
+	{ card: "bracket", label: "Knockout Bracket" },
 	{ card: "fixtures", label: "Fixtures" },
 	{ card: "match_result", label: "Last Result" },
 	{ card: "next_match", label: "Up Next" },
@@ -91,6 +102,7 @@ export const defaultFlowConfig = () => ({
 	rotation: [
 		{ id: "step-points", kind: "points_table", duration_sec: POINTS_TABLE_SEC, enabled: true },
 		{ id: "step-stats", kind: "stats", duration_sec: 15, enabled: true },
+		{ id: "step-bracket", kind: "bracket", duration_sec: BRACKET_SEC, enabled: true },
 		{ id: "step-fixtures", kind: "fixtures", duration_sec: 15, enabled: true },
 	],
 	director: { mode: "auto", card: null, match_id: null, until_utc: null },
@@ -100,13 +112,14 @@ export const FLOW_PRESETS = Object.freeze([
 	{
 		id: "full_tv",
 		label: "Full Tournament TV",
-		description: "Ready -> Toss -> Live bar -> 20s Result -> loops Points, Stats, Fixtures & Up Next.",
+		description: "Ready -> Toss -> Live bar -> 20s Result -> loops Points, Stats, Bracket, Fixtures & Up Next.",
 		build: () => ({
 			...defaultFlowConfig(),
 			idle_mode: "loop",
 			rotation: [
 				{ id: makeStepId("points"), kind: "points_table", duration_sec: POINTS_TABLE_SEC, enabled: true },
 				{ id: makeStepId("stats"), kind: "stats", duration_sec: 15, enabled: true },
+				{ id: makeStepId("bracket"), kind: "bracket", duration_sec: BRACKET_SEC, enabled: true },
 				{ id: makeStepId("fixtures"), kind: "fixtures", duration_sec: 15, enabled: true },
 				{ id: makeStepId("next"), kind: "next_match", duration_sec: 12, enabled: true },
 			],
@@ -128,13 +141,14 @@ export const FLOW_PRESETS = Object.freeze([
 	{
 		id: "intermission_loop",
 		label: "Intermission Slate Loop",
-		description: "Cycles Standings, Stats, Fixtures, and a 10s clean camera breather.",
+		description: "Cycles Standings, Stats, Bracket, Fixtures, and a 10s clean camera breather.",
 		build: () => ({
 			...defaultFlowConfig(),
 			idle_mode: "loop",
 			rotation: [
 				{ id: makeStepId("points"), kind: "points_table", duration_sec: POINTS_TABLE_SEC, enabled: true },
 				{ id: makeStepId("stats"), kind: "stats", duration_sec: 15, enabled: true },
+				{ id: makeStepId("bracket"), kind: "bracket", duration_sec: BRACKET_SEC, enabled: true },
 				{ id: makeStepId("fixtures"), kind: "fixtures", duration_sec: 15, enabled: true },
 				{ id: makeStepId("pause"), kind: "clean_pause", duration_sec: 10, enabled: true },
 			],
@@ -290,9 +304,46 @@ export const isStepAvailable = (kind, snapshot) => {
 	if (kind === "points_table") return Boolean(snapshot.points_table?.standings?.length);
 	if (kind === "stats") return Boolean(snapshot.top_stats?.players?.length);
 	if (kind === "fixtures") return Boolean(snapshot.matches?.length);
+	if (kind === "bracket") return Boolean(snapshot.knockout?.has_teams);
 	if (kind === "last_result") return Boolean(snapshot.last_completed_match?.match);
 	if (kind === "next_match") return Boolean(snapshot.next_scheduled_match?.match);
 	return false;
+};
+
+/**
+ * Once a team has qualified the bracket belongs on air, even for a saved flow that predates the card.
+ * It joins right after the stats card (or the points table, or last) unless the rotation already has it.
+ */
+export const withBracketStep = (rotation, snapshot) => {
+	const steps = rotation || [];
+	if (!steps.length || !snapshot?.knockout?.has_teams) return steps;
+	if (steps.some((step) => step.kind === "bracket")) return steps;
+	const anchor = steps.findLastIndex((step) => step.kind === "stats" || step.kind === "points_table");
+	const bracket = { id: "step-bracket-auto", kind: "bracket", duration_sec: BRACKET_SEC, enabled: true };
+	const at = anchor < 0 ? steps.length : anchor + 1;
+	return [...steps.slice(0, at), bracket, ...steps.slice(at)];
+};
+
+/** A made-up eight-team bracket for the admin preview: Qualifier 1 is set, the rest is still TBD. */
+export const sampleKnockout = (standings = []) => {
+	const names = ["Carrom Kings", "Board Strikers", "Queen Hunters", "Pocket Aces"];
+	const team = (index) => {
+		const row = standings[index];
+		return { id: index + 1, name: row?.team_name || names[index], logo_url: row?.logo_url || null };
+	};
+	const side = (source, index = null) => ({ team: index == null ? null : team(index), source, is_winner: false });
+	const slot = (key, label, sides) => ({ key, label, match_id: null, status: null, outcome: null, net_points: null, sides });
+	return {
+		format: "full",
+		has_teams: true,
+		champion: null,
+		slots: [
+			slot("qualifier1", "Qualifier 1", [side("#1", 0), side("#2", 1)]),
+			slot("eliminator", "Eliminator", [side("#3", 2), side("#4", 3)]),
+			slot("qualifier2", "Qualifier 2", [side("Winner of Eliminator"), side("Loser of Qualifier 1")]),
+			slot("final", "Final", [side("Winner of Qualifier 1"), side("Winner of Qualifier 2")]),
+		],
+	};
 };
 
 const layoutForScene = (scene) => {
@@ -334,7 +385,10 @@ const resolvePinnedScene = (director, snapshot, remainingSec, progress) => {
 			? { ...base, scene: "scorecard", layout: "card", bundle: fallbackActive }
 			: { ...base, scene: "points_table", layout: "card", bundle: null };
 	}
-	if (card === "points_table" || card === "stats" || card === "fixtures") {
+	if (card === "bracket" && !isStepAvailable("bracket", snapshot)) {
+		return { ...base, scene: "points_table", layout: "card", bundle: null };
+	}
+	if (card === "points_table" || card === "stats" || card === "bracket" || card === "fixtures") {
 		return { ...base, scene: card, layout: "card", bundle: null };
 	}
 	return { ...base, scene: "clean", layout: "none", bundle: null };
@@ -468,7 +522,7 @@ export const resolveActiveScene = (snapshot, nowMs = Date.now()) => {
 	}
 
 	// 4. Drag-and-drop Rotation sequence.
-	const availableSteps = (flow.rotation || []).filter((step) => step.enabled !== false && isStepAvailable(step.kind, snapshot));
+	const availableSteps = withBracketStep(flow.rotation, snapshot).filter((step) => step.enabled !== false && isStepAvailable(step.kind, snapshot));
 	if (!availableSteps.length) {
 		return { scene: "clean", layout: "none", bundle: null, progress: null, remainingSec: null, source: "idle_empty", themeAccent };
 	}
