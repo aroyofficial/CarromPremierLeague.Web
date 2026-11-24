@@ -12,25 +12,27 @@
 	>
 		<div class="ip-drawer-body bdd-body" v-loading="loading && !snapshot">
 			<section class="bdd-monitor-card">
-				<div class="bdd-monitor-bar">
-					<div class="bdd-air-pill">
-						<span class="bdd-dot"></span>
-						<strong>ON AIR NOW</strong>
-						<span class="bdd-scene-name">{{ activeSummary }}</span>
-					</div>
-					<el-checkbox v-model="showSafeZone" label="FB Live safe zone" size="small" />
-				</div>
+				<WidgetPreviewStage>
+					<template #title>
+						<div class="bdd-air-pill">
+							<span class="bdd-dot"></span>
+							<strong>ON AIR NOW</strong>
+							<span class="bdd-scene-name">{{ activeSummary }}</span>
+						</div>
+					</template>
+					<template #extra>
+						<el-checkbox v-model="showSafeZone" label="FB Live safe zone" size="small" />
+					</template>
+					<template #backdrop>
+						<div class="bdd-backdrop" aria-hidden="true"></div>
+					</template>
 
-				<div ref="viewportRef" class="bdd-viewport">
-					<div class="bdd-backdrop" aria-hidden="true"></div>
-					<div
-						class="bdd-scaled"
-						:style="{ transform: `translate(-50%, -50%) scale(${scale})` }"
-					>
-						<BroadcastStageScene v-if="snapshot" :snapshot="snapshot" :now-ms="syncedNowMs" />
-					</div>
-					<div v-if="showSafeZone" class="bdd-safe-guide" aria-hidden="true"></div>
-				</div>
+					<BroadcastStageScene v-if="snapshot" :snapshot="snapshot" :now-ms="syncedNowMs" />
+
+					<template #overlay>
+						<div v-if="showSafeZone" class="bdd-safe-guide" aria-hidden="true"></div>
+					</template>
+				</WidgetPreviewStage>
 			</section>
 
 			<section class="ip-section">
@@ -163,6 +165,7 @@ import { useLive } from "@/utils/useLive";
 import { DIRECTOR_PIN_CARDS, computeClockOffset, resolveActiveScene } from "@/utils/widgetFlow";
 import { awaitsCompletion, isReady, resultLine } from "@/utils/widgetScore";
 import BroadcastStageScene from "@/views/widgets/BroadcastStageScene.vue";
+import WidgetPreviewStage from "./WidgetPreviewStage.vue";
 
 const props = defineProps({
 	modelValue: { type: Boolean, default: false },
@@ -179,13 +182,10 @@ const loading = ref(false);
 const busyKey = ref("");
 const matchBusy = ref(false);
 const showSafeZone = ref(false);
-const viewportRef = ref(null);
-const scale = ref(0.4);
 const clockOffsetMs = ref(0);
 const clientNowMs = ref(Date.now());
 const syncedNowMs = computed(() => clientNowMs.value + clockOffsetMs.value);
 
-let resizeObserver = null;
 let tickTimer = null;
 
 const activeState = computed(() => resolveActiveScene(snapshot.value, syncedNowMs.value));
@@ -239,7 +239,6 @@ const loadPreview = async () => {
 			clockOffsetMs.value = computeClockOffset(data.server_now, Date.now());
 		}
 		clientNowMs.value = Date.now();
-		measure();
 	} catch (error) {
 		notify.error(apiErrorMessage(error, "Could not load live stream preview."));
 	} finally {
@@ -301,12 +300,6 @@ const concludeMatch = async (matchId) => {
 	}
 };
 
-const measure = () => {
-	const el = viewportRef.value;
-	if (!el) return;
-	scale.value = (el.clientWidth || 760) / 1920;
-};
-
 useLive(loadPreview, { areas: areas.widget });
 
 watch(
@@ -317,19 +310,12 @@ watch(
 );
 
 onMounted(() => {
-	measure();
-	if (typeof ResizeObserver !== "undefined" && viewportRef.value) {
-		resizeObserver = new ResizeObserver(measure);
-		resizeObserver.observe(viewportRef.value);
-	}
 	tickTimer = window.setInterval(() => {
 		clientNowMs.value = Date.now();
-		measure();
 	}, 1000);
 });
 
 onUnmounted(() => {
-	resizeObserver?.disconnect();
 	if (tickTimer) window.clearInterval(tickTimer);
 });
 </script>
@@ -346,14 +332,6 @@ onUnmounted(() => {
 	border-radius: 14px;
 	border: 1px solid var(--el-border-color-lighter, #e2e8f0);
 	background: var(--el-fill-color-blank, #fff);
-}
-
-.bdd-monitor-bar {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 10px;
-	margin-bottom: 10px;
 }
 
 .bdd-air-pill {
@@ -379,31 +357,11 @@ onUnmounted(() => {
 	font-size: 12px;
 }
 
-.bdd-viewport {
-	position: relative;
-	width: 100%;
-	aspect-ratio: 16 / 9;
-	border-radius: 10px;
-	overflow: hidden;
-	background: radial-gradient(circle at 50% 45%, #2b3446 0%, #0f172a 100%);
-	border: 1px solid #1e293b;
-}
-
 .bdd-backdrop {
 	position: absolute;
 	inset: 0;
 	background-image: radial-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px);
 	background-size: 24px 24px;
-}
-
-.bdd-scaled {
-	position: absolute;
-	left: 50%;
-	top: 50%;
-	width: 1920px;
-	height: 1080px;
-	transform-origin: center center;
-	pointer-events: none;
 }
 
 .bdd-safe-guide {

@@ -143,6 +143,9 @@
 								>
 									Director
 								</el-button>
+								<el-button size="small" :aria-label="`Preview ${widget.name}`" @click="openPreview(widget)">
+									<el-icon class="me-1"><View /></el-icon>Preview
+								</el-button>
 								<el-button size="small" @click="openEdit(widget)">
 									{{ widget.widget_type === "season_flow" ? "Studio" : "Edit" }}
 								</el-button>
@@ -177,6 +180,8 @@
 			@updated="load"
 		/>
 
+		<WidgetPreviewDrawer v-model="previewOpen" :widget="previewing" :seasons-by-id="seasonsById" />
+
 		<SecretRevealDialog
 			v-model="linkOpen"
 			:title="linkTitle"
@@ -193,8 +198,9 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { ElMessageBox } from "element-plus";
-import { Lock, MoreFilled, Plus, Search, VideoCamera } from "@element-plus/icons-vue";
+import { Lock, MoreFilled, Plus, Search, VideoCamera, View } from "@element-plus/icons-vue";
 import BroadcastDirectorDrawer from "@/components/admin/integrations/BroadcastDirectorDrawer.vue";
+import WidgetPreviewDrawer from "@/components/admin/integrations/WidgetPreviewDrawer.vue";
 import WidgetDrawer from "@/components/admin/integrations/WidgetDrawer.vue";
 import SecretRevealDialog from "@/components/admin/integrations/SecretRevealDialog.vue";
 import { adminApi, apiErrorMessage } from "@/services/adminService";
@@ -246,6 +252,9 @@ const busyId = ref(null);
 
 const directorOpen = ref(false);
 const directing = ref(null);
+
+const previewOpen = ref(false);
+const previewing = ref(null);
 
 const linkOpen = ref(false);
 const widgetLink = ref("");
@@ -343,6 +352,12 @@ const openDirector = (widget) => {
 	if (!canManage.value) return;
 	directing.value = widget;
 	directorOpen.value = true;
+};
+
+const openPreview = (widget) => {
+	if (!canManage.value) return;
+	previewing.value = widget;
+	previewOpen.value = true;
 };
 
 const submit = async (payload) => {

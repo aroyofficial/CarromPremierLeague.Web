@@ -101,6 +101,20 @@ export const DIRECTOR_PIN_CARDS = Object.freeze([
 	{ card: "scorecard", label: "Full Scorecard" },
 ]);
 
+// The scenes an admin can force on a season-flow preview to inspect each card's exact framing.
+export const PREVIEW_SCENES = Object.freeze([
+	{ value: "auto", label: "Auto Live" },
+	{ value: "live_bar", label: "Live Bar" },
+	{ value: "match_ready", label: "Ready" },
+	{ value: "toss", label: "Toss" },
+	{ value: "match_result", label: "Result" },
+	{ value: "points_table", label: "Points" },
+	{ value: "stats", label: "Stats" },
+	{ value: "bracket", label: "Bracket" },
+	{ value: "champion", label: "Champion" },
+	{ value: "fixtures", label: "Fixtures" },
+]);
+
 let stepCounter = 0;
 export const makeStepId = (kind = "step") => {
 	stepCounter = (stepCounter + 1) % 100000;

@@ -275,68 +275,68 @@
 
 		<aside class="sfb-monitor-col">
 			<div class="sfb-monitor-sticky">
-				<div class="sfb-monitor-head">
-					<div>
+				<WidgetPreviewStage>
+					<template #title>
 						<span class="sfb-onair-dot"></span>
-						<strong>16:9 Stream Preview</strong>
-						<small>1920×1080</small>
-					</div>
-					<el-checkbox v-model="showSafeZone" label="FB Live safe zone" size="small" />
-				</div>
+						<strong>Stream Preview</strong>
+					</template>
+					<template #extra>
+						<el-checkbox v-model="showSafeZone" label="FB Live safe zone" size="small" />
+					</template>
 
-				<div class="sfb-scene-tabs" role="tablist" aria-label="Preview scene">
-					<button
-						v-for="tab in PREVIEW_TABS"
-						:key="tab.value"
-						type="button"
-						class="sfb-scene-tab"
-						:class="{ 'is-active': previewMode === tab.value }"
-						@click="previewMode = tab.value"
-					>
-						{{ tab.label }}
-					</button>
-				</div>
+					<template #controls>
+						<div class="sfb-scene-tabs" role="tablist" aria-label="Preview scene">
+							<button
+								v-for="tab in PREVIEW_TABS"
+								:key="tab.value"
+								type="button"
+								class="sfb-scene-tab"
+								:class="{ 'is-active': previewMode === tab.value }"
+								@click="previewMode = tab.value"
+							>
+								{{ tab.label }}
+							</button>
+						</div>
+					</template>
 
-				<div ref="viewportRef" class="sfb-viewport">
-					<div class="sfb-board-backdrop" aria-hidden="true">
-						<div class="sfb-board-frame">
-							<div class="sfb-board-surface">
-								<span class="sfb-pocket is-tl"></span>
-								<span class="sfb-pocket is-tr"></span>
-								<span class="sfb-pocket is-bl"></span>
-								<span class="sfb-pocket is-br"></span>
-								<div class="sfb-board-circle"></div>
+					<template #backdrop>
+						<div class="sfb-board-backdrop" aria-hidden="true">
+							<div class="sfb-board-frame">
+								<div class="sfb-board-surface">
+									<span class="sfb-pocket is-tl"></span>
+									<span class="sfb-pocket is-tr"></span>
+									<span class="sfb-pocket is-bl"></span>
+									<span class="sfb-pocket is-br"></span>
+									<div class="sfb-board-circle"></div>
+								</div>
 							</div>
 						</div>
-					</div>
+					</template>
 
-					<div
-						class="sfb-scaled-stage"
-						:style="{ transform: `translate(-50%, -50%) scale(${previewScale})` }"
-					>
-						<BroadcastStageScene
-							v-if="previewSnapshot"
-							:snapshot="previewSnapshot"
-							:flow-override="modelValue"
-							:preview-scene="previewMode"
-							:now-ms="nowMs"
-						/>
-					</div>
+					<BroadcastStageScene
+						v-if="previewSnapshot"
+						:snapshot="previewSnapshot"
+						:flow-override="modelValue"
+						:preview-scene="previewMode"
+						:now-ms="nowMs"
+					/>
 
-					<div v-if="showSafeZone" class="sfb-safe-overlay" aria-hidden="true">
-						<div class="sfb-fb-badge">
-							<span class="sfb-fb-live">LIVE</span>
-							<span class="sfb-fb-views">1.4K</span>
+					<template #overlay>
+						<div v-if="showSafeZone" class="sfb-safe-overlay" aria-hidden="true">
+							<div class="sfb-fb-badge">
+								<span class="sfb-fb-live">LIVE</span>
+								<span class="sfb-fb-views">1.4K</span>
+							</div>
+							<div class="sfb-safe-box">
+								<span>Title-safe 16:9 zone</span>
+							</div>
 						</div>
-						<div class="sfb-safe-box">
-							<span>Title-safe 16:9 zone</span>
-						</div>
-					</div>
-				</div>
+					</template>
 
-				<p class="sfb-monitor-caption">
-					Simulated tabletop camera feed behind your transparent <code>1920×1080</code> overlay. Click any stage or card to inspect its exact framing.
-				</p>
+					<template #caption>
+						Simulated tabletop camera feed behind your transparent <code>1920×1080</code> overlay. Pick a screen size to see how it fits, or go full screen. Click any stage or card to inspect its exact framing.
+					</template>
+				</WidgetPreviewStage>
 			</div>
 		</aside>
 	</div>
@@ -344,12 +344,14 @@
 
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import WidgetPreviewStage from "./WidgetPreviewStage.vue";
 import { adminApi } from "@/services/adminService";
 import { unwrap } from "@/utils/adminHelpers";
 import { areas } from "@/utils/realtimeRules";
 import { useLive } from "@/utils/useLive";
 import {
 	FLOW_PRESETS,
+	PREVIEW_SCENES,
 	ROTATION_CARD_MAP,
 	ROTATION_CARDS,
 	TRANSITION_STYLES,
@@ -373,18 +375,7 @@ const ACCENTS = [
 	{ value: "crimson", label: "Crimson", swatch: "#f43f5e" },
 ];
 
-const PREVIEW_TABS = [
-	{ value: "auto", label: "Auto Live" },
-	{ value: "live_bar", label: "Live Bar" },
-	{ value: "match_ready", label: "Ready" },
-	{ value: "toss", label: "Toss" },
-	{ value: "match_result", label: "Result" },
-	{ value: "points_table", label: "Points" },
-	{ value: "stats", label: "Stats" },
-	{ value: "bracket", label: "Bracket" },
-	{ value: "champion", label: "Champion" },
-	{ value: "fixtures", label: "Fixtures" },
-];
+const PREVIEW_TABS = PREVIEW_SCENES;
 
 const stages = computed(() => props.modelValue?.match_stages || {});
 const rotation = computed(() => props.modelValue?.rotation || []);
@@ -393,14 +384,11 @@ const cardMeta = (kind) => ROTATION_CARD_MAP[kind] || ROTATION_CARDS[0];
 const previewMode = ref("live_bar");
 const showSafeZone = ref(true);
 const previewSnapshot = ref(null);
-const viewportRef = ref(null);
-const previewScale = ref(0.24);
 const nowMs = ref(Date.now());
 
 const dragging = ref(null);
 const dropIndex = ref(null);
 
-let resizeObserver = null;
 let clockTimer = null;
 let previewReq = 0;
 
@@ -555,13 +543,6 @@ const loadPreview = async () => {
 	}
 };
 
-const measureViewport = () => {
-	const el = viewportRef.value;
-	if (!el) return;
-	const width = el.clientWidth || 420;
-	previewScale.value = width / 1920;
-};
-
 useLive(loadPreview, { areas: areas.widget });
 
 watch(
@@ -573,18 +554,12 @@ watch(
 );
 
 onMounted(() => {
-	measureViewport();
-	if (typeof ResizeObserver !== "undefined" && viewportRef.value) {
-		resizeObserver = new ResizeObserver(measureViewport);
-		resizeObserver.observe(viewportRef.value);
-	}
 	clockTimer = window.setInterval(() => {
 		nowMs.value = Date.now();
 	}, 1000);
 });
 
 onUnmounted(() => {
-	resizeObserver?.disconnect();
 	if (clockTimer) window.clearInterval(clockTimer);
 	window.clearTimeout(replayTimer);
 });
@@ -971,24 +946,6 @@ onUnmounted(() => {
 	background: var(--el-fill-color-blank, #fff);
 }
 
-.sfb-monitor-head {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 8px;
-	margin-bottom: 10px;
-}
-
-.sfb-monitor-head strong {
-	font-size: 13.5px;
-	margin-right: 6px;
-}
-
-.sfb-monitor-head small {
-	font-size: 11.5px;
-	opacity: 0.65;
-}
-
 .sfb-onair-dot {
 	display: inline-block;
 	width: 8px;
@@ -1002,7 +959,6 @@ onUnmounted(() => {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 5px;
-	margin-bottom: 10px;
 }
 
 .sfb-scene-tab {
@@ -1017,19 +973,9 @@ onUnmounted(() => {
 }
 
 .sfb-scene-tab.is-active {
-	background: #0f172a;
-	border-color: #0f172a;
-	color: #f8fafc;
-}
-
-.sfb-viewport {
-	position: relative;
-	width: 100%;
-	aspect-ratio: 16 / 9;
-	border-radius: 10px;
-	overflow: hidden;
-	background: radial-gradient(circle at 50% 42%, #2c3548 0%, #111827 100%);
-	border: 1px solid #1e293b;
+	background: #d4a017;
+	border-color: #d4a017;
+	color: #0f172a;
 }
 
 .sfb-board-backdrop {
@@ -1079,20 +1025,11 @@ onUnmounted(() => {
 .sfb-pocket.is-bl { bottom: 5px; left: 5px; }
 .sfb-pocket.is-br { bottom: 5px; right: 5px; }
 
-.sfb-scaled-stage {
-	position: absolute;
-	left: 50%;
-	top: 50%;
-	width: 1920px;
-	height: 1080px;
-	transform-origin: center center;
-	pointer-events: none;
-}
-
 .sfb-safe-overlay {
 	position: absolute;
 	inset: 0;
 	pointer-events: none;
+	container-type: size;
 }
 
 .sfb-fb-badge {
@@ -1102,7 +1039,7 @@ onUnmounted(() => {
 	display: inline-flex;
 	align-items: center;
 	gap: 5px;
-	font-size: 9px;
+	font-size: clamp(8px, 1.1cqw, 22px);
 	font-weight: 800;
 }
 
@@ -1131,15 +1068,8 @@ onUnmounted(() => {
 	position: absolute;
 	top: 4px;
 	right: 6px;
-	font-size: 9px;
+	font-size: clamp(8px, 1.1cqw, 22px);
 	color: rgba(250, 204, 21, 0.8);
-}
-
-.sfb-monitor-caption {
-	margin: 10px 0 0;
-	font-size: 11.5px;
-	line-height: 1.45;
-	opacity: 0.72;
 }
 
 @media (max-width: 980px) {
