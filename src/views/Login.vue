@@ -221,6 +221,7 @@
 						:methods="mfa.methods"
 						@done="finishMfa"
 						@cancel="step = 'login'"
+						@expired="endAsExpired"
 					/>
 
 					<el-form novalidate
@@ -233,6 +234,15 @@
 						class="panel-body"
 						@submit.prevent="submit"
 					>
+						<el-alert
+							v-if="expiredNotice"
+							:title="expiredNotice"
+							type="warning"
+							show-icon
+							class="mb-3"
+							role="status"
+							@close="expiredNotice = ''"
+						/>
 						<el-alert v-if="notice" :title="notice" type="success" show-icon class="mb-3" @close="notice = ''" />
 						<el-alert
 							v-if="errorMessage"
@@ -314,6 +324,11 @@ import { deviceLabel } from "@/utils/deviceSession";
 import { formatDuration, MIN_PASSWORD_LENGTH, passwordReady } from "@/utils/passwordRules";
 import { storeCredential } from "@/utils/passwordTools";
 import { appRedirect } from "@/utils/queryState";
+import {
+	DEVICE_REQUEST_EXPIRED_MESSAGE,
+	WAIT_TIMEOUT_MESSAGE,
+	isGone,
+} from "@/utils/signInNotice";
 
 const WAIT_LIMIT_SECONDS = 600;
 const RESEND_COOLDOWN_SECONDS = 30;
@@ -329,6 +344,7 @@ const formRef = ref(null);
 const forgotRef = ref(null);
 const resetRef = ref(null);
 const errorMessage = ref("");
+const expiredNotice = ref("");
 const notice = ref("");
 const recoverError = ref("");
 const recoverNotice = ref("");
@@ -648,6 +664,7 @@ const safeRedirect = () =>
 
 const submit = async () => {
 	errorMessage.value = "";
+	expiredNotice.value = "";
 	notice.value = "";
 	const valid = await formRef.value.validate().catch(() => false);
 	if (!valid) return;
@@ -718,6 +735,10 @@ const pollClaim = (requestId) => {
 			step.value = "login";
 			await goIn();
 		} catch (error) {
+			if (isGone(error)) {
+				endAsExpired(DEVICE_REQUEST_EXPIRED_MESSAGE);
+				return;
+			}
 			failWait(error?.detail || error?.message || "The other device did not approve this sign-in.");
 		}
 	}, 3000);
@@ -725,7 +746,7 @@ const pollClaim = (requestId) => {
 
 watch(waitRemaining, (remaining) => {
 	if (step.value === "wait" && waitState.value === "waiting" && waitStarted.value && remaining <= 0) {
-		failWait("The request expired after 10 minutes without an answer.");
+		endAsExpired(WAIT_TIMEOUT_MESSAGE);
 	}
 });
 
@@ -735,6 +756,32 @@ const cancelWait = () => {
 	notice.value = "";
 	errorMessage.value = "";
 };
+
+// A sign-in check or device request that ran out sends the admin back to the form, with the reason shown.
+const endAsExpired = (message) => {
+	window.clearInterval(waitTimer);
+	taking.value = false;
+	waitRequestId.value = "";
+	waitError.value = "";
+	waitState.value = "waiting";
+	mfa.token = "";
+	mfa.methods = [];
+	form.password = "";
+	notice.value = "";
+	errorMessage.value = "";
+	expiredNotice.value = message || "Your sign-in expired. Sign in again to continue.";
+	step.value = "login";
+};
+
+// The app sets this when a session ends elsewhere (for example, after a 401). It shows once, then clears.
+const consumeSignInNotice = () => {
+	const message = authStore.signInNotice;
+	if (!message) return;
+	authStore.signInNotice = "";
+	endAsExpired(message);
+};
+
+watch(() => authStore.signInNotice, consumeSignInNotice);
 
 const takeOver = async () => {
 	if (!waitRequestId.value || taking.value) return;
@@ -748,6 +795,10 @@ const takeOver = async () => {
 		step.value = "login";
 		await goIn();
 	} catch (error) {
+		if (isGone(error)) {
+			endAsExpired(DEVICE_REQUEST_EXPIRED_MESSAGE);
+			return;
+		}
 		failWait(error?.detail || error?.message || "The session could not be taken.");
 	} finally {
 		taking.value = false;
@@ -774,6 +825,7 @@ onMounted(() => {
 	clock = window.setInterval(() => {
 		now.value = Date.now();
 	}, 1000);
+	consumeSignInNotice();
 	focusView();
 });
 

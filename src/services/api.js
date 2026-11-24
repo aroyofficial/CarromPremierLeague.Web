@@ -37,7 +37,9 @@ api.interceptors.response.use(
 		const failedLogin = /auth\/login\/?$/.test(path);
 		if (error.response?.status === 401 && authToken.get() && !background && !failedLogin) {
 			authToken.clear();
-			window.dispatchEvent(new CustomEvent("cpl:session-expired"));
+			// The server's message tells an idle timeout apart from a token that simply ran out.
+			const message = error.response?.data?.message;
+			window.dispatchEvent(new CustomEvent("cpl:session-expired", { detail: { message } }));
 		}
 		if (error.response?.status === 403 && authToken.get()) {
 			window.dispatchEvent(new CustomEvent("cpl:permission-denied"));

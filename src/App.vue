@@ -30,6 +30,7 @@ import { useAuthStore } from "@/store/authStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import { assistantIsVisible } from "@/utils/assistantVisibility";
 import { Routes } from "@/utils/constants";
+import { sessionExpiredMessage } from "@/utils/signInNotice";
 
 const route = useRoute();
 const router = useRouter();
@@ -92,12 +93,12 @@ const showPublicAssistant = computed(
 		}),
 );
 
-const onSessionExpired = () => {
+const onSessionExpired = (event) => {
 	authStore.dropLocal();
-	notify.warning("Your admin session has expired. Please sign in again.", { critical: true });
-	// The login page stays put, so "You're already signed in" is not replaced by the public site.
-	if (route.path === Routes.LOGIN || route.path === Routes.HOME) return;
-	router.push(Routes.HOME);
+	authStore.signInNotice = sessionExpiredMessage(event?.detail?.message);
+	// The sign-in page shows the notice. After signing in again, an admin returns to the page they were on.
+	if (route.path === Routes.LOGIN) return;
+	router.push({ path: Routes.LOGIN, query: isAdminRoute.value ? { redirect: route.fullPath } : {} });
 };
 
 const onStorage = (event) => {

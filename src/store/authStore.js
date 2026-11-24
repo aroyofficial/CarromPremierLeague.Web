@@ -22,6 +22,8 @@ export const useAuthStore = defineStore("auth", {
 		mustChangePassword: false,
 		profileLoaded: false,
 		loading: false,
+		// Why the sign-in page is showing again (a session or sign-in check ran out). Read once by the sign-in page.
+		signInNotice: "",
 	}),
 
 	getters: {

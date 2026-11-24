@@ -91,6 +91,7 @@ import { ArrowRight, Iphone, Key, Message, RefreshLeft, User } from "@element-pl
 import CodeBoxes from "@/components/admin/CodeBoxes.vue";
 import { authService } from "@/services/authService";
 import { unwrap } from "@/utils/adminHelpers";
+import { isGone, mfaExpiredMessage } from "@/utils/signInNotice";
 import { usePasskey } from "@/utils/webauthn";
 
 const RESEND_SECONDS = 30;
@@ -99,7 +100,14 @@ const props = defineProps({
 	mfaToken: { type: String, required: true },
 	methods: { type: Array, default: () => [] },
 });
-const emit = defineEmits(["done", "cancel"]);
+const emit = defineEmits(["done", "cancel", "expired"]);
+
+// A 410 means this sign-in check has run out. The page goes back to sign-in with the reason.
+const expireIfGone = (error) => {
+	if (!isGone(error)) return false;
+	emit("expired", mfaExpiredMessage(error));
+	return true;
+};
 
 const code = ref("");
 const method = ref("");
@@ -147,6 +155,7 @@ const sendEmail = async () => {
 		resendAt.value = Date.now() + RESEND_SECONDS * 1000;
 		now.value = Date.now();
 	} catch (error) {
+		if (expireIfGone(error)) return;
 		errorMessage.value = error?.message || "The code could not be sent.";
 	} finally {
 		locked.value = false;
@@ -162,6 +171,7 @@ const verify = async () => {
 		const data = unwrap(await authService.verifyMfa({ mfa_token: props.mfaToken, method: method.value, code: code.value }));
 		emit("done", data);
 	} catch (error) {
+		if (expireIfGone(error)) return;
 		errorMessage.value = error?.message || "That code was not accepted.";
 		code.value = "";
 	} finally {
@@ -182,6 +192,7 @@ const signInWithPasskey = async () => {
 		const data = unwrap(await authService.verifyMfa({ mfa_token: props.mfaToken, method: "passkey", credential }));
 		emit("done", data);
 	} catch (error) {
+		if (expireIfGone(error)) return;
 		if (error?.name !== "NotAllowedError") errorMessage.value = error?.message || "That passkey was not accepted.";
 	} finally {
 		passkeyPhase.value = "";
